@@ -1,5 +1,8 @@
-def main():
-    print("Hello from 1049-deloitte-project!")
+from workplan_agent.cli import app
+
+
+def main() -> None:
+    app()
 
 
 if __name__ == "__main__":
