@@ -1,0 +1,17 @@
+# Work Breakdown Structure
+
+**Project:** {{ project_title }}  
+**Client:** {{ client_name }}
+
+## Phases
+
+{% for phase in wbs.phases %}- {{ phase }}
+{% endfor %}
+
+## Work Packages
+
+| ID | Level | Name | Description | Deliverables | Owner | Duration | Dependencies |
+|----|-------|------|-------------|--------------|-------|----------|--------------|
+{% for wp in wbs.work_packages -%}
+| {{ wp.id }} | {{ wp.level }} | {{ wp.name }} | {{ wp.description }} | {{ wp.deliverables | join(', ') }} | {{ wp.owner_role }} | {{ wp.estimated_duration }} | {{ wp.dependencies | join(', ') }} |
+{% endfor %}

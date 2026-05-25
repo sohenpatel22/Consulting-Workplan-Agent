@@ -1,0 +1,39 @@
+# RAID Log
+
+**Project:** {{ project_title }}  
+**Client:** {{ client_name }}
+
+## Risks
+
+| ID | Title | Description | Severity | Owner | Status | WBS Links | Mitigation |
+|----|-------|-------------|----------|-------|--------|-----------|------------|
+{% for item in raid.risks -%}
+| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.severity }} | {{ item.owner }} | {{ item.status }} | {{ item.related_wbs_ids | join(', ') }} | {{ item.mitigation }} |
+{% endfor %}
+
+## Assumptions
+
+| ID | Title | Description | Severity | Owner | Status | WBS Links |
+|----|-------|-------------|----------|-------|--------|-----------|
+{% for item in raid.assumptions -%}
+| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.severity }} | {{ item.owner }} | {{ item.status }} | {{ item.related_wbs_ids | join(', ') }} |
+{% endfor %}
+
+## Issues
+
+| ID | Title | Description | Severity | Owner | Status | WBS Links |
+|----|-------|-------------|----------|-------|--------|-----------|
+{% for item in raid.issues -%}
+| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.severity }} | {{ item.owner }} | {{ item.status }} | {{ item.related_wbs_ids | join(', ') }} |
+{% endfor %}
+{% if not raid.issues %}
+| — | _No issues identified_ | | | | | |
+{% endif %}
+
+## Dependencies
+
+| ID | Title | Description | Severity | Owner | Status | WBS Links |
+|----|-------|-------------|----------|-------|--------|-----------|
+{% for item in raid.dependencies -%}
+| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.severity }} | {{ item.owner }} | {{ item.status }} | {{ item.related_wbs_ids | join(', ') }} |
+{% endfor %}
