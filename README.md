@@ -45,13 +45,17 @@ Options:
 
 ### Interactive Review
 
-After generation, the CLI prompts:
+After generation, the CLI shows a numbered menu:
 
-- `[a]` Approve — finalize and write `status.json`
-- `[w]` WBS feedback — revise work breakdown
-- `[r]` RAID feedback — revise RAID log
-- `[b]` Both — revise WBS and RAID
-- `[q]` Quit without approving
+```
+  [1] Approve — finalize and save status.json
+  [2] WBS feedback — revise work breakdown
+  [3] RAID feedback — revise RAID log
+  [4] Both — revise WBS and RAID
+  [5] Quit — exit without approving
+```
+
+Enter **1–5** when prompted (words like `approve`, `both`, `quit` also work).
 
 Each revision is saved under `versions/vN/`.
 
@@ -76,6 +80,8 @@ Configure via `.env`:
 | `accurate` | claude-sonnet-4-20250514 | WBS, RAID generation |
 
 Override with `MODEL_PROFILE_FAST`, `MODEL_PROFILE_BALANCED`, `MODEL_PROFILE_ACCURATE`.
+
+The provider router picks OpenAI or Anthropic per profile automatically. If you only have an OpenAI key, either add `ANTHROPIC_API_KEY` or set `MODEL_PROFILE_ACCURATE=gpt-4o` in `.env` (otherwise WBS/RAID fall back to the balanced OpenAI model with a warning).
 
 ## Testing
 

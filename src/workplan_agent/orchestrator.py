@@ -17,6 +17,7 @@ from workplan_agent.render import (
     save_status,
     save_version_snapshot,
 )
+from workplan_agent.review import REVIEW_MENU, ReviewAction, parse_review_choice
 
 console = Console()
 
@@ -105,36 +106,35 @@ class OrchestratorAgent:
         assert session.raid is not None
 
         while session.revision_count < self.max_revisions:
-            console.print(
-                Panel(
-                    "[a] Approve  [w] WBS feedback  [r] RAID feedback  "
-                    "[b] Both  [q] Quit without approving",
-                    title="Review",
-                )
-            )
-            choice = console.input("[bold]Your choice:[/bold] ").strip().lower()
+            console.print(Panel(REVIEW_MENU.strip(), title="Review"))
+            raw = console.input("[bold]Enter choice (1-5):[/bold] ").strip()
+            action = parse_review_choice(raw)
 
-            if choice == "a":
+            if action is None:
+                console.print(
+                    "[red]Invalid choice.[/red] Enter 1–5, or: "
+                    "approve, wbs, raid, both, quit"
+                )
+                continue
+
+            if action == ReviewAction.APPROVE:
                 session.status = SessionStatus.APPROVED
                 save_artifacts(self.output_dir, session)
                 save_status(self.output_dir, session)
                 console.print("[green]Workplan approved![/green]")
                 return
 
-            if choice == "q":
+            if action == ReviewAction.QUIT:
                 console.print("[yellow]Exiting without approval.[/yellow]")
                 save_status(self.output_dir, session)
                 return
 
             target_map = {
-                "w": RevisionTarget.WBS,
-                "r": RevisionTarget.RAID,
-                "b": RevisionTarget.BOTH,
+                ReviewAction.WBS: RevisionTarget.WBS,
+                ReviewAction.RAID: RevisionTarget.RAID,
+                ReviewAction.BOTH: RevisionTarget.BOTH,
             }
-            target = target_map.get(choice)
-            if target is None:
-                console.print("[red]Invalid choice. Try again.[/red]")
-                continue
+            target = target_map[action]
 
             feedback = console.input("[bold]Enter feedback:[/bold] ").strip()
             if not feedback:
