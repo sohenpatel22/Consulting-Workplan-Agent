@@ -86,5 +86,23 @@ def run_pipeline(
     console.print(f"Artifacts saved to {output.resolve()}")
 
 
+@app.command("serve")
+def serve_web(
+    host: str = typer.Option("127.0.0.1", "--host", help="Bind host"),
+    port: int = typer.Option(8000, "--port", help="Bind port"),
+    reload: bool = typer.Option(False, "--reload", help="Auto-reload on code changes"),
+) -> None:
+    """Start the web UI and REST API."""
+    import uvicorn
+
+    console.print(f"[bold]Workplan Agent[/bold] — http://{host}:{port}")
+    uvicorn.run(
+        "workplan_agent.api.app:app",
+        host=host,
+        port=port,
+        reload=reload,
+    )
+
+
 if __name__ == "__main__":
     app()

@@ -8,4 +8,5 @@ build/
 .pytest_cache/
 demo_out/
 out/
+data/
 *.log
