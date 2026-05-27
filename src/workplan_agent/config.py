@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     model_profile_accurate: str = "claude-sonnet-4-20250514"
 
     default_profile: ProfileName = "balanced"
-    max_revisions: int = 3
+    max_revisions: int = 0  # 0 = unlimited revisions
     max_repair_attempts: int = 2
 
     def get_model_for_profile(self, profile: ProfileName) -> str:

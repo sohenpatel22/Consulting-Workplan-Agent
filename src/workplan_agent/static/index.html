@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Workplan Agent</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div>
+        <h1>Workplan Agent</h1>
+        <p class="subtitle">Client brief → WBS + RAID with review</p>
+      </div>
+      <span id="healthBadge" class="badge">Checking API…</span>
+    </header>
+
+    <main class="layout">
+      <section class="panel" id="createPanel">
+        <h2>New session</h2>
+        <label class="field">
+          <span>Client brief</span>
+          <textarea
+            id="briefText"
+            rows="14"
+            placeholder="Paste your client brief (markdown or plain text)…"
+          ></textarea>
+        </label>
+        <div class="row">
+          <label class="checkbox">
+            <input type="checkbox" id="mockMode" checked />
+            Mock mode (offline demo — revisions are simulated, not AI-written)
+          </label>
+        </div>
+        <div class="actions">
+          <button type="button" id="loadSampleBtn" class="btn secondary">
+            Load sample brief
+          </button>
+          <button type="button" id="generateBtn" class="btn primary">
+            Generate workplan
+          </button>
+        </div>
+        <p id="createError" class="error hidden"></p>
+      </section>
+
+      <section class="panel hidden" id="progressPanel">
+        <h2>Generation</h2>
+        <p class="session-meta">
+          Session <code id="sessionIdLabel"></code>
+        </p>
+        <div class="progress">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <p id="phaseLabel" class="phase">Starting…</p>
+        <p id="progressError" class="error hidden"></p>
+      </section>
+
+      <section class="panel hidden" id="resultsPanel">
+        <div class="results-header">
+          <h2>Artifacts</h2>
+          <span id="statusBadge" class="badge"></span>
+        </div>
+        <div id="summaryCards" class="cards"></div>
+        <div id="openQuestions" class="notice hidden"></div>
+
+        <div class="tabs">
+          <button type="button" class="tab active" data-tab="wbs">WBS</button>
+          <button type="button" class="tab" data-tab="raid">RAID</button>
+          <button type="button" class="tab" data-tab="brief">Parsed brief</button>
+        </div>
+        <article id="tabContent" class="markdown-body"></article>
+
+        <section class="diff-panel hidden" id="diffPanel">
+          <h3>Changes in last revision</h3>
+          <p class="hint">Unified diff vs. the previous version.</p>
+          <div id="diffContent"></div>
+        </section>
+
+        <section class="review" id="reviewSection">
+          <h3>Review</h3>
+          <p class="hint" id="revisionCountHint">
+            <span id="revisionCountLabel">Revisions applied:</span>
+            <strong id="revisionCount">0</strong>
+          </p>
+          <p id="feedbackHint" class="feedback-hint hidden">
+            Enter your feedback below, then click <strong>Submit revision</strong>.
+          </p>
+          <p id="reviewStatus" class="review-status hidden" role="status" aria-live="polite"></p>
+          <div class="review-actions">
+            <button type="button" class="btn primary" data-action="approve">
+              Approve
+            </button>
+            <button type="button" class="btn secondary" data-action="wbs">
+              Revise WBS
+            </button>
+            <button type="button" class="btn secondary" data-action="raid">
+              Revise RAID
+            </button>
+            <button type="button" class="btn secondary" data-action="both">
+              Revise both
+            </button>
+          </div>
+          <label class="field hidden" id="feedbackField">
+            <span>Feedback</span>
+            <textarea id="feedbackText" rows="4" placeholder="Describe changes…"></textarea>
+          </label>
+          <div class="actions hidden" id="feedbackActions">
+            <button type="button" id="submitRevisionBtn" class="btn primary">
+              Submit revision
+            </button>
+            <button type="button" id="cancelRevisionBtn" class="btn secondary">
+              Cancel
+            </button>
+          </div>
+          <p id="reviewMessage" class="message hidden"></p>
+          <p id="reviewError" class="error hidden"></p>
+        </section>
+
+        <button type="button" id="newSessionBtn" class="btn link">
+          Start another session
+        </button>
+      </section>
+    </main>
+
+    <script src="/assets/app.js?v=4"></script>
+  </body>
+</html>

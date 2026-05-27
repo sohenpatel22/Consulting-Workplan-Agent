@@ -39,19 +39,23 @@ uv run workplan run --brief <path> --output <dir> [options]
 Options:
   --mock              Use mock LLM (offline demo)
   --profile TEXT      Model profile: fast | balanced | accurate
-  --max-revisions N   Max revision iterations (default: 3)
+  --max-revisions N   Max revision iterations (0 = unlimited, default from env)
   --non-interactive   Skip review loop
 ```
 
 ### Interactive Review
 
-After generation, the CLI prompts:
+After generation, the CLI shows a numbered menu:
 
-- `[a]` Approve — finalize and write `status.json`
-- `[w]` WBS feedback — revise work breakdown
-- `[r]` RAID feedback — revise RAID log
-- `[b]` Both — revise WBS and RAID
-- `[q]` Quit without approving
+```
+  [1] Approve — finalize and save status.json
+  [2] WBS feedback — revise work breakdown
+  [3] RAID feedback — revise RAID log
+  [4] Both — revise WBS and RAID
+  [5] Quit — exit without approving
+```
+
+Enter **1–5** when prompted (words like `approve`, `both`, `quit` also work).
 
 Each revision is saved under `versions/vN/`.
 
@@ -77,6 +81,30 @@ Configure via `.env`:
 
 Override with `MODEL_PROFILE_FAST`, `MODEL_PROFILE_BALANCED`, `MODEL_PROFILE_ACCURATE`.
 
+The provider router picks OpenAI or Anthropic per profile automatically. If you only have an OpenAI key, either add `ANTHROPIC_API_KEY` or set `MODEL_PROFILE_ACCURATE=gpt-4o` in `.env` (otherwise WBS/RAID fall back to the balanced OpenAI model with a warning).
+
+## Web UI + API
+
+Start the local server (UI at http://127.0.0.1:8000):
+
+```bash
+uv sync --dev
+uv run workplan serve
+```
+
+Open the UI, paste a brief (or load the sample), and generate. Mock mode works offline; uncheck it and set API keys in `.env` for live runs.
+
+### REST endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/health` | Health check |
+| `POST` | `/api/sessions` | Start generation (`brief_text`, `mock`) |
+| `GET` | `/api/sessions/{id}` | Poll session status and artifacts |
+| `POST` | `/api/sessions/{id}/review` | Approve or revise (`action`, `feedback`) |
+
+Session artifacts are persisted under `data/sessions/{id}/`.
+
 ## Testing
 
 ```bash
@@ -88,8 +116,10 @@ uv run pytest
 ```
 src/workplan_agent/
 ├── agents/          # Specialist agents (parser, WBS, RAID, revision)
+├── api/             # FastAPI REST layer
 ├── llm/             # Provider abstraction (OpenAI, Anthropic, mock)
 ├── models/          # Pydantic schemas
+├── static/          # Web UI assets
 ├── templates/       # Jinja2 Markdown templates
 ├── orchestrator.py  # Central workflow controller
 ├── render.py        # JSON/Markdown export
@@ -100,5 +130,5 @@ src/workplan_agent/
 
 - Stakeholder map and status report agents
 - Quality gates checklist
-- FastAPI REST layer + frontend
 - User-selectable speed vs accuracy profiles per run
+- Streaming progress and parallel generation where safe

@@ -1,0 +1,58 @@
+from dataclasses import dataclass, field
+from pathlib import Path
+from threading import Lock
+
+from workplan_agent.api.schemas import JobStatus, ReviewResponse
+from workplan_agent.models.session import WorkplanSession
+
+
+@dataclass
+class SessionRecord:
+    session: WorkplanSession
+    output_dir: Path
+    job_status: JobStatus = "queued"
+    phase: str = "queued"
+    error: str | None = None
+    mock: bool = False
+    brief_text: str = ""
+    review_in_progress: bool = False
+    review_error: str | None = None
+    last_review_result: ReviewResponse | None = None
+
+
+class SessionStore:
+    def __init__(self) -> None:
+        self._records: dict[str, SessionRecord] = {}
+        self._lock = Lock()
+
+    def create(self, record: SessionRecord) -> None:
+        with self._lock:
+            self._records[record.session.session_id] = record
+
+    def get(self, session_id: str) -> SessionRecord | None:
+        with self._lock:
+            return self._records.get(session_id)
+
+    def update(self, session_id: str, **kwargs: object) -> SessionRecord | None:
+        with self._lock:
+            record = self._records.get(session_id)
+            if record is None:
+                return None
+            for key, value in kwargs.items():
+                setattr(record, key, value)
+            return record
+
+
+_store: SessionStore | None = None
+
+
+def get_store() -> SessionStore:
+    global _store
+    if _store is None:
+        _store = SessionStore()
+    return _store
+
+
+def reset_store() -> None:
+    global _store
+    _store = SessionStore()
