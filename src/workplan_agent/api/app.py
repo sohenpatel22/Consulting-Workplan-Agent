@@ -10,6 +10,7 @@ from workplan_agent.api.schemas import (
     ReviewResponse,
     SessionResponse,
 )
+from workplan_agent.api.files import router as files_router
 from workplan_agent.api.service import (
     STATIC_DIR,
     apply_approve,
@@ -25,6 +26,8 @@ app = FastAPI(
     description="Brief → WBS + RAID with human-in-the-loop review",
     version="0.1.0",
 )
+
+app.include_router(files_router)
 
 if STATIC_DIR.is_dir():
     app.mount("/assets", StaticFiles(directory=STATIC_DIR), name="assets")
