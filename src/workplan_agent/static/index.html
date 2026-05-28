@@ -26,6 +26,19 @@
             placeholder="Paste your client brief (markdown or plain text)…"
           ></textarea>
         </label>
+        <div class="upload-row">
+          <label class="btn secondary file-label">
+            Upload brief file
+            <input
+              type="file"
+              id="briefFileInput"
+              accept=".md,.markdown,.txt,.pdf,.docx"
+              hidden
+            />
+          </label>
+          <span id="uploadStatus" class="upload-status"></span>
+        </div>
+        <p class="hint">Supported uploads: PDF, DOCX, Markdown, or plain text.</p>
         <div class="row">
           <label class="checkbox">
             <input type="checkbox" id="mockMode" checked />
@@ -67,6 +80,15 @@
           <button type="button" class="tab active" data-tab="wbs">WBS</button>
           <button type="button" class="tab" data-tab="raid">RAID</button>
           <button type="button" class="tab" data-tab="brief">Parsed brief</button>
+        </div>
+        <div id="downloadBar" class="download-bar hidden">
+          <span class="download-label">Download <strong id="downloadArtifactLabel">WBS</strong>:</span>
+          <div class="download-formats">
+            <button type="button" class="btn secondary btn-sm" data-format="md">MD</button>
+            <button type="button" class="btn secondary btn-sm" data-format="html">HTML</button>
+            <button type="button" class="btn secondary btn-sm" data-format="docx">DOCX</button>
+            <button type="button" class="btn secondary btn-sm" data-format="pdf">PDF</button>
+          </div>
         </div>
         <article id="tabContent" class="markdown-body"></article>
 
@@ -122,6 +144,6 @@
       </section>
     </main>
 
-    <script src="/assets/app.js?v=4"></script>
+    <script src="/assets/app.js?v=5"></script>
   </body>
 </html>

@@ -54,6 +54,80 @@ async function checkHealth() {
   }
 }
 
+function setUploadStatus(message, kind = "") {
+  const el = $("uploadStatus");
+  el.textContent = message || "";
+  el.classList.remove("ok", "error");
+  if (kind) el.classList.add(kind);
+}
+
+async function uploadBriefFile(file) {
+  if (!file) return;
+  setUploadStatus("Extracting text…");
+  setError($("createError"), "");
+
+  const form = new FormData();
+  form.append("file", file);
+
+  try {
+    const res = await fetch(`${API}/api/brief/upload`, {
+      method: "POST",
+      body: form,
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(parseApiError(body));
+    }
+    $("briefText").value = body.text;
+    setUploadStatus(`Loaded ${body.filename} (${body.char_count} chars)`, "ok");
+  } catch (err) {
+    setUploadStatus(err.message, "error");
+  } finally {
+    $("briefFileInput").value = "";
+  }
+}
+
+const DOWNLOAD_ARTIFACTS = { wbs: "WBS", raid: "RAID", brief: null };
+
+function updateDownloadBar() {
+  const bar = $("downloadBar");
+  const artifact = DOWNLOAD_ARTIFACTS[currentTab];
+  if (!currentSessionId || !artifact) {
+    bar.classList.add("hidden");
+    return;
+  }
+  bar.classList.remove("hidden");
+  $("downloadArtifactLabel").textContent = artifact;
+}
+
+async function downloadArtifact(format) {
+  const artifact = currentTab;
+  if (artifact !== "wbs" && artifact !== "raid") return;
+  if (!currentSessionId) return;
+
+  const url = `${API}/api/sessions/${currentSessionId}/download/${artifact}/${format}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(parseApiError(body));
+    }
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="([^"]+)"/);
+    const filename = match ? match[1] : `${artifact}.${format}`;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+  } catch (err) {
+    setError($("reviewError"), `Download failed: ${err.message}`);
+  }
+}
+
 async function loadSampleBrief() {
   try {
     const res = await fetch(`${API}/assets/sample_brief.md`);
@@ -227,6 +301,7 @@ function updateResults(data) {
   }
 
   renderTabContent(data);
+  updateDownloadBar();
   updateRevisionHint(data);
 
   const approved = data.status === "approved";
@@ -500,6 +575,8 @@ function resetUi() {
   $("diffPanel").classList.add("hidden");
   setReviewBusy(false);
   $("progressBar").style.width = "0%";
+  setUploadStatus("");
+  $("downloadBar").classList.add("hidden");
   showPanel("create");
 }
 
@@ -508,11 +585,21 @@ document.querySelectorAll(".tab").forEach((tab) => {
     document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
     tab.classList.add("active");
     currentTab = tab.dataset.tab;
+    updateDownloadBar();
     if (currentSessionId) {
       const data = await pollSession(currentSessionId);
       renderTabContent(data);
     }
   });
+});
+
+document.querySelectorAll("[data-format]").forEach((btn) => {
+  btn.addEventListener("click", () => downloadArtifact(btn.dataset.format));
+});
+
+$("briefFileInput").addEventListener("change", (e) => {
+  const file = e.target.files?.[0];
+  if (file) uploadBriefFile(file);
 });
 
 document.querySelectorAll("[data-action]").forEach((btn) => {
