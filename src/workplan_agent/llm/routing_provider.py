@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from workplan_agent.config import ProfileName, get_settings
 from workplan_agent.llm.anthropic_provider import AnthropicProvider
+from workplan_agent.llm.base import LLMMessage
 from workplan_agent.llm.openai_provider import OpenAIProvider
 
 T = TypeVar("T", bound=BaseModel)
@@ -27,6 +28,12 @@ class RoutingLLMProvider:
         if self._anthropic is None:
             self._anthropic = AnthropicProvider()
         return self._anthropic
+
+    def warm_prompt_cache(self) -> None:
+        if not self._settings.enable_prompt_cache:
+            return
+        if self._settings.anthropic_api_key:
+            self._anthropic_provider().warm_prompt_cache()
 
     def _resolve_profile(self, profile: ProfileName) -> ProfileName:
         model = self._settings.get_model_for_profile(profile)
@@ -61,7 +68,7 @@ class RoutingLLMProvider:
 
     def call_structured(
         self,
-        messages: list[dict[str, str]],
+        messages: list[LLMMessage],
         response_model: type[T],
         profile: ProfileName = "balanced",
     ) -> T:

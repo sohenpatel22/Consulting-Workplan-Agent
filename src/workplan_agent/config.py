@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     default_profile: ProfileName = "balanced"
     max_revisions: int = 0  # 0 = unlimited revisions
     max_repair_attempts: int = 2
+    enable_prompt_cache: bool = True
 
     def get_model_for_profile(self, profile: ProfileName) -> str:
         mapping = {

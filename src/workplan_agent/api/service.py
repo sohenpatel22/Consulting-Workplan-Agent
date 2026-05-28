@@ -13,7 +13,7 @@ from workplan_agent.api.schemas import (
 from workplan_agent.diff import unified_text_diff
 from workplan_agent.api.store import SessionRecord, get_store
 from workplan_agent.config import get_settings
-from workplan_agent.llm import get_provider
+from workplan_agent.llm import get_provider, warm_prompt_cache
 from workplan_agent.models.session import SessionStatus, WorkplanSession
 from workplan_agent.orchestrator import OrchestratorAgent
 from workplan_agent.render import render_raid_markdown, render_wbs_markdown, save_status
@@ -102,6 +102,15 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
         wbs_markdown=wbs_markdown,
         raid_markdown=raid_markdown,
     )
+
+
+def warm_session_prompt_cache(mock: bool) -> None:
+    if mock:
+        return
+    try:
+        warm_prompt_cache()
+    except Exception:
+        pass
 
 
 def create_session(request: CreateSessionRequest) -> SessionRecord:

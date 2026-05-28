@@ -19,6 +19,7 @@ from workplan_agent.api.service import (
     run_generation,
     run_revision_job,
     start_revision,
+    warm_session_prompt_cache,
 )
 
 app = FastAPI(
@@ -49,6 +50,7 @@ def start_session(
     background_tasks: BackgroundTasks,
 ) -> CreateSessionResponse:
     record = create_session(request)
+    background_tasks.add_task(warm_session_prompt_cache, request.mock)
     background_tasks.add_task(run_generation, record)
     return CreateSessionResponse(
         session_id=record.session.session_id,

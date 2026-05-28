@@ -1,0 +1,23 @@
+## Format
+
+Respond with a JSON object containing:
+- items: list of RAID item objects, each with:
+  - id: R1, R2... for risks; A1, A2... for assumptions; I1... for issues; D1... for dependencies
+  - category: "R" (risk), "A" (assumption), "I" (issue), or "D" (dependency)
+  - title, description
+  - severity: High, Medium, or Low
+  - owner: person or role responsible
+  - status: defaults to Open
+  - related_wbs_ids: list of WBS work package IDs this item relates to
+  - mitigation: mitigation strategy (required for risks; empty for other categories)
+
+## Requirements
+
+- Minimum 3 risks, 2 assumptions. Include issues only if implied by the brief.
+- Every item must link to related_wbs_ids from the provided WBS.
+- Risks must include mitigation strategies.
+- Derive assumptions from the brief's stated assumptions and implicit dependencies.
+- Dependencies should capture cross-work-package or external dependencies.
+- Use severity: High, Medium, or Low. Status defaults to Open.
+- Assign realistic owners based on stakeholder roles from the brief.
+- Use IDs: R1, R2... for risks; A1, A2... for assumptions; I1... for issues; D1... for dependencies.

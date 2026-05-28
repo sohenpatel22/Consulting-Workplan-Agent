@@ -1,22 +1,17 @@
 from workplan_agent.agents.base import BaseAgent
+from workplan_agent.llm.caching import ContentBlock
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.wbs import WBS
-
-SYSTEM_PROMPT = """You are a consulting project planner. Generate a Work Breakdown Structure (WBS) from a parsed client brief.
-
-Rules:
-- Use consulting phases: Discovery, Design, Build, Transition (map work packages accordingly).
-- Create a 3-level hierarchy: L1 phases, L2 work streams, L3 tasks where appropriate.
-- Minimum: 3 level-1 work packages, each with at least 2 level-2 children.
-- Use hierarchical IDs (e.g., 1.0, 1.1, 1.2, 2.0, 2.1).
-- Each work package must have deliverables, owner_role, and estimated_duration.
-- Link dependencies using work package IDs.
-- Align work packages to stated objectives and in-scope items.
-- Do not include out-of-scope work."""
+from workplan_agent.prompts import (
+    WBS_GENERATOR_SYSTEM,
+    WBS_GENERATOR_USER,
+    wbs_generator_system_blocks,
+    wbs_generator_user_blocks,
+)
 
 
 class WBSGeneratorAgent(BaseAgent[WBS]):
-    system_prompt = SYSTEM_PROMPT
+    system_prompt = WBS_GENERATOR_SYSTEM
     profile = "accurate"
 
     @property
@@ -27,5 +22,15 @@ class WBSGeneratorAgent(BaseAgent[WBS]):
         parsed_brief = kwargs.get("parsed_brief")
         if not isinstance(parsed_brief, ParsedBrief):
             raise TypeError("parsed_brief must be a ParsedBrief")
-        brief_json = parsed_brief.model_dump_json(indent=2)
-        return f"Generate a WBS from this parsed brief:\n\n{brief_json}"
+        return WBS_GENERATOR_USER.format(
+            brief_json=parsed_brief.model_dump_json(indent=2)
+        )
+
+    def build_system_blocks(self) -> list[ContentBlock]:
+        return wbs_generator_system_blocks(self.response_model)
+
+    def build_user_blocks(self, **kwargs: object) -> list[ContentBlock]:
+        parsed_brief = kwargs.get("parsed_brief")
+        if not isinstance(parsed_brief, ParsedBrief):
+            raise TypeError("parsed_brief must be a ParsedBrief")
+        return wbs_generator_user_blocks(parsed_brief.model_dump_json(indent=2))

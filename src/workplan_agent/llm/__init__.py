@@ -17,6 +17,12 @@ def get_provider(use_mock: bool = False) -> LLMProvider:
     return RoutingLLMProvider()
 
 
+def warm_prompt_cache() -> None:
+    """Prime Anthropic prompt cache with static templates and schemas."""
+    provider = get_provider()
+    provider.warm_prompt_cache()
+
+
 def get_provider_for_profile(profile: ProfileName, use_mock: bool = False) -> LLMProvider:
     if use_mock:
         return MockLLMProvider()
