@@ -12,8 +12,6 @@ from workplan_agent.prompts import (
 
 class WBSGeneratorAgent(BaseAgent[WBS]):
     system_prompt = WBS_GENERATOR_SYSTEM
-    profile = "accurate"
-
     @property
     def response_model(self) -> type[WBS]:
         return WBS

@@ -23,9 +23,7 @@ def test_brief_parser_records_llm_call(provider: MockLLMProvider) -> None:
     agent = BriefParserAgent(provider)
     agent.run(brief_text="Some brief")
     assert len(provider.call_log) == 1
-    model, profile = provider.call_log[0]
-    assert model is ParsedBrief
-    assert profile == "balanced"
+    assert provider.call_log[0] is ParsedBrief
 
 
 def test_brief_validation_fails_on_empty_objectives() -> None:

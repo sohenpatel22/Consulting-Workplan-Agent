@@ -38,7 +38,6 @@ uv run workplan run --brief <path> --output <dir> [options]
 
 Options:
   --mock              Use mock LLM (offline demo)
-  --profile TEXT      Model profile: fast | balanced | accurate
   --max-revisions N   Max revision iterations (0 = unlimited, default from env)
   --non-interactive   Skip review loop
 ```
@@ -69,19 +68,16 @@ Each revision is saved under `versions/vN/`.
 | `status.json` | Session summary and counts |
 | `versions/vN/` | Snapshot after each generation/revision |
 
-## Model Profiles
+## Model
 
-Configure via `.env`:
+All agents use a single high-accuracy model configured in `.env`:
 
-| Profile | Default model | Used by |
-|---------|--------------|---------|
-| `fast` | gpt-4o-mini | Future quick drafts |
-| `balanced` | gpt-4o | Brief parser, revision |
-| `accurate` | claude-sonnet-4-20250514 | WBS, RAID generation |
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `MODEL` | `claude-opus-4-8` | Primary model for brief parsing, WBS, RAID, and revisions |
+| `FALLBACK_MODEL` | `gpt-5.5-pro` | Used when `MODEL` is Claude but only `OPENAI_API_KEY` is set |
 
-Override with `MODEL_PROFILE_FAST`, `MODEL_PROFILE_BALANCED`, `MODEL_PROFILE_ACCURATE`.
-
-The provider router picks OpenAI or Anthropic per profile automatically. If you only have an OpenAI key, either add `ANTHROPIC_API_KEY` or set `MODEL_PROFILE_ACCURATE=gpt-4o` in `.env` (otherwise WBS/RAID fall back to the balanced OpenAI model with a warning).
+The provider router sends requests to Anthropic or OpenAI based on the resolved model name. For best results, set `ANTHROPIC_API_KEY` and keep the default Claude Opus model.
 
 ## Web UI + API
 
@@ -130,5 +126,5 @@ src/workplan_agent/
 
 - Stakeholder map and status report agents
 - Quality gates checklist
-- User-selectable speed vs accuracy profiles per run
+- Optional model overrides per agent type
 - Streaming progress and parallel generation where safe

@@ -1,16 +1,6 @@
-from enum import Enum
-from typing import Literal
+import warnings
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-class ModelProfile(str, Enum):
-    FAST = "fast"
-    BALANCED = "balanced"
-    ACCURATE = "accurate"
-
-
-ProfileName = Literal["fast", "balanced", "accurate"]
 
 
 class Settings(BaseSettings):
@@ -23,28 +13,55 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     anthropic_api_key: str = ""
 
-    model_profile_fast: str = "gpt-4o-mini"
-    model_profile_balanced: str = "gpt-4o"
-    model_profile_accurate: str = "claude-sonnet-4-20250514"
+    # Primary model for all agents (highest-accuracy defaults).
+    model: str = "claude-opus-4-8"
+    # Used when `model` is Claude but only OPENAI_API_KEY is configured.
+    fallback_model: str = "gpt-5.5-pro"
 
-    default_profile: ProfileName = "balanced"
     max_revisions: int = 0  # 0 = unlimited revisions
     max_repair_attempts: int = 2
     enable_prompt_cache: bool = True
-
-    def get_model_for_profile(self, profile: ProfileName) -> str:
-        mapping = {
-            "fast": self.model_profile_fast,
-            "balanced": self.model_profile_balanced,
-            "accurate": self.model_profile_accurate,
-        }
-        return mapping[profile]
 
     def is_anthropic_model(self, model: str) -> bool:
         return model.startswith("claude")
 
     def has_api_keys(self) -> bool:
         return bool(self.openai_api_key or self.anthropic_api_key)
+
+    def resolve_model(self) -> str:
+        model = self.model
+        if self.is_anthropic_model(model):
+            if self.anthropic_api_key:
+                return model
+            if self.openai_api_key:
+                warnings.warn(
+                    f"Model '{model}' requires ANTHROPIC_API_KEY. "
+                    f"Falling back to {self.fallback_model}.",
+                    stacklevel=2,
+                )
+                return self.fallback_model
+            raise ValueError(
+                f"Model '{model}' requires ANTHROPIC_API_KEY. "
+                "Set ANTHROPIC_API_KEY or override MODEL to an OpenAI model."
+            )
+
+        if self.openai_api_key:
+            return model
+        if self.anthropic_api_key:
+            anthropic_model = (
+                self.model
+                if self.is_anthropic_model(self.model)
+                else "claude-opus-4-8"
+            )
+            warnings.warn(
+                f"Model '{model}' requires OPENAI_API_KEY. Using {anthropic_model} instead.",
+                stacklevel=2,
+            )
+            return anthropic_model
+        raise ValueError(
+            f"Model '{model}' requires OPENAI_API_KEY. "
+            "Set OPENAI_API_KEY or override MODEL to a Claude model."
+        )
 
 
 _settings: Settings | None = None

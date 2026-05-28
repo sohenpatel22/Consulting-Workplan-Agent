@@ -2,7 +2,6 @@ from typing import Protocol, TypeVar
 
 from pydantic import BaseModel
 
-from workplan_agent.config import ProfileName
 from workplan_agent.llm.caching import ContentBlock, LLMMessage
 
 T = TypeVar("T", bound=BaseModel)
@@ -13,7 +12,6 @@ class LLMProvider(Protocol):
         self,
         messages: list[LLMMessage],
         response_model: type[T],
-        profile: ProfileName = "balanced",
     ) -> T: ...
 
     def warm_prompt_cache(self) -> None: ...

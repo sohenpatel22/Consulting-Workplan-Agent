@@ -4,7 +4,7 @@ from typing import Optional
 import typer
 from rich.console import Console
 
-from workplan_agent.config import ProfileName
+from workplan_agent.config import get_settings
 from workplan_agent.llm import get_provider
 from workplan_agent.orchestrator import OrchestratorAgent
 
@@ -50,11 +50,6 @@ def run_pipeline(
         "--max-revisions",
         help="Maximum revision iterations (default from env/config)",
     ),
-    profile: ProfileName = typer.Option(
-        "balanced",
-        "--profile",
-        help="Model profile: fast | balanced | accurate",
-    ),
     non_interactive: bool = typer.Option(
         False,
         "--non-interactive",
@@ -79,7 +74,8 @@ def run_pipeline(
     console.print(f"[bold]Workplan Agent[/bold] — session starting")
     console.print(f"  Brief:  {brief}")
     console.print(f"  Output: {output}")
-    console.print(f"  Mode:   {'mock' if mock else profile}")
+    model = get_settings().resolve_model() if not mock else "mock"
+    console.print(f"  Model:  {model}")
 
     session = orchestrator.run_pipeline(brief)
     console.print(f"\n[bold]Done.[/bold] Session {session.session_id} → {session.status.value}")

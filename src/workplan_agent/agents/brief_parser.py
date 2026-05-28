@@ -11,8 +11,6 @@ from workplan_agent.prompts import (
 
 class BriefParserAgent(BaseAgent[ParsedBrief]):
     system_prompt = BRIEF_PARSER_SYSTEM
-    profile = "balanced"
-
     @property
     def response_model(self) -> type[ParsedBrief]:
         return ParsedBrief

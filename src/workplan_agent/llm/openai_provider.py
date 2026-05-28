@@ -5,7 +5,7 @@ from typing import TypeVar
 from openai import OpenAI
 from pydantic import BaseModel, ValidationError
 
-from workplan_agent.config import ProfileName, get_settings
+from workplan_agent.config import get_settings
 from workplan_agent.llm.base import schema_instruction
 from workplan_agent.llm.caching import LLMMessage, flatten_content
 
@@ -28,9 +28,8 @@ class OpenAIProvider:
         self,
         messages: list[LLMMessage],
         response_model: type[T],
-        profile: ProfileName = "balanced",
     ) -> T:
-        model = self._settings.get_model_for_profile(profile)
+        model = self._settings.resolve_model()
         if self._settings.is_anthropic_model(model):
             raise ValueError(
                 f"Model '{model}' is an Anthropic model; use AnthropicProvider instead."

@@ -13,8 +13,6 @@ from workplan_agent.prompts import (
 
 class RAIDGeneratorAgent(BaseAgent[RAIDLog]):
     system_prompt = RAID_GENERATOR_SYSTEM
-    profile = "accurate"
-
     @property
     def response_model(self) -> type[RAIDLog]:
         return RAIDLog

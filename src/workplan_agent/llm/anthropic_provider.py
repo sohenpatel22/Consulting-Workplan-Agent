@@ -6,7 +6,7 @@ from typing import Any, TypeVar
 import anthropic
 from pydantic import BaseModel, ValidationError
 
-from workplan_agent.config import ProfileName, get_settings
+from workplan_agent.config import get_settings
 from workplan_agent.llm.base import schema_instruction
 from workplan_agent.llm.caching import (
     ContentBlock,
@@ -41,7 +41,7 @@ class AnthropicProvider:
         if not self._settings.enable_prompt_cache:
             return
 
-        model = self._settings.get_model_for_profile("accurate")
+        model = self._settings.resolve_model()
         warmups: list[tuple[str, list[ContentBlock]]] = [
             ("brief_parser", brief_parser_system_blocks(ParsedBrief)),
             ("wbs_generator", wbs_generator_system_blocks(WBS)),
@@ -66,9 +66,8 @@ class AnthropicProvider:
         self,
         messages: list[LLMMessage],
         response_model: type[T],
-        profile: ProfileName = "balanced",
     ) -> T:
-        model = self._settings.get_model_for_profile(profile)
+        model = self._settings.resolve_model()
         system, user_messages = self._prepare_messages(messages, response_model)
         last_error: Exception | None = None
 

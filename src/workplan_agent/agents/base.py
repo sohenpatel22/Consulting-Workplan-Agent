@@ -3,7 +3,7 @@ from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 
-from workplan_agent.config import ProfileName, get_settings
+from workplan_agent.config import get_settings
 from workplan_agent.llm.base import LLMProvider, build_cached_messages, build_messages
 from workplan_agent.llm.caching import ContentBlock, LLMMessage
 
@@ -12,7 +12,6 @@ T = TypeVar("T", bound=BaseModel)
 
 class BaseAgent(ABC, Generic[T]):
     system_prompt: str = ""
-    profile: ProfileName = "balanced"
     use_prompt_cache: bool = True
 
     def __init__(self, provider: LLMProvider) -> None:
@@ -48,6 +47,4 @@ class BaseAgent(ABC, Generic[T]):
 
     def run(self, **kwargs: object) -> T:
         messages = self.build_messages(**kwargs)
-        return self.provider.call_structured(
-            messages, self.response_model, profile=self.profile
-        )
+        return self.provider.call_structured(messages, self.response_model)

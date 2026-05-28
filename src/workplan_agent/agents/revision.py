@@ -28,8 +28,6 @@ class RevisionResult(BaseModel):
 
 
 class RevisionAgent:
-    profile = "balanced"
-
     def __init__(self, provider) -> None:
         self.provider = provider
         self._wbs_agent = _WBSRevisionHelper(provider)
@@ -68,7 +66,6 @@ class RevisionAgent:
 
 class _WBSRevisionHelper(BaseAgent[WBS]):
     system_prompt = REVISION_SYSTEM
-    profile = "balanced"
 
     @property
     def response_model(self) -> type[WBS]:
@@ -97,7 +94,6 @@ class _WBSRevisionHelper(BaseAgent[WBS]):
 
 class _RAIDRevisionHelper(BaseAgent[RAIDLog]):
     system_prompt = REVISION_SYSTEM
-    profile = "balanced"
 
     @property
     def response_model(self) -> type[RAIDLog]:
