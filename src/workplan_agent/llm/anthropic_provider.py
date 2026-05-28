@@ -11,6 +11,7 @@ from workplan_agent.llm.base import schema_instruction
 from workplan_agent.llm.caching import (
     ContentBlock,
     LLMMessage,
+    count_cache_blocks,
     has_cached_blocks,
     system_blocks_to_api,
 )
@@ -27,6 +28,12 @@ from workplan_agent.prompts import (
 T = TypeVar("T", bound=BaseModel)
 
 logger = logging.getLogger(__name__)
+
+
+def model_rejects_sampling_params(model: str) -> bool:
+    """Opus 4.7+ returns 400 if temperature, top_p, or top_k are present."""
+    normalized = model.lower()
+    return "opus-4-7" in normalized or "opus-4-8" in normalized
 
 
 class AnthropicProvider:
@@ -51,13 +58,13 @@ class AnthropicProvider:
 
         for name, system_blocks in warmups:
             try:
-                self._client.messages.create(
-                    model=model,
-                    max_tokens=16,
-                    system=system_blocks_to_api(system_blocks),
-                    messages=[{"role": "user", "content": "Reply with OK."}],
-                    temperature=0,
-                )
+                warmup_kwargs: dict[str, Any] = {
+                    "model": model,
+                    "max_tokens": 16,
+                    "system": system_blocks_to_api(system_blocks),
+                    "messages": [{"role": "user", "content": "Reply with OK."}],
+                }
+                self._client.messages.create(**warmup_kwargs)
                 logger.debug("Warmed Anthropic prompt cache for %s", name)
             except Exception as exc:
                 logger.warning("Prompt cache warmup failed for %s: %s", name, exc)
@@ -68,6 +75,11 @@ class AnthropicProvider:
         response_model: type[T],
     ) -> T:
         model = self._settings.resolve_model()
+        if has_cached_blocks(messages) and count_cache_blocks(messages) > 4:
+            raise ValueError(
+                f"Prompt has {count_cache_blocks(messages)} cache blocks; "
+                "Anthropic allows at most 4 per request."
+            )
         system, user_messages = self._prepare_messages(messages, response_model)
         last_error: Exception | None = None
 
@@ -78,11 +90,11 @@ class AnthropicProvider:
                     "max_tokens": 8192,
                     "system": system,
                     "messages": user_messages,
-                    "temperature": 0.2,
                 }
-                if self._settings.enable_prompt_cache and has_cached_blocks(messages):
-                    kwargs["cache_control"] = {"type": "ephemeral"}
-
+                if not model_rejects_sampling_params(model):
+                    kwargs["temperature"] = 0.2
+                # Block-level cache_control is set in prompts; top-level cache_control
+                # would add another breakpoint and can exceed the limit of 4.
                 response = self._client.messages.create(**kwargs)
                 content = response.content[0].text
                 text = content.strip()

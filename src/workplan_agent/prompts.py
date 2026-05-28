@@ -152,12 +152,10 @@ def raid_generator_system_blocks(response_model: type[BaseModel]) -> list[Conten
 
 
 def revision_system_blocks(response_model: type[BaseModel]) -> list[ContentBlock]:
-    return [
-        cached_block(REVISION_RULES),
-        cached_block(WBS_REQUIREMENTS),
-        cached_block(RAID_REQUIREMENTS),
-        _schema_block(response_model),
-    ]
+    # Anthropic allows at most 4 cache_control breakpoints per request; revision
+    # also caches session context in the user message (1 block).
+    static = f"{REVISION_RULES}\n\n{WBS_REQUIREMENTS}\n\n{RAID_REQUIREMENTS}"
+    return [cached_block(static), _schema_block(response_model)]
 
 
 def brief_parser_user_blocks(brief_text: str) -> list[ContentBlock]:

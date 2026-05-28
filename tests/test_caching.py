@@ -1,7 +1,16 @@
 from workplan_agent.agents.brief_parser import BriefParserAgent
 from workplan_agent.agents.wbs_generator import WBSGeneratorAgent
 from workplan_agent.config import get_settings
-from workplan_agent.llm.caching import cached_block, flatten_content, has_cached_blocks
+from workplan_agent.agents.revision import _WBSRevisionHelper
+from workplan_agent.llm.caching import (
+    MAX_CACHE_BLOCKS,
+    cached_block,
+    count_cache_blocks,
+    flatten_content,
+    has_cached_blocks,
+)
+from workplan_agent.models.raid import RAIDLog
+from workplan_agent.llm.fixtures import RAID_FIXTURE, WBS_FIXTURE
 from workplan_agent.llm.mock_provider import MockLLMProvider
 from workplan_agent.models.brief import Objective, ParsedBrief
 from workplan_agent.models.wbs import WBS
@@ -47,6 +56,17 @@ def test_revision_user_splits_context_and_feedback() -> None:
 def test_flatten_content_joins_blocks() -> None:
     text = flatten_content([cached_block("A"), cached_block("B")])
     assert text == "A\n\nB"
+
+
+def test_revision_stays_within_cache_block_limit() -> None:
+    agent = _WBSRevisionHelper(MockLLMProvider())
+    messages = agent.build_messages(
+        parsed_brief_json='{"client_name": "Acme"}',
+        wbs=WBS.model_validate(WBS_FIXTURE),
+        raid=RAIDLog.model_validate(RAID_FIXTURE),
+        feedback="Add detail to 1.1",
+    )
+    assert count_cache_blocks(messages) <= MAX_CACHE_BLOCKS
 
 
 def test_caching_disabled_falls_back_to_strings(monkeypatch) -> None:
