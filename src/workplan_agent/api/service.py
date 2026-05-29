@@ -48,9 +48,11 @@ def _build_summary(session: WorkplanSession) -> SessionSummary:
         objectives_count=len(parsed.objectives) if parsed else 0,
         wbs_items=len(session.wbs.work_packages) if session.wbs else 0,
         raid_risks=len(session.raid.risks) if session.raid else 0,
-        raid_assumptions=len(session.raid.assumptions) if session.raid else 0,
+        raid_actions=len(session.raid.actions) if session.raid else 0,
         raid_issues=len(session.raid.issues) if session.raid else 0,
-        raid_dependencies=len(session.raid.dependencies) if session.raid else 0,
+        raid_decisions=len(session.raid.decisions) if session.raid else 0,
+        raid_assumptions=len(session.raid.actions) if session.raid else 0,
+        raid_dependencies=len(session.raid.decisions) if session.raid else 0,
         open_questions=parsed.open_questions if parsed else [],
     )
 

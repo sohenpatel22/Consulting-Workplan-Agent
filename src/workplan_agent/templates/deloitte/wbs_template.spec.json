@@ -1,0 +1,95 @@
+{
+  "source_file": "APS1049_Team2-WBS Template Explanation.docx",
+  "summary": "Work packages must follow the Deloitte WBS table: a 3-level hierarchy (levels 1–3) with codes like 1.0, 1.1, 1.1.1. Each row is one element.",
+  "columns": [
+    {
+      "header": "Level",
+      "field": "level",
+      "type": "integer",
+      "description": "1=phase, 2=work stream, 3=task"
+    },
+    {
+      "header": "WBS Code",
+      "field": "wbs_code",
+      "type": "string",
+      "description": "Hierarchical code e.g. 1.0, 1.1, 1.1.1"
+    },
+    {
+      "header": "WBS Element Title",
+      "field": "wbs_element_title",
+      "type": "string",
+      "description": "Short name of the element"
+    },
+    {
+      "header": "Description / Scope of Work",
+      "field": "description_scope",
+      "type": "string",
+      "description": "Scope narrative for this element"
+    },
+    {
+      "header": "Key Deliverable",
+      "field": "key_deliverable",
+      "type": "string",
+      "description": "Primary deliverable for this element"
+    }
+  ],
+  "hierarchy_rules": [
+    "Level 1 = phase / major deliverable (WBS code X.0).",
+    "Level 2 = work stream under that phase (X.Y).",
+    "Level 3 = task under a work stream (X.Y.Z).",
+    "parent_wbs_code must reference an existing wbs_code one level above.",
+    "Minimum 3 level-1 elements, each with at least 2 level-2 children.",
+    "Also include owner, estimated_duration, and dependencies (list of wbs_codes)."
+  ],
+  "example_rows": [
+    {
+      "level": 1,
+      "wbs_code": "1.0",
+      "wbs_element_title": "Uptown Yonge BIA Streetscape Master Plan",
+      "description_scope": "Complete project scope for developing a long-term streetscape vision and implementation plan for Uptown Yonge BIA.",
+      "key_deliverable": "Final Streetscape Master Plan"
+    },
+    {
+      "level": 2,
+      "wbs_code": "1.1",
+      "wbs_element_title": "Project Management",
+      "description_scope": "Manage project scope, schedule, communication, meetings, quality control, and coordination with the BIA and City staff.",
+      "key_deliverable": "Project management plan"
+    },
+    {
+      "level": 3,
+      "wbs_code": "1.1.1",
+      "wbs_element_title": "Project Kickoff",
+      "description_scope": "Confirm project objectives, study area, roles, schedule, communication process, and approval pathway.",
+      "key_deliverable": "Kickoff meeting notes"
+    },
+    {
+      "level": 3,
+      "wbs_code": "1.1.2",
+      "wbs_element_title": "Progress Coordination",
+      "description_scope": "Provide regular updates to the BIA Board, Streetscape Committee, Executive Director, and City Staff Working Group.",
+      "key_deliverable": "Progress meeting records"
+    },
+    {
+      "level": 3,
+      "wbs_code": "1.1.3",
+      "wbs_element_title": "QA/QC and Submission Control",
+      "description_scope": "Review all reports, drawings, cost estimates, and presentation materials before submission.",
+      "key_deliverable": "QA/QC checklist"
+    },
+    {
+      "level": 2,
+      "wbs_code": "1.2",
+      "wbs_element_title": "Background and Policy Review",
+      "description_scope": "Review existing conditions, development plans, transit plans, City policies, design guidelines, and regulatory constraints.",
+      "key_deliverable": "Background review summary"
+    },
+    {
+      "level": 3,
+      "wbs_code": "1.2.1",
+      "wbs_element_title": "Policy and Guideline Review",
+      "description_scope": "Review City of Toronto policies, transportation standards, public realm guidelines, accessibility requirements, and BIA-related guidance.",
+      "key_deliverable": "Policy review memo"
+    }
+  ]
+}

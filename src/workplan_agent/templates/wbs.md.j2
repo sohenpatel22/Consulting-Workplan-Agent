@@ -3,15 +3,15 @@
 **Project:** {{ project_title }}  
 **Client:** {{ client_name }}
 
-## Phases
+## Phases (level 1)
 
-{% for phase in wbs.phases %}- {{ phase }}
+{% for wp in wbs.work_packages if wp.level == 1 %}- {{ wp.wbs_code }} — {{ wp.wbs_element_title }}
 {% endfor %}
 
-## Work Packages
+## Work packages (Deloitte template)
 
-| ID | Level | Name | Description | Deliverables | Owner | Duration | Dependencies |
-|----|-------|------|-------------|--------------|-------|----------|--------------|
+| Level | WBS Code | WBS Element Title | Description / Scope of Work | Key Deliverable | Owner | Duration | Dependencies |
+|-------|----------|-------------------|------------------------------|-----------------|-------|----------|--------------|
 {% for wp in wbs.work_packages -%}
-| {{ wp.id }} | {{ wp.level }} | {{ wp.name }} | {{ wp.description }} | {{ wp.deliverables | join(', ') }} | {{ wp.owner_role }} | {{ wp.estimated_duration }} | {{ wp.dependencies | join(', ') }} |
+| {{ wp.level }} | {{ wp.wbs_code }} | {{ wp.wbs_element_title }} | {{ wp.description_scope }} | {{ wp.key_deliverable }} | {{ wp.owner }} | {{ wp.estimated_duration }} | {{ wp.dependencies | join(', ') }} |
 {% endfor %}

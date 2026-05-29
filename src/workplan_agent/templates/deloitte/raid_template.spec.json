@@ -1,0 +1,264 @@
+{
+  "source_file": "APS1049_Team 2-RAID Log-Template .xlsx",
+  "summary": "RAID log follows the Deloitte Excel template: Risks, Actions, Issues, and Decisions are separate sections (not Assumptions/Dependencies). Use priority values High, Moderate, or Low.",
+  "sections": [
+    {
+      "key": "risks",
+      "title": "Risks",
+      "minimum": 3,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "R1, R2, …"
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "description": "e.g. Open"
+        },
+        {
+          "name": "mitigation",
+          "type": "string",
+          "required": true,
+          "description": "Mitigation plan"
+        },
+        {
+          "name": "owner",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "wbs_links",
+          "type": "array",
+          "required": true,
+          "description": "WBS codes this risk relates to"
+        },
+        {
+          "name": "probability",
+          "type": "string",
+          "required": true,
+          "description": "High, Moderate, or Low"
+        },
+        {
+          "name": "priority",
+          "type": "string",
+          "required": true,
+          "description": "Priority/Impact: High, Moderate, or Low"
+        }
+      ],
+      "template_headers": [
+        "ID No.",
+        "Title",
+        "Description",
+        "Status",
+        "Mitigation",
+        "Owner",
+        "WBS Links",
+        "Probability",
+        "Priority/Impact"
+      ]
+    },
+    {
+      "key": "actions",
+      "title": "Actions",
+      "minimum": 2,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "A1, A2, …"
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "status_update",
+          "type": "string",
+          "required": false,
+          "description": "MM-DD-YYYY: update text"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "owner",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "wbs_links",
+          "type": "array",
+          "required": true,
+          "description": "WBS codes"
+        },
+        {
+          "name": "priority",
+          "type": "string",
+          "required": true,
+          "description": "High, Moderate, or Low"
+        }
+      ],
+      "template_headers": [
+        "ID No.",
+        "Title",
+        "Description",
+        "Status Update (MM-DD-YYYY: Update)",
+        "Status",
+        "Owner",
+        "WBS Links",
+        "Priority"
+      ]
+    },
+    {
+      "key": "issues",
+      "title": "Issues",
+      "minimum": 0,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "I1, I2, …"
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "resolution",
+          "type": "string",
+          "required": false,
+          "description": "Resolution when known"
+        },
+        {
+          "name": "owner",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "priority",
+          "type": "string",
+          "required": true,
+          "description": "High, Moderate, or Low"
+        }
+      ],
+      "template_headers": [
+        "ID No.",
+        "Title",
+        "Description",
+        "Resolution",
+        "Owner",
+        "Priority"
+      ]
+    },
+    {
+      "key": "decisions",
+      "title": "Decisions",
+      "minimum": 0,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "D1, D2, …"
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "description_justification",
+          "type": "string",
+          "required": true,
+          "description": "Description / justification"
+        },
+        {
+          "name": "resolution",
+          "type": "string",
+          "required": false,
+          "description": "Decision outcome"
+        },
+        {
+          "name": "owner",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "priority",
+          "type": "string",
+          "required": true,
+          "description": "High, Moderate, or Low"
+        }
+      ],
+      "template_headers": [
+        "ID No.",
+        "Title",
+        "Description/Justification",
+        "Resolution",
+        "Owner",
+        "Priority"
+      ]
+    }
+  ],
+  "simple_view": {
+    "sheet": "RAID Log - simple",
+    "columns": [
+      "ID No.",
+      "RAID Category",
+      "Title",
+      "Description",
+      "Impact",
+      "Status",
+      "Owner",
+      "Priority"
+    ],
+    "categories": [
+      "Risk",
+      "Action",
+      "Issue",
+      "Decision"
+    ]
+  }
+}

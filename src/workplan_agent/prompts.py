@@ -6,6 +6,10 @@ from pydantic import BaseModel
 
 from workplan_agent.llm.base import schema_instruction
 from workplan_agent.llm.caching import ContentBlock, cached_block, plain_block
+from workplan_agent.templates.deloitte_specs import (
+    format_raid_spec_for_prompt,
+    format_wbs_spec_for_prompt,
+)
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -14,8 +18,40 @@ def _load_template(filename: str) -> str:
     return (_TEMPLATES_DIR / filename).read_text(encoding="utf-8").strip()
 
 
-WBS_REQUIREMENTS = _load_template("wbs_requirements.txt")
-RAID_REQUIREMENTS = _load_template("raid_requirements.txt")
+_WBS_OUTPUT_RULES = """
+## Output
+
+Respond with a JSON object:
+- work_packages: array of rows matching the Deloitte WBS table above.
+
+Each work_packages element must use the template field names (wbs_code, wbs_element_title,
+description_scope, key_deliverable, etc.). Do not emit a separate phases list.
+
+## Generation rules
+
+- Align elements to stated objectives and in-scope items from the brief.
+- Do not include out-of-scope work.
+- Link dependencies using wbs_code values that exist in the same work_packages array.
+"""
+
+_RAID_OUTPUT_RULES = """
+## Output
+
+Respond with a JSON object with exactly these keys: risks, actions, issues, decisions.
+Each value is an array of objects using the field names defined for that section above.
+
+## Generation rules
+
+- Minimum 3 risks and 2 actions. Add issues/decisions when implied by the brief.
+- Every risk and action must include wbs_links referencing wbs_code values from the WBS.
+- Risks must include mitigation and probability.
+- Use priority (and probability for risks): High, Moderate, or Low.
+- Derive actions from brief assumptions, required client activities, and follow-ups.
+- Decisions capture pending or resolved choices that affect delivery.
+"""
+
+WBS_REQUIREMENTS = format_wbs_spec_for_prompt() + _WBS_OUTPUT_RULES
+RAID_REQUIREMENTS = format_raid_spec_for_prompt() + _RAID_OUTPUT_RULES
 
 # --- Brief parser ---
 
@@ -35,7 +71,7 @@ BRIEF_PARSER_USER = "Parse the following client brief:\n\n{brief_text}"
 
 WBS_GENERATOR_ROLE = (
     "You are a consulting project planner. Generate a Work Breakdown Structure (WBS) "
-    "from a parsed client brief."
+    "that conforms to the APS1049 Deloitte template structure below."
 )
 
 WBS_GENERATOR_SYSTEM = f"""{WBS_GENERATOR_ROLE}
@@ -47,8 +83,8 @@ WBS_GENERATOR_USER = "Generate a WBS from this parsed brief:\n\n{brief_json}"
 # --- RAID generator ---
 
 RAID_GENERATOR_ROLE = (
-    "You are a consulting risk manager. Generate a RAID log "
-    "(Risks, Assumptions, Issues, Dependencies) from a parsed brief and WBS."
+    "You are a consulting engagement lead. Generate a RAID log "
+    "(Risks, Actions, Issues, Decisions) that conforms to the APS1049 Deloitte template below."
 )
 
 RAID_GENERATOR_SYSTEM = f"""{RAID_GENERATOR_ROLE}
@@ -71,6 +107,7 @@ Rules:
 - Apply ONLY the requested changes from the feedback.
 - Preserve unaffected items and IDs where possible.
 - Do not remove work packages or RAID items unless feedback explicitly asks.
+- Keep Deloitte template field names and section structure.
 - Return the complete updated artifact(s) in the response."""
 
 REVISION_SYSTEM = f"""{REVISION_RULES}
@@ -152,8 +189,6 @@ def raid_generator_system_blocks(response_model: type[BaseModel]) -> list[Conten
 
 
 def revision_system_blocks(response_model: type[BaseModel]) -> list[ContentBlock]:
-    # Anthropic allows at most 4 cache_control breakpoints per request; revision
-    # also caches session context in the user message (1 block).
     static = f"{REVISION_RULES}\n\n{WBS_REQUIREMENTS}\n\n{RAID_REQUIREMENTS}"
     return [cached_block(static), _schema_block(response_model)]
 

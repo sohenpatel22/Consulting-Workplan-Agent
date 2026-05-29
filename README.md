@@ -63,8 +63,8 @@ Each revision is saved under `versions/vN/`.
 | File | Description |
 |------|-------------|
 | `parsed_brief.json` | Structured extraction from client brief |
-| `wbs.json` / `wbs.md` | Work Breakdown Structure |
-| `raid.json` / `raid.md` | RAID log (Risks, Assumptions, Issues, Dependencies) |
+| `wbs.json` / `wbs.md` / `wbs.docx` | Work Breakdown Structure (DOCX uses APS1049 Deloitte table layout) |
+| `raid.json` / `raid.md` / `raid.xlsx` | RAID log (XLSX filled from `templates/deloitte/raid_log_template.xlsx`) |
 | `status.json` | Session summary and counts |
 | `versions/vN/` | Snapshot after each generation/revision |
 
@@ -121,6 +121,27 @@ src/workplan_agent/
 ├── render.py        # JSON/Markdown export
 └── cli.py           # Typer CLI entry point
 ```
+
+## Deloitte templates (APS1049)
+
+Source files in the project root are synced into machine-readable specs the LLM uses:
+
+```bash
+uv run python scripts/sync_deloitte_templates.py
+```
+
+This writes:
+
+| File | Purpose |
+|------|---------|
+| `templates/deloitte/wbs_template.spec.json` | Column names, hierarchy rules, example rows from the WBS docx |
+| `templates/deloitte/raid_template.spec.json` | Risks / Actions / Issues / Decisions sections from the RAID xlsx |
+
+`prompts.py` injects these specs into every WBS and RAID generation call (plus the Pydantic JSON schema). Generated data uses the same field names as the templates (`wbs_code`, `key_deliverable`, `wbs_links`, etc.).
+
+**RAID categories:** Risks, **Actions**, Issues, **Decisions** (not Assumptions/Dependencies). Legacy `items` JSON is still accepted when loading old sessions.
+
+Exports: `wbs.docx` and `raid.xlsx` fill the Deloitte layouts; download **XLSX** on the RAID tab in the UI.
 
 ## Extension Hooks (Phase 2)
 

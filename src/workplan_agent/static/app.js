@@ -93,12 +93,16 @@ const DOWNLOAD_ARTIFACTS = { wbs: "WBS", raid: "RAID", brief: null };
 function updateDownloadBar() {
   const bar = $("downloadBar");
   const artifact = DOWNLOAD_ARTIFACTS[currentTab];
+  const xlsxBtn = $("downloadXlsxBtn");
   if (!currentSessionId || !artifact) {
     bar.classList.add("hidden");
     return;
   }
   bar.classList.remove("hidden");
   $("downloadArtifactLabel").textContent = artifact;
+  if (xlsxBtn) {
+    xlsxBtn.classList.toggle("hidden", currentTab !== "raid");
+  }
 }
 
 async function downloadArtifact(format) {
@@ -176,9 +180,9 @@ function renderSummary(summary) {
     ["Objectives", summary.objectives_count],
     ["WBS items", summary.wbs_items],
     ["Risks", summary.raid_risks],
-    ["Assumptions", summary.raid_assumptions],
+    ["Actions", summary.raid_actions ?? summary.raid_assumptions],
     ["Issues", summary.raid_issues],
-    ["Dependencies", summary.raid_dependencies],
+    ["Decisions", summary.raid_decisions ?? summary.raid_dependencies],
   ];
   $("summaryCards").innerHTML = cards
     .map(

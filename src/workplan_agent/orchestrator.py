@@ -156,9 +156,9 @@ class OrchestratorAgent:
         table.add_row("Objectives", str(len(parsed.objectives)))
         table.add_row("WBS work packages", str(len(session.wbs.work_packages)))
         table.add_row("Risks", str(len(session.raid.risks)))
-        table.add_row("Assumptions", str(len(session.raid.assumptions)))
+        table.add_row("Actions", str(len(session.raid.actions)))
         table.add_row("Issues", str(len(session.raid.issues)))
-        table.add_row("Dependencies", str(len(session.raid.dependencies)))
+        table.add_row("Decisions", str(len(session.raid.decisions)))
         console.print(table)
 
     def _revision_loop(self, session: WorkplanSession) -> None:

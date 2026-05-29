@@ -31,72 +31,67 @@ def test_raid_generator_returns_valid_raid(
     raid = agent.run(parsed_brief=parsed_brief, wbs=wbs)
     assert isinstance(raid, RAIDLog)
     assert len(raid.risks) >= 3
-    assert len(raid.assumptions) >= 2
+    assert len(raid.actions) >= 2
 
 
 def test_raid_items_link_to_wbs(wbs: WBS) -> None:
     raid = RAIDLog.model_validate(
         {
+            "risks": [
+                {"id": "R1", "title": "Risk", "wbs_links": ["1.1"]},
+                {"id": "R2", "title": "Risk 2", "wbs_links": ["2.1"]},
+                {"id": "R3", "title": "Risk 3", "wbs_links": ["3.1"]},
+            ],
+            "actions": [
+                {"id": "A1", "title": "Action 1", "wbs_links": ["1.0"]},
+                {"id": "A2", "title": "Action 2", "wbs_links": ["2.0"]},
+            ],
+        }
+    )
+    wbs_codes = {wp.wbs_code for wp in wbs.work_packages}
+    for item in raid.risks + raid.actions:
+        for ref in item.wbs_links:
+            assert ref in wbs_codes
+
+
+def test_raid_legacy_items_migrate() -> None:
+    raid = RAIDLog.model_validate(
+        {
             "items": [
-                {
-                    "id": "R1",
-                    "category": "R",
-                    "title": "Risk",
-                    "related_wbs_ids": ["1.1"],
-                },
-                {
-                    "id": "R2",
-                    "category": "R",
-                    "title": "Risk 2",
-                    "related_wbs_ids": ["2.1"],
-                },
-                {
-                    "id": "R3",
-                    "category": "R",
-                    "title": "Risk 3",
-                    "related_wbs_ids": ["3.1"],
-                },
-                {"id": "A1", "category": "A", "title": "Assumption 1"},
-                {"id": "A2", "category": "A", "title": "Assumption 2"},
+                {"id": "R1", "category": "R", "title": "R1"},
+                {"id": "R2", "category": "R", "title": "R2"},
+                {"id": "R3", "category": "R", "title": "R3"},
+                {"id": "A1", "category": "A", "title": "A1"},
+                {"id": "A2", "category": "A", "title": "A2"},
             ]
         }
     )
-    wbs_ids = {wp.id for wp in wbs.work_packages}
-    for item in raid.items:
-        for ref in item.related_wbs_ids:
-            assert ref in wbs_ids
+    assert len(raid.risks) == 3
+    assert len(raid.actions) == 2
 
 
 def test_raid_markdown_render(parsed_brief: ParsedBrief) -> None:
     raid = RAIDLog.model_validate(
         {
-            "items": [
+            "risks": [
                 {
                     "id": "R1",
-                    "category": "R",
                     "title": "Test risk",
-                    "severity": "High",
-                    "related_wbs_ids": ["1.0"],
+                    "priority": "High",
+                    "probability": "High",
+                    "wbs_links": ["1.0"],
                     "mitigation": "Monitor",
                 },
-                {
-                    "id": "R2",
-                    "category": "R",
-                    "title": "Risk 2",
-                    "related_wbs_ids": ["1.0"],
-                },
-                {
-                    "id": "R3",
-                    "category": "R",
-                    "title": "Risk 3",
-                    "related_wbs_ids": ["1.0"],
-                },
-                {"id": "A1", "category": "A", "title": "Assumption 1"},
-                {"id": "A2", "category": "A", "title": "Assumption 2"},
-            ]
+                {"id": "R2", "title": "Risk 2", "wbs_links": ["1.0"]},
+                {"id": "R3", "title": "Risk 3", "wbs_links": ["1.0"]},
+            ],
+            "actions": [
+                {"id": "A1", "title": "Action 1", "wbs_links": ["1.0"]},
+                {"id": "A2", "title": "Action 2", "wbs_links": ["2.0"]},
+            ],
         }
     )
     md = render_raid_markdown(raid, parsed_brief)
     assert "RAID Log" in md
     assert "R1" in md
-    assert "Assumptions" in md
+    assert "## Actions" in md

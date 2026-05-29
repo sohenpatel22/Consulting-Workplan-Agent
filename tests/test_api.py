@@ -127,7 +127,7 @@ def test_mock_raid_revision_enriches_existing_item(client: TestClient) -> None:
     )
     after = _wait_for_review(client, session_id)
     assert after["summary"]["raid_risks"] == risks_before
-    r1 = next(i for i in after["raid"]["items"] if i["id"] == "R1")
+    r1 = next(i for i in after["raid"]["risks"] if i["id"] == "R1")
     assert "Expanded per review" in r1["description"]
     assert "more details in descriptions" not in r1["title"]
 

@@ -24,8 +24,11 @@ class SessionSummary(BaseModel):
     objectives_count: int = 0
     wbs_items: int = 0
     raid_risks: int = 0
-    raid_assumptions: int = 0
+    raid_actions: int = 0
     raid_issues: int = 0
+    raid_decisions: int = 0
+    # Deprecated aliases (kept for older clients)
+    raid_assumptions: int = 0
     raid_dependencies: int = 0
     open_questions: list[str] = Field(default_factory=list)
 

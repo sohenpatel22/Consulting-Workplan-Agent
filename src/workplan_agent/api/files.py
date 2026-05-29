@@ -7,8 +7,10 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 from workplan_agent.api.service import get_session
+from workplan_agent.api.store import get_store
 from workplan_agent.files.export import CONTENT_TYPES, ArtifactKind, ExportFormat, export_artifact
 from workplan_agent.files.extract import BriefExtractError, extract_text_from_upload
+from workplan_agent.render import render_raid_markdown, render_wbs_markdown
 
 router = APIRouter(prefix="/api", tags=["files"])
 
@@ -35,19 +37,42 @@ def download_artifact(
     artifact: ArtifactKind,
     fmt: ExportFormat,
 ) -> Response:
-    """Download WBS or RAID as MD, HTML, DOCX, or PDF."""
-    session = get_session(session_id)
-    if session is None:
+    """Download WBS or RAID as MD, HTML, DOCX, PDF, or RAID as XLSX (Deloitte template)."""
+    response = get_session(session_id)
+    if response is None:
         raise HTTPException(status_code=404, detail="Session not found.")
-    if session.job_status != "complete":
+    if response.job_status != "complete":
         raise HTTPException(status_code=409, detail="Session artifacts are not ready yet.")
 
-    markdown = session.wbs_markdown if artifact == "wbs" else session.raid_markdown
-    if not markdown:
+    record = get_store().get(session_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    workplan = record.session
+    parsed = workplan.parsed_brief
+    markdown = None
+    if parsed and workplan.wbs and artifact == "wbs":
+        markdown = render_wbs_markdown(workplan.wbs, parsed)
+    elif parsed and workplan.raid and artifact == "raid":
+        markdown = render_raid_markdown(workplan.raid, parsed)
+
+    if fmt != "xlsx" and not markdown:
         raise HTTPException(status_code=404, detail=f"{artifact.upper()} content not available.")
 
+    if fmt == "xlsx" and (workplan.raid is None or parsed is None):
+        raise HTTPException(status_code=404, detail="RAID content not available.")
+    if artifact == "wbs" and fmt == "docx" and workplan.wbs is None:
+        raise HTTPException(status_code=404, detail="WBS content not available.")
+
     try:
-        content, filename = export_artifact(markdown, artifact, fmt)
+        content, filename = export_artifact(
+            markdown or "",
+            artifact,
+            fmt,
+            wbs=workplan.wbs,
+            raid=workplan.raid,
+            parsed_brief=parsed,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

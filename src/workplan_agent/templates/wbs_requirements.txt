@@ -1,24 +1,3 @@
-## Format
-
-Respond with a JSON object containing:
-- phases: list of phase names (use Discovery, Design, Build, Transition)
-- work_packages: list of work package objects, each with:
-  - id: hierarchical ID (e.g., 1.0, 1.1, 1.2, 2.0, 2.1)
-  - level: 1 (phase), 2 (work stream), or 3 (task)
-  - parent_id: parent work package ID, or null for level-1 items
-  - name, description
-  - deliverables: list of deliverable strings
-  - owner_role: role responsible for the work package
-  - estimated_duration: duration estimate (e.g., "2 weeks")
-  - dependencies: list of work package IDs this item depends on
-
-## Requirements
-
-- Use consulting phases: Discovery, Design, Build, Transition (map work packages accordingly).
-- Create a 3-level hierarchy: L1 phases, L2 work streams, L3 tasks where appropriate.
-- Minimum: 3 level-1 work packages, each with at least 2 level-2 children.
-- Use hierarchical IDs (e.g., 1.0, 1.1, 1.2, 2.0, 2.1).
-- Each work package must have deliverables, owner_role, and estimated_duration.
-- Link dependencies using work package IDs.
-- Align work packages to stated objectives and in-scope items.
-- Do not include out-of-scope work.
+# WBS generation requirements are loaded from Deloitte template specs.
+# See: templates/deloitte/wbs_template.spec.json (sync via scripts/sync_deloitte_templates.py)
+# Prompt text is assembled in workplan_agent/prompts.py from deloitte_specs.format_wbs_spec_for_prompt().
