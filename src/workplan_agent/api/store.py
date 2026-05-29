@@ -15,6 +15,7 @@ class SessionRecord:
     error: str | None = None
     mock: bool = False
     brief_text: str = ""
+    user_prompt: str = ""
     review_in_progress: bool = False
     review_error: str | None = None
     last_review_result: ReviewResponse | None = None

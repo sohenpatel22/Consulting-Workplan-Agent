@@ -504,6 +504,7 @@ async function createSession() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         brief_text: briefText,
+        user_prompt: $("userPrompt").value.trim(),
         mock: $("mockMode").checked,
       }),
     });
@@ -648,6 +649,7 @@ function resetUi() {
   setReviewBusy(false);
   $("progressBar").style.width = "0%";
   setUploadStatus("");
+  $("userPrompt").value = "";
   $("downloadBar").classList.add("hidden");
   showPanel("create");
 }

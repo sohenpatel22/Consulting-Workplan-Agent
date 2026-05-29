@@ -10,6 +10,10 @@ ReviewActionName = Literal["approve", "wbs", "raid", "both"]
 
 class CreateSessionRequest(BaseModel):
     brief_text: str = Field(min_length=10)
+    user_prompt: str = Field(
+        default="",
+        description="Optional planner guidance to apply alongside the brief during generation.",
+    )
     mock: bool = False
 
 

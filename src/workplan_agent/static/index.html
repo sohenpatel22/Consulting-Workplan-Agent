@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Workplan Agent</title>
-    <link rel="stylesheet" href="/assets/style.css?v=8" />
+    <link rel="stylesheet" href="/assets/style.css?v=9" />
   </head>
   <body>
     <header class="header">
@@ -39,6 +39,18 @@
           <span id="uploadStatus" class="upload-status"></span>
         </div>
         <p class="hint">Supported uploads: PDF, DOCX, Markdown, or plain text.</p>
+        <label class="field">
+          <span>Additional instructions <span class="optional">(optional)</span></span>
+          <textarea
+            id="userPrompt"
+            rows="5"
+            placeholder="e.g. Emphasize data migration risks, use agile phase names, assume a 6-month timeline, include UAT work packages…"
+          ></textarea>
+        </label>
+        <p class="hint">
+          Planner guidance sent with the brief to parsing, WBS, and RAID generation.
+          Does not replace the brief — use for emphasis, constraints, or context the brief omits.
+        </p>
         <div class="row">
           <label class="checkbox">
             <input type="checkbox" id="mockMode" checked />
@@ -178,6 +190,6 @@
       </section>
     </main>
 
-    <script src="/assets/app.js?v=8"></script>
+    <script src="/assets/app.js?v=9"></script>
   </body>
 </html>

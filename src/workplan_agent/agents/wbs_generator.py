@@ -5,6 +5,8 @@ from workplan_agent.models.wbs import WBS
 from workplan_agent.prompts import (
     WBS_GENERATOR_SYSTEM,
     WBS_GENERATOR_USER,
+    _append_user_instructions,
+    normalize_user_prompt,
     wbs_generator_system_blocks,
     wbs_generator_user_blocks,
 )
@@ -20,9 +22,11 @@ class WBSGeneratorAgent(BaseAgent[WBS]):
         parsed_brief = kwargs.get("parsed_brief")
         if not isinstance(parsed_brief, ParsedBrief):
             raise TypeError("parsed_brief must be a ParsedBrief")
-        return WBS_GENERATOR_USER.format(
+        user_prompt = normalize_user_prompt(kwargs.get("user_prompt"))
+        body = WBS_GENERATOR_USER.format(
             brief_json=parsed_brief.model_dump_json(indent=2)
         )
+        return _append_user_instructions(body, user_prompt or None)
 
     def build_system_blocks(self) -> list[ContentBlock]:
         return wbs_generator_system_blocks(self.response_model)
@@ -31,4 +35,8 @@ class WBSGeneratorAgent(BaseAgent[WBS]):
         parsed_brief = kwargs.get("parsed_brief")
         if not isinstance(parsed_brief, ParsedBrief):
             raise TypeError("parsed_brief must be a ParsedBrief")
-        return wbs_generator_user_blocks(parsed_brief.model_dump_json(indent=2))
+        user_prompt = normalize_user_prompt(kwargs.get("user_prompt"))
+        return wbs_generator_user_blocks(
+            parsed_brief.model_dump_json(indent=2),
+            user_prompt or None,
+        )

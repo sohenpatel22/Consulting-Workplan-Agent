@@ -48,21 +48,31 @@ class OrchestratorAgent:
         if self.verbose:
             console.print(message)
 
-    def run_pipeline(self, brief_path: Path) -> WorkplanSession:
+    def run_pipeline(
+        self,
+        brief_path: Path,
+        *,
+        user_prompt: str = "",
+    ) -> WorkplanSession:
         brief_text = brief_path.read_text(encoding="utf-8")
-        return self.run_pipeline_from_text(brief_text, brief_label=str(brief_path))
+        return self.run_pipeline_from_text(
+            brief_text,
+            brief_label=str(brief_path),
+            user_prompt=user_prompt,
+        )
 
     def run_pipeline_from_text(
         self,
         brief_text: str,
         brief_label: str = "web-upload",
         session_id: str | None = None,
+        user_prompt: str = "",
     ) -> WorkplanSession:
         session = WorkplanSession(
             session_id=session_id or str(uuid.uuid4())[:8],
             brief_path=brief_label,
         )
-        self.generate_artifacts(session, brief_text)
+        self.generate_artifacts(session, brief_text, user_prompt=user_prompt)
         self._log("[bold]Step 4:[/bold] Review generated artifacts...")
         session.status = SessionStatus.UNDER_REVIEW
         self._display_summary(session)
@@ -75,9 +85,18 @@ class OrchestratorAgent:
 
         return session
 
-    def generate_artifacts(self, session: WorkplanSession, brief_text: str) -> None:
+    def generate_artifacts(
+        self,
+        session: WorkplanSession,
+        brief_text: str,
+        *,
+        user_prompt: str = "",
+    ) -> None:
         self._log("[bold]Step 1:[/bold] Parsing client brief...")
-        session.parsed_brief = self.brief_parser.run_and_validate(brief_text)
+        session.parsed_brief = self.brief_parser.run_and_validate(
+            brief_text,
+            user_prompt=user_prompt,
+        )
         session.status = SessionStatus.PARSED
         save_artifacts(self.output_dir, session)
 
@@ -87,7 +106,10 @@ class OrchestratorAgent:
                 self._log(f"  • {q}")
 
         self._log("[bold]Step 2:[/bold] Generating WBS...")
-        session.wbs = self.wbs_generator.run(parsed_brief=session.parsed_brief)
+        session.wbs = self.wbs_generator.run(
+            parsed_brief=session.parsed_brief,
+            user_prompt=user_prompt,
+        )
         session.status = SessionStatus.WBS_GENERATED
         session.snapshot("initial_wbs")
         save_artifacts(self.output_dir, session)
@@ -97,6 +119,7 @@ class OrchestratorAgent:
         session.raid = self.raid_generator.run(
             parsed_brief=session.parsed_brief,
             wbs=session.wbs,
+            user_prompt=user_prompt,
         )
         session.status = SessionStatus.RAID_GENERATED
         session.snapshot("initial_raid")

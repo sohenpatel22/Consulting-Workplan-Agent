@@ -6,6 +6,8 @@ from workplan_agent.models.wbs import WBS
 from workplan_agent.prompts import (
     RAID_GENERATOR_SYSTEM,
     RAID_GENERATOR_USER,
+    _append_user_instructions,
+    normalize_user_prompt,
     raid_generator_system_blocks,
     raid_generator_user_blocks,
 )
@@ -24,10 +26,12 @@ class RAIDGeneratorAgent(BaseAgent[RAIDLog]):
             raise TypeError("parsed_brief must be a ParsedBrief")
         if not isinstance(wbs, WBS):
             raise TypeError("wbs must be a WBS")
-        return RAID_GENERATOR_USER.format(
+        user_prompt = normalize_user_prompt(kwargs.get("user_prompt"))
+        body = RAID_GENERATOR_USER.format(
             brief_json=parsed_brief.model_dump_json(indent=2),
             wbs_json=wbs.model_dump_json(indent=2),
         )
+        return _append_user_instructions(body, user_prompt or None)
 
     def build_system_blocks(self) -> list[ContentBlock]:
         return raid_generator_system_blocks(self.response_model)
@@ -39,7 +43,9 @@ class RAIDGeneratorAgent(BaseAgent[RAIDLog]):
             raise TypeError("parsed_brief must be a ParsedBrief")
         if not isinstance(wbs, WBS):
             raise TypeError("wbs must be a WBS")
+        user_prompt = normalize_user_prompt(kwargs.get("user_prompt"))
         return raid_generator_user_blocks(
             parsed_brief.model_dump_json(indent=2),
             wbs.model_dump_json(indent=2),
+            user_prompt or None,
         )

@@ -136,6 +136,7 @@ def create_session(request: CreateSessionRequest) -> SessionRecord:
         output_dir=output_dir,
         mock=request.mock,
         brief_text=request.brief_text,
+        user_prompt=request.user_prompt.strip(),
     )
     get_store().create(record)
     return record
@@ -156,7 +157,11 @@ def run_generation(record: SessionRecord) -> None:
             verbose=False,
         )
         store.update(session_id, phase="generating_wbs")
-        orchestrator.generate_artifacts(record.session, record.brief_text)
+        orchestrator.generate_artifacts(
+            record.session,
+            record.brief_text,
+            user_prompt=record.user_prompt,
+        )
         record.session.status = SessionStatus.UNDER_REVIEW
         save_status(record.output_dir, record.session)
         store.update(

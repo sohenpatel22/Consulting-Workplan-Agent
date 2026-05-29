@@ -63,9 +63,40 @@ Rules:
 - Preserve client naming and terminology from the brief.
 - Extract all objectives with clear success criteria where stated.
 - Separate in-scope and out-of-scope items explicitly.
-- Identify stakeholders mentioned or implied in the brief."""
+- Identify stakeholders mentioned or implied in the brief.
+- When planner instructions are included, use them to prioritize emphasis (e.g. phases,
+  risks, naming) but never fabricate brief facts to satisfy them."""
 
 BRIEF_PARSER_USER = "Parse the following client brief:\n\n{brief_text}"
+
+_USER_INSTRUCTIONS_HEADER = """## Planner instructions (from the user)
+
+The engagement team provided the following guidance alongside the client brief.
+Apply these preferences when parsing and generating artifacts when they do not
+contradict explicit facts in the brief. If guidance conflicts with the brief,
+follow the brief and surface the tension in open_questions (or relevant RAID items)."""
+
+
+def normalize_user_prompt(user_prompt: str | None) -> str:
+    if not user_prompt:
+        return ""
+    return user_prompt.strip()
+
+
+def format_user_instructions(user_prompt: str | None) -> str:
+    """Structured user guidance block; empty when no prompt provided."""
+    text = normalize_user_prompt(user_prompt)
+    if not text:
+        return ""
+    return f"{_USER_INSTRUCTIONS_HEADER}\n\n{text}"
+
+
+def _append_user_instructions(body: str, user_prompt: str | None) -> str:
+    instructions = format_user_instructions(user_prompt)
+    if not instructions:
+        return body
+    return f"{body.rstrip()}\n\n{instructions}"
+
 
 # --- WBS generator ---
 
@@ -193,21 +224,40 @@ def revision_system_blocks(response_model: type[BaseModel]) -> list[ContentBlock
     return [cached_block(static), _schema_block(response_model)]
 
 
-def brief_parser_user_blocks(brief_text: str) -> list[ContentBlock]:
-    return [plain_block(BRIEF_PARSER_USER.format(brief_text=brief_text))]
+def brief_parser_user_blocks(
+    brief_text: str,
+    user_prompt: str | None = None,
+) -> list[ContentBlock]:
+    body = _append_user_instructions(
+        BRIEF_PARSER_USER.format(brief_text=brief_text),
+        user_prompt,
+    )
+    return [plain_block(body)]
 
 
-def wbs_generator_user_blocks(brief_json: str) -> list[ContentBlock]:
+def wbs_generator_user_blocks(
+    brief_json: str,
+    user_prompt: str | None = None,
+) -> list[ContentBlock]:
+    task = _append_user_instructions(
+        "Generate a Work Breakdown Structure (WBS) from the parsed brief above.",
+        user_prompt,
+    )
+    return [parsed_brief_block(brief_json), plain_block(task)]
+
+
+def raid_generator_user_blocks(
+    brief_json: str,
+    wbs_json: str,
+    user_prompt: str | None = None,
+) -> list[ContentBlock]:
+    task = _append_user_instructions(
+        "Generate a RAID log from the parsed brief and WBS above.",
+        user_prompt,
+    )
     return [
         parsed_brief_block(brief_json),
-        plain_block("Generate a Work Breakdown Structure (WBS) from the parsed brief above."),
-    ]
-
-
-def raid_generator_user_blocks(brief_json: str, wbs_json: str) -> list[ContentBlock]:
-    return [
-        parsed_brief_block(brief_json),
-        plain_block(f"## WBS\n{wbs_json}\n\nGenerate a RAID log from the parsed brief and WBS above."),
+        plain_block(f"## WBS\n{wbs_json}\n\n{task}"),
     ]
 
 
