@@ -3,6 +3,7 @@ from workplan_agent.llm.caching import flatten_content
 from workplan_agent.llm.mock_provider import MockLLMProvider
 from workplan_agent.prompts import (
     brief_parser_user_blocks,
+    build_generation_guidance,
     format_user_instructions,
     normalize_user_prompt,
     wbs_generator_user_blocks,
@@ -42,7 +43,8 @@ def test_brief_parser_user_blocks_omits_instructions_when_empty() -> None:
 
 
 def test_wbs_generator_user_blocks_appends_instructions() -> None:
-    blocks = wbs_generator_user_blocks('{"client_name": "Acme"}', "Use agile names.")
+    guidance = build_generation_guidance("Use agile names.")
+    blocks = wbs_generator_user_blocks('{"client_name": "Acme"}', guidance)
     content = flatten_content(blocks)
     assert "Use agile names." in content
     assert "Planner instructions" in content

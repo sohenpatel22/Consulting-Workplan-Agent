@@ -10,6 +10,7 @@ from workplan_agent.models.wbs import WBS
 
 class SessionStatus(str, Enum):
     PARSED = "parsed"
+    AWAITING_CONFIRMATION = "awaiting_confirmation"
     WBS_GENERATED = "wbs_generated"
     RAID_GENERATED = "raid_generated"
     UNDER_REVIEW = "under_review"

@@ -1,8 +1,10 @@
 from workplan_agent.templates.deloitte_specs import (
-    format_raid_spec_for_prompt,
-    format_wbs_spec_for_prompt,
+    build_raid_generation_contract,
+    build_wbs_generation_contract,
     load_raid_spec,
     load_wbs_spec,
+    raid_json_output_instruction,
+    wbs_json_output_instruction,
 )
 
 
@@ -19,9 +21,12 @@ def test_raid_spec_sections_match_template() -> None:
     assert keys == {"risks", "actions", "issues", "decisions"}
 
 
-def test_prompt_includes_template_structure() -> None:
-    wbs_prompt = format_wbs_spec_for_prompt()
-    raid_prompt = format_raid_spec_for_prompt()
+def test_generation_contracts_include_template_structure() -> None:
+    wbs_prompt = build_wbs_generation_contract()
+    raid_prompt = build_raid_generation_contract()
     assert "wbs_code" in wbs_prompt
+    assert "generation contract" in wbs_prompt.lower()
     assert "risks" in raid_prompt
     assert "Actions" in raid_prompt
+    assert wbs_json_output_instruction()
+    assert raid_json_output_instruction()

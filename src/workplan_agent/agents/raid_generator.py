@@ -1,4 +1,5 @@
 from workplan_agent.agents.base import BaseAgent
+from workplan_agent.llm.base import build_messages
 from workplan_agent.llm.caching import ContentBlock
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.raid import RAIDLog
@@ -6,7 +7,7 @@ from workplan_agent.models.wbs import WBS
 from workplan_agent.prompts import (
     RAID_GENERATOR_SYSTEM,
     RAID_GENERATOR_USER,
-    _append_user_instructions,
+    append_generation_context,
     normalize_user_prompt,
     raid_generator_system_blocks,
     raid_generator_user_blocks,
@@ -31,7 +32,7 @@ class RAIDGeneratorAgent(BaseAgent[RAIDLog]):
             brief_json=parsed_brief.model_dump_json(indent=2),
             wbs_json=wbs.model_dump_json(indent=2),
         )
-        return _append_user_instructions(body, user_prompt or None)
+        return append_generation_context(body, user_prompt or None)
 
     def build_system_blocks(self) -> list[ContentBlock]:
         return raid_generator_system_blocks(self.response_model)
@@ -49,3 +50,8 @@ class RAIDGeneratorAgent(BaseAgent[RAIDLog]):
             wbs.model_dump_json(indent=2),
             user_prompt or None,
         )
+
+    def build_messages(self, **kwargs: object):
+        if self._caching_enabled():
+            return super().build_messages(**kwargs)
+        return build_messages(self.system_prompt, self.build_user_prompt(**kwargs))

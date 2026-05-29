@@ -6,6 +6,8 @@ from rich.panel import Panel
 from rich.table import Table
 
 from workplan_agent.agents.brief_parser import BriefParserAgent
+from workplan_agent.models.brief import ResolvedQuestion
+from workplan_agent.prompts import build_generation_guidance
 from workplan_agent.agents.raid_generator import RAIDGeneratorAgent
 from workplan_agent.agents.revision import RevisionAgent, RevisionTarget
 from workplan_agent.agents.wbs_generator import WBSGeneratorAgent
@@ -85,7 +87,14 @@ class OrchestratorAgent:
 
         return session
 
-    def generate_artifacts(
+    def _generation_guidance(self, session: WorkplanSession, user_prompt: str) -> str:
+        parsed = session.parsed_brief
+        confirmed: list[tuple[str, str]] | None = None
+        if parsed and parsed.resolved_open_questions:
+            confirmed = [(r.question, r.answer) for r in parsed.resolved_open_questions]
+        return build_generation_guidance(user_prompt, confirmed_answers=confirmed)
+
+    def parse_brief_only(
         self,
         session: WorkplanSession,
         brief_text: str,
@@ -105,10 +114,56 @@ class OrchestratorAgent:
             for q in session.parsed_brief.open_questions:
                 self._log(f"  • {q}")
 
+    def _auto_resolve_open_questions(self, session: WorkplanSession) -> None:
+        assert session.parsed_brief is not None
+        resolutions = [
+            ResolvedQuestion(
+                question=question,
+                answer=(
+                    "Proceed using reasonable assumptions stated or implied in the brief "
+                    "(non-interactive run)."
+                ),
+            )
+            for question in session.parsed_brief.open_questions
+        ]
+        session.parsed_brief.apply_open_question_resolutions(resolutions)
+
+    def _collect_open_question_answers_cli(
+        self,
+        session: WorkplanSession,
+    ) -> list[ResolvedQuestion]:
+        assert session.parsed_brief is not None
+        resolutions: list[ResolvedQuestion] = []
+        console.print(
+            Panel(
+                "Resolve each open question before WBS and RAID are generated.",
+                title="Open questions",
+            )
+        )
+        for question in session.parsed_brief.open_questions:
+            while True:
+                answer = console.input(f"[bold]{question}[/bold]\nYour answer: ").strip()
+                if answer:
+                    break
+                console.print("[red]An answer is required to continue.[/red]")
+            resolutions.append(ResolvedQuestion(question=question, answer=answer))
+        return resolutions
+
+    def generate_workplan_artifacts(
+        self,
+        session: WorkplanSession,
+        *,
+        user_prompt: str = "",
+    ) -> None:
+        if session.parsed_brief is None:
+            raise ValueError("Brief must be parsed before generating WBS and RAID.")
+
+        guidance = self._generation_guidance(session, user_prompt)
+
         self._log("[bold]Step 2:[/bold] Generating WBS...")
         session.wbs = self.wbs_generator.run(
             parsed_brief=session.parsed_brief,
-            user_prompt=user_prompt,
+            user_prompt=guidance,
         )
         session.status = SessionStatus.WBS_GENERATED
         session.snapshot("initial_wbs")
@@ -119,11 +174,30 @@ class OrchestratorAgent:
         session.raid = self.raid_generator.run(
             parsed_brief=session.parsed_brief,
             wbs=session.wbs,
-            user_prompt=user_prompt,
+            user_prompt=guidance,
         )
         session.status = SessionStatus.RAID_GENERATED
         session.snapshot("initial_raid")
         save_artifacts(self.output_dir, session)
+
+    def generate_artifacts(
+        self,
+        session: WorkplanSession,
+        brief_text: str,
+        *,
+        user_prompt: str = "",
+    ) -> None:
+        self.parse_brief_only(session, brief_text, user_prompt=user_prompt)
+
+        if session.parsed_brief and session.parsed_brief.open_questions:
+            if self.interactive:
+                resolutions = self._collect_open_question_answers_cli(session)
+                session.parsed_brief.apply_open_question_resolutions(resolutions)
+            else:
+                self._auto_resolve_open_questions(session)
+            save_artifacts(self.output_dir, session)
+
+        self.generate_workplan_artifacts(session, user_prompt=user_prompt)
 
     def approve_session(self, session: WorkplanSession) -> WorkplanSession:
         session.status = SessionStatus.APPROVED

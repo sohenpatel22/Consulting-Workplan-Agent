@@ -3,6 +3,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from workplan_agent.api.schemas import (
+    ConfirmQuestionsRequest,
+    ConfirmQuestionsResponse,
     CreateSessionRequest,
     CreateSessionResponse,
     ReviewAcceptedResponse,
@@ -14,8 +16,10 @@ from workplan_agent.api.files import router as files_router
 from workplan_agent.api.service import (
     STATIC_DIR,
     apply_approve,
+    confirm_open_questions,
     create_session,
     get_session,
+    run_build_artifacts,
     run_generation,
     run_revision_job,
     start_revision,
@@ -69,6 +73,29 @@ def start_session(
         session_id=record.session.session_id,
         job_status=record.job_status,
     )
+
+
+@app.post(
+    "/api/sessions/{session_id}/confirm",
+    response_model=ConfirmQuestionsResponse,
+    status_code=202,
+)
+def confirm_session_questions(
+    session_id: str,
+    request: ConfirmQuestionsRequest,
+    background_tasks: BackgroundTasks,
+) -> ConfirmQuestionsResponse:
+    try:
+        confirm_open_questions(session_id, request)
+        background_tasks.add_task(run_build_artifacts, session_id)
+        return ConfirmQuestionsResponse(
+            session_id=session_id,
+            message="Answers recorded. Building WBS and RAID…",
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/sessions/{session_id}", response_model=SessionResponse)

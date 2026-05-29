@@ -24,7 +24,8 @@ from workplan_agent.prompts import (
 def test_cached_blocks_marked() -> None:
     blocks = wbs_generator_system_blocks(WBS)
     assert any("cache_control" in block for block in blocks)
-    assert WBS_REQUIREMENTS in blocks[1]["text"]
+    assert "generation contract" in blocks[1]["text"].lower()
+    assert "work_packages" in blocks[1]["text"]
 
 
 def test_brief_parser_builds_cached_messages(monkeypatch) -> None:

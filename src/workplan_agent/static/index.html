@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Workplan Agent</title>
-    <link rel="stylesheet" href="/assets/style.css?v=9" />
+    <link rel="stylesheet" href="/assets/style.css?v=10" />
   </head>
   <body>
     <header class="header">
@@ -78,6 +78,25 @@
         </div>
         <p id="phaseLabel" class="phase">Starting…</p>
         <p id="progressError" class="error hidden"></p>
+      </section>
+
+      <section class="panel hidden" id="confirmPanel">
+        <h2>Confirm open questions</h2>
+        <p class="session-meta">
+          Session <code id="confirmSessionIdLabel"></code>
+        </p>
+        <p class="hint">
+          The brief was parsed. Resolve each item below before WBS and RAID are generated.
+          Your answers are treated as decided facts for the workplan.
+        </p>
+        <div id="parsePreview" class="parse-preview hidden"></div>
+        <form id="confirmQuestionsForm" class="confirm-form"></form>
+        <div class="actions">
+          <button type="button" id="confirmBuildBtn" class="btn primary">
+            Build WBS &amp; RAID
+          </button>
+        </div>
+        <p id="confirmError" class="error hidden"></p>
       </section>
 
       <section class="panel hidden" id="resultsPanel">
@@ -190,6 +209,6 @@
       </section>
     </main>
 
-    <script src="/assets/app.js?v=9"></script>
+    <script src="/assets/app.js?v=10"></script>
   </body>
 </html>

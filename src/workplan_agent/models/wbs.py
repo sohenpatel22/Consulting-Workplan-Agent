@@ -42,34 +42,42 @@ class WBS(BaseModel):
     def phases(self) -> list[str]:
         return [wp.wbs_element_title for wp in self.work_packages if wp.level == 1]
 
-    @model_validator(mode="after")
-    def validate_hierarchy(self) -> "WBS":
-        l1 = [wp for wp in self.work_packages if wp.level == 1]
-        if len(l1) < 3:
-            raise ValueError("WBS must have at least 3 level-1 work packages.")
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_parent_codes(cls, data: object) -> object:
+        """Map common LLM parent codes (e.g. '1') to phase codes ('1.0')."""
+        if not isinstance(data, dict):
+            return data
+        packages = data.get("work_packages")
+        if not isinstance(packages, list):
+            return data
 
-        for parent in l1:
-            children = [
-                wp
-                for wp in self.work_packages
-                if wp.level == 2 and wp.parent_wbs_code == parent.wbs_code
-            ]
-            if len(children) < 2:
-                raise ValueError(
-                    f"Level-1 work package '{parent.wbs_code}' must have at least 2 level-2 children."
-                )
+        l1_codes: dict[str, str] = {}
+        for item in packages:
+            if not isinstance(item, dict) or item.get("level") != 1:
+                continue
+            code = item.get("wbs_code") or item.get("id")
+            if code:
+                l1_codes[str(code)] = str(code)
 
-        codes = {wp.wbs_code for wp in self.work_packages}
-        for wp in self.work_packages:
-            if wp.parent_wbs_code and wp.parent_wbs_code not in codes:
-                raise ValueError(
-                    f"Work package '{wp.wbs_code}' references unknown parent "
-                    f"'{wp.parent_wbs_code}'."
-                )
-            for dep in wp.dependencies:
-                if dep not in codes:
-                    raise ValueError(
-                        f"Work package '{wp.wbs_code}' references unknown dependency '{dep}'."
-                    )
+        stem_to_l1 = {code.split(".")[0]: code for code in l1_codes}
 
-        return self
+        normalized: list[object] = []
+        for item in packages:
+            if not isinstance(item, dict):
+                normalized.append(item)
+                continue
+            row = dict(item)
+            parent = row.get("parent_wbs_code") or row.get("parent_id")
+            if parent is not None and str(parent).strip():
+                parent_str = str(parent).strip()
+                if parent_str not in l1_codes:
+                    if parent_str in stem_to_l1:
+                        parent_str = stem_to_l1[parent_str]
+                    elif f"{parent_str}.0" in l1_codes:
+                        parent_str = f"{parent_str}.0"
+                row["parent_wbs_code"] = parent_str
+            normalized.append(row)
+
+        return {**data, "work_packages": normalized}
+

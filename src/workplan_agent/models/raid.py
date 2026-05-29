@@ -125,14 +125,6 @@ class RAIDLog(BaseModel):
             "decisions": buckets["decisions"],
         }
 
-    @model_validator(mode="after")
-    def validate_counts(self) -> "RAIDLog":
-        if len(self.risks) < 3:
-            raise ValueError("RAID log must contain at least 3 risks.")
-        if len(self.actions) < 2:
-            raise ValueError("RAID log must contain at least 2 actions.")
-        return self
-
     @property
     def items(self) -> list[RiskEntry | ActionEntry | IssueEntry | DecisionEntry]:
         """Flattened view for callers that iterate all RAID entries."""

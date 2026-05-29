@@ -36,16 +36,65 @@ def test_index_page(client: TestClient) -> None:
     assert "text/html" in response.headers["content-type"]
 
 
+def _confirm_open_questions(client: TestClient, session_id: str, data: dict) -> None:
+    questions = data.get("confirmation_questions") or []
+    if not questions:
+        return
+    answers = [
+        {"question": question, "answer": f"Confirmed for planning: {question}"}
+        for question in questions
+    ]
+    response = client.post(
+        f"/api/sessions/{session_id}/confirm",
+        json={"answers": answers},
+    )
+    assert response.status_code == 202, response.text
+
+
 def _wait_for_complete(client: TestClient, session_id: str) -> dict:
     data: dict = {}
     for _ in range(120):
         response = client.get(f"/api/sessions/{session_id}")
         assert response.status_code == 200
         data = response.json()
+        if data.get("awaiting_confirmation") or data.get("phase") == "awaiting_confirmation":
+            _confirm_open_questions(client, session_id, data)
+            continue
         if data["job_status"] in ("complete", "failed"):
             break
         time.sleep(0.05)
     return data
+
+
+def test_open_questions_pause_before_build(client: TestClient) -> None:
+    create = client.post(
+        "/api/sessions",
+        json={"brief_text": BRIEF, "mock": True},
+    )
+    session_id = create.json()["session_id"]
+
+    paused: dict | None = None
+    for _ in range(120):
+        response = client.get(f"/api/sessions/{session_id}")
+        data = response.json()
+        if data.get("phase") == "awaiting_confirmation":
+            paused = data
+            break
+        if data["job_status"] == "failed":
+            pytest.fail(data.get("error"))
+        time.sleep(0.05)
+
+    assert paused is not None
+    assert paused["awaiting_confirmation"] is True
+    assert len(paused["confirmation_questions"]) >= 1
+    assert paused["parse_preview"] is not None
+    assert paused["wbs"] is None
+    assert paused["raid"] is None
+
+    _confirm_open_questions(client, session_id, paused)
+    final = _wait_for_complete(client, session_id)
+    assert final["job_status"] == "complete"
+    assert final["wbs"] is not None
 
 
 def test_create_session_mock(client: TestClient) -> None:
