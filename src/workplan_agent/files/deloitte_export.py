@@ -7,6 +7,7 @@ from datetime import date
 from pathlib import Path
 
 from openpyxl import load_workbook
+from openpyxl.cell.cell import MergedCell
 from openpyxl.worksheet.worksheet import Worksheet
 
 from workplan_agent.models.brief import ParsedBrief
@@ -121,14 +122,46 @@ def _wbs_sort_key(wp: WorkPackage) -> tuple[int, ...]:
     return tuple(parts)
 
 
+def _writable_cell(ws: Worksheet, row: int, col: int):
+    """Return the cell that accepts writes (top-left of a merged range)."""
+    cell = ws.cell(row=row, column=col)
+    if not isinstance(cell, MergedCell):
+        return cell
+    for merged in ws.merged_cells.ranges:
+        if (
+            merged.min_row <= row <= merged.max_row
+            and merged.min_col <= col <= merged.max_col
+        ):
+            return ws.cell(row=merged.min_row, column=merged.min_col)
+    return cell
+
+
 def _set_cell(ws: Worksheet, row: int, col: int, value: object) -> None:
-    ws.cell(row=row, column=col, value=value)
+    _writable_cell(ws, row, col).value = value
 
 
 def _clear_row_range(ws: Worksheet, start_row: int, end_row: int, max_col: int) -> None:
+    cleared_merges: set[str] = set()
     for row in range(start_row, end_row + 1):
         for col in range(1, max_col + 1):
-            ws.cell(row=row, column=col, value=None)
+            cell = ws.cell(row=row, column=col)
+            if isinstance(cell, MergedCell):
+                for merged in ws.merged_cells.ranges:
+                    if (
+                        merged.min_row <= row <= merged.max_row
+                        and merged.min_col <= col <= merged.max_col
+                    ):
+                        merge_key = str(merged)
+                        if merge_key not in cleared_merges:
+                            cleared_merges.add(merge_key)
+                            ws.cell(
+                                row=merged.min_row,
+                                column=merged.min_col,
+                                value=None,
+                            )
+                        break
+            else:
+                cell.value = None
 
 
 def _fill_raid_detail_sheet(

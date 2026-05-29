@@ -91,6 +91,21 @@ def test_deloitte_raid_xlsx_export() -> None:
     assert content[:2] == b"PK"
 
 
+def test_deloitte_raid_xlsx_export_many_rows() -> None:
+    """Simple sheet has merged cells in lower rows; export must not raise."""
+    import copy
+
+    data = copy.deepcopy(RAID_FIXTURE)
+    for index in range(4, 16):
+        data["risks"].append(
+            {**data["risks"][0], "id": f"R{index}", "title": f"Extra risk {index}"}
+        )
+    raid = RAIDLog.model_validate(data)
+    brief = ParsedBrief.model_validate(PARSED_BRIEF_FIXTURE)
+    content = export_raid_deloitte_xlsx(raid, brief)
+    assert content[:2] == b"PK"
+
+
 def test_export_raid_xlsx_requires_models() -> None:
     with pytest.raises(ValueError, match="structured"):
         export_artifact("# RAID", "raid", "xlsx")
