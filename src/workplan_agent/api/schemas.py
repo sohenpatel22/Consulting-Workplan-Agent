@@ -2,7 +2,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from workplan_agent.config import ProfileName
 from workplan_agent.models.session import SessionStatus
 
 JobStatus = Literal["queued", "running", "complete", "failed"]
@@ -12,7 +11,6 @@ ReviewActionName = Literal["approve", "wbs", "raid", "both"]
 class CreateSessionRequest(BaseModel):
     brief_text: str = Field(min_length=10)
     mock: bool = False
-    profile: ProfileName = "balanced"
 
 
 class CreateSessionResponse(BaseModel):
@@ -56,6 +54,8 @@ class SessionResponse(BaseModel):
     raid: dict | None = None
     wbs_markdown: str | None = None
     raid_markdown: str | None = None
+    wbs_html: str | None = None
+    raid_html: str | None = None
 
 
 class ReviewRequest(BaseModel):

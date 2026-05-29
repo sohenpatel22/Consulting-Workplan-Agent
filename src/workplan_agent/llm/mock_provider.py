@@ -4,7 +4,7 @@ from typing import TypeVar
 
 from pydantic import BaseModel
 
-from workplan_agent.config import ProfileName
+from workplan_agent.llm.caching import LLMMessage, flatten_content
 from workplan_agent.llm.fixtures import FIXTURES, RAID_FIXTURE, WBS_FIXTURE
 from workplan_agent.models.raid import RAIDLog
 from workplan_agent.models.wbs import WBS
@@ -24,16 +24,22 @@ class MockLLMProvider:
     """Returns deterministic fixture data for offline tests and demos."""
 
     def __init__(self) -> None:
-        self.call_log: list[tuple[type[BaseModel], ProfileName]] = []
+        self.call_log: list[type[BaseModel]] = []
+
+    def warm_prompt_cache(self) -> None:
+        return
 
     def call_structured(
         self,
-        messages: list[dict[str, str]],
+        messages: list[LLMMessage],
         response_model: type[T],
-        profile: ProfileName = "balanced",
     ) -> T:
-        self.call_log.append((response_model, profile))
-        user_text = "\n".join(m["content"] for m in messages if m["role"] == "user")
+        self.call_log.append(response_model)
+        user_text = "\n".join(
+            flatten_content(m["content"])
+            for m in messages
+            if m["role"] == "user"
+        )
 
         if "Revise the WBS" in user_text:
             return self._mock_wbs_revision(user_text, response_model)
@@ -133,7 +139,3 @@ class MockLLMProvider:
             )
 
         return response_model.model_validate(data)
-
-    @staticmethod
-    def for_profile(profile: ProfileName) -> "MockLLMProvider":
-        return MockLLMProvider()

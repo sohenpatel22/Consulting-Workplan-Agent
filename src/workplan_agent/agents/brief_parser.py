@@ -1,21 +1,16 @@
 from workplan_agent.agents.base import BaseAgent
+from workplan_agent.llm.caching import ContentBlock
 from workplan_agent.models.brief import ParsedBrief
-
-SYSTEM_PROMPT = """You are a consulting engagement analyst. Extract structured information from client briefs.
-
-Rules:
-- Do not invent scope, objectives, or constraints not implied by the brief.
-- Put ambiguities, missing information, and unclear items in open_questions.
-- Preserve client naming and terminology from the brief.
-- Extract all objectives with clear success criteria where stated.
-- Separate in-scope and out-of-scope items explicitly.
-- Identify stakeholders mentioned or implied in the brief."""
+from workplan_agent.prompts import (
+    BRIEF_PARSER_SYSTEM,
+    BRIEF_PARSER_USER,
+    brief_parser_system_blocks,
+    brief_parser_user_blocks,
+)
 
 
 class BriefParserAgent(BaseAgent[ParsedBrief]):
-    system_prompt = SYSTEM_PROMPT
-    profile = "balanced"
-
+    system_prompt = BRIEF_PARSER_SYSTEM
     @property
     def response_model(self) -> type[ParsedBrief]:
         return ParsedBrief
@@ -24,7 +19,16 @@ class BriefParserAgent(BaseAgent[ParsedBrief]):
         brief_text = kwargs.get("brief_text")
         if not isinstance(brief_text, str):
             raise TypeError("brief_text must be a string")
-        return f"Parse the following client brief:\n\n{brief_text}"
+        return BRIEF_PARSER_USER.format(brief_text=brief_text)
+
+    def build_system_blocks(self) -> list[ContentBlock]:
+        return brief_parser_system_blocks(self.response_model)
+
+    def build_user_blocks(self, **kwargs: object) -> list[ContentBlock]:
+        brief_text = kwargs.get("brief_text")
+        if not isinstance(brief_text, str):
+            raise TypeError("brief_text must be a string")
+        return brief_parser_user_blocks(brief_text)
 
     def run_and_validate(self, brief_text: str) -> ParsedBrief:
         parsed = self.run(brief_text=brief_text)

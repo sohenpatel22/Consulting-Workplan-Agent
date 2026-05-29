@@ -13,9 +13,10 @@ from workplan_agent.api.schemas import (
 from workplan_agent.diff import unified_text_diff
 from workplan_agent.api.store import SessionRecord, get_store
 from workplan_agent.config import get_settings
-from workplan_agent.llm import get_provider
+from workplan_agent.llm import get_provider, warm_prompt_cache
 from workplan_agent.models.session import SessionStatus, WorkplanSession
 from workplan_agent.orchestrator import OrchestratorAgent
+from workplan_agent.files.export import markdown_to_html_body
 from workplan_agent.render import render_raid_markdown, render_wbs_markdown, save_status
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 DATA_ROOT = Path.cwd() / "data" / "sessions"
@@ -64,6 +65,8 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
     raid = None
     wbs_markdown = None
     raid_markdown = None
+    wbs_html = None
+    raid_html = None
     summary = None
 
     if session.parsed_brief is not None:
@@ -80,6 +83,8 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
         summary = _build_summary(session)
         wbs_markdown = render_wbs_markdown(session.wbs, session.parsed_brief)
         raid_markdown = render_raid_markdown(session.raid, session.parsed_brief)
+        wbs_html = markdown_to_html_body(wbs_markdown)
+        raid_html = markdown_to_html_body(raid_markdown)
 
     last_review = record.last_review_result
     return SessionResponse(
@@ -101,7 +106,18 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
         raid=raid,
         wbs_markdown=wbs_markdown,
         raid_markdown=raid_markdown,
+        wbs_html=wbs_html,
+        raid_html=raid_html,
     )
+
+
+def warm_session_prompt_cache(mock: bool) -> None:
+    if mock:
+        return
+    try:
+        warm_prompt_cache()
+    except Exception:
+        pass
 
 
 def create_session(request: CreateSessionRequest) -> SessionRecord:

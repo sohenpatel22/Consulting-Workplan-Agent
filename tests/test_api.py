@@ -61,6 +61,9 @@ def test_create_session_mock(client: TestClient) -> None:
     assert data["wbs"] is not None
     assert data["raid"] is not None
     assert data["wbs_markdown"]
+    assert data["wbs_html"]
+    assert "<table>" in data["wbs_html"] or "<h" in data["wbs_html"]
+    assert data["raid_html"]
     assert data["status"] == "under_review"
     assert data["unlimited_revisions"] is True
     assert data["revisions_remaining"] is None
