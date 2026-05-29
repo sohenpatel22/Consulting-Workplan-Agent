@@ -10,6 +10,7 @@
   --danger: #f07178;
   --border: #2d3a4f;
   --radius: 10px;
+  --artifact-pane-height: 50vh;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
@@ -50,6 +51,18 @@ body {
   max-width: 960px;
   margin: 0 auto;
   padding: 1.5rem;
+}
+
+.layout-wide {
+  max-width: none;
+  width: 100%;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.layout-wide #resultsPanel {
+  max-width: none;
+  width: 100%;
 }
 
 .panel {
@@ -329,6 +342,212 @@ textarea {
   font-size: 0.9rem;
   white-space: pre-wrap;
   font-family: ui-monospace, "Cascadia Code", monospace;
+}
+
+.brief-content {
+  max-height: 480px;
+}
+
+.artifact-view {
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.layout-wide .artifact-view {
+  margin-left: -1.5rem;
+  margin-right: -1.5rem;
+  width: calc(100% + 3rem);
+  max-width: 100vw;
+}
+
+.artifact-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  width: 100%;
+  align-items: stretch;
+  box-sizing: border-box;
+}
+
+.layout-wide .artifact-split {
+  grid-template-columns: minmax(0, 50%) minmax(0, 50%);
+  gap: 1rem;
+  min-height: var(--artifact-pane-height);
+}
+
+@media (max-width: 900px) {
+  .layout-wide .artifact-view {
+    margin-left: 0;
+    margin-right: 0;
+    width: 100%;
+  }
+
+  .artifact-split,
+  .layout-wide .artifact-split {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+.pane-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.pane-hint {
+  margin: 0.2rem 0 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.pane-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+#artifactView .artifact-preview,
+#artifactView #tabContent.pane-body,
+#artifactView #feedbackPane.pane-body {
+  height: var(--artifact-pane-height);
+  min-height: var(--artifact-pane-height);
+  max-height: var(--artifact-pane-height);
+}
+
+#artifactView #tabContent.markdown-body {
+  max-height: var(--artifact-pane-height);
+}
+
+.artifact-preview {
+  background: #f8f9fc;
+  color: #1a2332;
+  border: 1px solid #d8dee9;
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  overflow: auto;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  box-sizing: border-box;
+}
+
+.artifact-preview h1 {
+  font-size: 1.35rem;
+  margin: 0 0 0.75rem;
+  color: #0f1419;
+}
+
+.artifact-preview h2 {
+  font-size: 1.1rem;
+  margin: 1.25rem 0 0.5rem;
+  color: #243044;
+}
+
+.artifact-preview h3 {
+  font-size: 1rem;
+  margin: 1rem 0 0.4rem;
+}
+
+.artifact-preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75rem 0 1rem;
+  font-size: 0.88rem;
+}
+
+.artifact-preview th,
+.artifact-preview td {
+  border: 1px solid #c5cdd8;
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.artifact-preview th {
+  background: #e8ecf4;
+  font-weight: 600;
+}
+
+.artifact-preview tr:nth-child(even) td {
+  background: #f0f3f8;
+}
+
+.artifact-preview p {
+  margin: 0.5rem 0;
+}
+
+.artifact-preview ul,
+.artifact-preview ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.artifact-preview .preview-section {
+  margin-bottom: 1.5rem;
+}
+
+.artifact-preview .preview-section-title {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid #3d8bfd;
+  color: #243044;
+}
+
+.artifact-preview .empty-preview {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.markdown-source {
+  font-size: 0.85rem;
+  box-sizing: border-box;
+}
+
+.artifact-pane-secondary .feedback-pane.pane-body {
+  display: flex;
+}
+
+.feedback-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-sizing: border-box;
+}
+
+.feedback-pane .feedback-field {
+  flex: 1;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.feedback-pane textarea {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  resize: none;
+}
+
+.feedback-actions {
+  margin-top: 0;
+}
+
+#resultsPanel.revising .artifact-pane-preview {
+  order: 0;
+}
+
+#resultsPanel.revising .markdown-source {
+  display: none !important;
+}
+
+#resultsPanel.revising .pane-hint-secondary {
+  display: none;
 }
 
 .review {

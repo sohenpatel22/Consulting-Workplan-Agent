@@ -31,12 +31,25 @@ app = FastAPI(
 app.include_router(files_router)
 
 if STATIC_DIR.is_dir():
-    app.mount("/assets", StaticFiles(directory=STATIC_DIR), name="assets")
+
+    class _DevStaticFiles(StaticFiles):
+        """Disable long-lived caching for UI assets during local development."""
+
+        async def get_response(self, path: str, scope):  # type: ignore[override]
+            response = await super().get_response(path, scope)
+            if path.endswith((".css", ".js", ".html")):
+                response.headers["Cache-Control"] = "no-cache"
+            return response
+
+    app.mount("/assets", _DevStaticFiles(directory=STATIC_DIR), name="assets")
 
 
 @app.get("/")
 def index() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
+    return FileResponse(
+        STATIC_DIR / "index.html",
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 @app.get("/api/health")

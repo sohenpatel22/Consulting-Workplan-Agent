@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Workplan Agent</title>
-    <link rel="stylesheet" href="/assets/style.css" />
+    <link rel="stylesheet" href="/assets/style.css?v=8" />
   </head>
   <body>
     <header class="header">
@@ -15,7 +15,7 @@
       <span id="healthBadge" class="badge">Checking API…</span>
     </header>
 
-    <main class="layout">
+    <main class="layout" id="appLayout">
       <section class="panel" id="createPanel">
         <h2>New session</h2>
         <label class="field">
@@ -90,7 +90,51 @@
             <button type="button" class="btn secondary btn-sm" data-format="pdf">PDF</button>
           </div>
         </div>
-        <article id="tabContent" class="markdown-body"></article>
+
+        <div id="artifactView" class="artifact-view hidden">
+          <div class="artifact-split">
+            <div class="artifact-pane artifact-pane-preview">
+              <span class="pane-label">Document preview</span>
+              <p class="pane-hint">Formatted view — same as downloaded HTML.</p>
+              <div id="artifactPreview" class="artifact-preview"></div>
+            </div>
+            <div class="artifact-pane artifact-pane-secondary">
+              <span class="pane-label" id="secondaryPaneLabel">Source</span>
+              <p class="pane-hint pane-hint-secondary" id="secondaryPaneHint">
+                Technical markdown (optional).
+              </p>
+              <article
+                id="tabContent"
+                class="markdown-body markdown-source pane-body"
+                data-pane="source"
+              ></article>
+              <div
+                id="feedbackPane"
+                class="feedback-pane pane-body hidden"
+                data-pane="feedback"
+              >
+                <label class="field feedback-field">
+                  <span>Your feedback</span>
+                  <textarea
+                    id="feedbackText"
+                    rows="12"
+                    placeholder="Describe what to change in plain language — e.g. add a UAT phase, clarify ownership on R2, extend timeline for integration…"
+                  ></textarea>
+                </label>
+                <div class="actions feedback-actions">
+                  <button type="button" id="submitRevisionBtn" class="btn primary">
+                    Submit revision
+                  </button>
+                  <button type="button" id="cancelRevisionBtn" class="btn secondary">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <article id="briefTabContent" class="markdown-body brief-content hidden"></article>
 
         <section class="diff-panel hidden" id="diffPanel">
           <h3>Changes in last revision</h3>
@@ -105,7 +149,8 @@
             <strong id="revisionCount">0</strong>
           </p>
           <p id="feedbackHint" class="feedback-hint hidden">
-            Enter your feedback below, then click <strong>Submit revision</strong>.
+            Review the document on the left, enter feedback on the right, then click
+            <strong>Submit revision</strong>.
           </p>
           <p id="reviewStatus" class="review-status hidden" role="status" aria-live="polite"></p>
           <div class="review-actions">
@@ -122,18 +167,6 @@
               Revise both
             </button>
           </div>
-          <label class="field hidden" id="feedbackField">
-            <span>Feedback</span>
-            <textarea id="feedbackText" rows="4" placeholder="Describe changes…"></textarea>
-          </label>
-          <div class="actions hidden" id="feedbackActions">
-            <button type="button" id="submitRevisionBtn" class="btn primary">
-              Submit revision
-            </button>
-            <button type="button" id="cancelRevisionBtn" class="btn secondary">
-              Cancel
-            </button>
-          </div>
           <p id="reviewMessage" class="message hidden"></p>
           <p id="reviewError" class="error hidden"></p>
         </section>
@@ -144,6 +177,6 @@
       </section>
     </main>
 
-    <script src="/assets/app.js?v=5"></script>
+    <script src="/assets/app.js?v=8"></script>
   </body>
 </html>

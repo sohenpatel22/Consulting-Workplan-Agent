@@ -39,16 +39,21 @@ def export_artifact(markdown: str, artifact: ArtifactKind, fmt: ExportFormat) ->
     raise ExportError(f"Unsupported export format: {fmt}")
 
 
-def _to_html(markdown: str) -> str:
+def markdown_to_html_body(markdown: str) -> str:
+    """Convert markdown to an HTML fragment (for in-app preview)."""
     try:
         import markdown as md_lib
     except ImportError as exc:
         raise ExportError("HTML export is not installed.") from exc
 
-    body = md_lib.markdown(
+    return md_lib.markdown(
         markdown,
         extensions=["tables", "fenced_code", "nl2br"],
     )
+
+
+def _to_html(markdown: str) -> str:
+    body = markdown_to_html_body(markdown)
     title_match = re.search(r"^#\s+(.+)$", markdown, re.MULTILINE)
     title = escape(title_match.group(1).strip()) if title_match else "Workplan artifact"
     return f"""<!DOCTYPE html>

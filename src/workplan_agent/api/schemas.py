@@ -54,6 +54,8 @@ class SessionResponse(BaseModel):
     raid: dict | None = None
     wbs_markdown: str | None = None
     raid_markdown: str | None = None
+    wbs_html: str | None = None
+    raid_html: str | None = None
 
 
 class ReviewRequest(BaseModel):

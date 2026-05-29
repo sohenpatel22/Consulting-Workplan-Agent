@@ -20,6 +20,7 @@ function showPanel(name) {
   Object.entries(panels).forEach(([key, el]) => {
     el.classList.toggle("hidden", key !== name);
   });
+  $("appLayout")?.classList.toggle("layout-wide", name === "results");
 }
 
 function setError(el, message) {
@@ -187,14 +188,76 @@ function renderSummary(summary) {
     .join("");
 }
 
+function previewHtmlForAction(data, action) {
+  if (action === "wbs") {
+    return data.wbs_html || "";
+  }
+  if (action === "raid") {
+    return data.raid_html || "";
+  }
+  if (action === "both") {
+    const parts = [];
+    if (data.wbs_html) {
+      parts.push('<section class="preview-section"><h2 class="preview-section-title">WBS</h2>');
+      parts.push(data.wbs_html);
+      parts.push("</section>");
+    }
+    if (data.raid_html) {
+      parts.push('<section class="preview-section"><h2 class="preview-section-title">RAID</h2>');
+      parts.push(data.raid_html);
+      parts.push("</section>");
+    }
+    return parts.join("");
+  }
+  return "";
+}
+
+function setArtifactPaneMode(mode) {
+  const resultsPanel = $("resultsPanel");
+  const sourcePane = $("tabContent");
+  const feedbackPane = $("feedbackPane");
+  const isFeedback = mode === "feedback";
+
+  resultsPanel.classList.toggle("revising", isFeedback);
+  sourcePane.classList.toggle("hidden", isFeedback);
+  feedbackPane.classList.toggle("hidden", !isFeedback);
+
+  $("secondaryPaneLabel").textContent = isFeedback ? "Your feedback" : "Source";
+  $("secondaryPaneHint").textContent = isFeedback
+    ? "Describe changes in plain language."
+    : "Technical markdown (optional).";
+}
+
 function renderTabContent(data) {
-  const el = $("tabContent");
+  const artifactView = $("artifactView");
+  const briefView = $("briefTabContent");
+
+  if (currentTab === "brief") {
+    artifactView.classList.add("hidden");
+    briefView.classList.remove("hidden");
+    briefView.textContent = JSON.stringify(data.parsed_brief, null, 2);
+    return;
+  }
+
+  artifactView.classList.remove("hidden");
+  briefView.classList.add("hidden");
+
+  const preview = $("artifactPreview");
+  const source = $("tabContent");
+
   if (currentTab === "wbs") {
-    el.textContent = data.wbs_markdown || "WBS not available yet.";
-  } else if (currentTab === "raid") {
-    el.textContent = data.raid_markdown || "RAID not available yet.";
+    preview.innerHTML = data.wbs_html || "<p class='empty-preview'>WBS not available yet.</p>";
+    source.textContent = data.wbs_markdown || "WBS not available yet.";
   } else {
-    el.textContent = JSON.stringify(data.parsed_brief, null, 2);
+    preview.innerHTML = data.raid_html || "<p class='empty-preview'>RAID not available yet.</p>";
+    source.textContent = data.raid_markdown || "RAID not available yet.";
+  }
+
+  if (pendingRevisionAction) {
+    const revisionPreview = previewHtmlForAction(data, pendingRevisionAction);
+    if (revisionPreview) {
+      preview.innerHTML = revisionPreview;
+    }
   }
 }
 
@@ -457,21 +520,24 @@ async function createSession() {
 function showFeedbackForm(action) {
   if (reviewBusy) return;
   pendingRevisionAction = action;
-  $("feedbackField").classList.remove("hidden");
-  $("feedbackActions").classList.remove("hidden");
+  setArtifactPaneMode("feedback");
   $("feedbackHint").classList.remove("hidden");
   document.querySelectorAll(".review-actions .btn").forEach((b) => {
     b.disabled = true;
   });
   $("submitRevisionBtn").disabled = false;
   $("cancelRevisionBtn").disabled = false;
+  if (lastSessionData) {
+    renderTabContent(lastSessionData);
+    $("artifactPreview").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  $("feedbackText").focus();
 }
 
 function cancelFeedbackForm() {
   pendingRevisionAction = null;
   $("feedbackText").value = "";
-  $("feedbackField").classList.add("hidden");
-  $("feedbackActions").classList.add("hidden");
+  setArtifactPaneMode("source");
   $("feedbackHint").classList.add("hidden");
   if (!reviewBusy && lastSessionData) {
     updateResults(lastSessionData);
@@ -536,8 +602,7 @@ async function submitRevision() {
 
   const action = pendingRevisionAction;
   pendingRevisionAction = null;
-  $("feedbackField").classList.add("hidden");
-  $("feedbackActions").classList.add("hidden");
+  setArtifactPaneMode("source");
   $("feedbackHint").classList.add("hidden");
 
   try {
@@ -568,6 +633,9 @@ function resetUi() {
   lastSessionData = null;
   reviewBusy = false;
   cancelFeedbackForm();
+  setArtifactPaneMode("source");
+  $("artifactView").classList.add("hidden");
+  $("briefTabContent").classList.add("hidden");
   setError($("createError"), "");
   setError($("progressError"), "");
   setError($("reviewError"), "");
@@ -582,12 +650,16 @@ function resetUi() {
 
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", async () => {
+    if (pendingRevisionAction) {
+      cancelFeedbackForm();
+    }
     document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
     tab.classList.add("active");
     currentTab = tab.dataset.tab;
     updateDownloadBar();
     if (currentSessionId) {
       const data = await pollSession(currentSessionId);
+      lastSessionData = data;
       renderTabContent(data);
     }
   });
