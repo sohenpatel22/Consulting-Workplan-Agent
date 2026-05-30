@@ -13,6 +13,7 @@ from workplan_agent.api.schemas import (
     SessionResponse,
 )
 from workplan_agent.api.files import router as files_router
+from workplan_agent.api.store import get_store
 from workplan_agent.api.service import (
     STATIC_DIR,
     apply_approve,
@@ -22,7 +23,9 @@ from workplan_agent.api.service import (
     run_build_artifacts,
     run_generation,
     run_revision_job,
+    run_warm_build_cache_job,
     start_revision,
+    warm_build_prompt_cache_for_record,
     warm_session_prompt_cache,
 )
 
@@ -87,6 +90,9 @@ def confirm_session_questions(
 ) -> ConfirmQuestionsResponse:
     try:
         confirm_open_questions(session_id, request)
+        record = get_store().get(session_id)
+        if record is not None:
+            warm_build_prompt_cache_for_record(record)
         background_tasks.add_task(run_build_artifacts, session_id)
         return ConfirmQuestionsResponse(
             session_id=session_id,
@@ -96,6 +102,23 @@ def confirm_session_questions(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/sessions/{session_id}/warm-build-cache", status_code=204)
+def warm_build_cache(
+    session_id: str,
+    background_tasks: BackgroundTasks,
+) -> None:
+    """Prime WBS/RAID template + brief cache while the user confirms open questions."""
+    record = get_store().get(session_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    if record.phase != "awaiting_confirmation":
+        raise HTTPException(
+            status_code=400,
+            detail="Prompt cache warmup is only available while confirming open questions.",
+        )
+    background_tasks.add_task(run_warm_build_cache_job, session_id)
 
 
 @app.get("/api/sessions/{session_id}", response_model=SessionResponse)

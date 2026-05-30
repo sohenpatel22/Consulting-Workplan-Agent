@@ -512,6 +512,12 @@ function renderConfirmationForm(questions) {
     .join("");
 }
 
+function warmBuildPromptCache(sessionId) {
+  fetch(`${API}/api/sessions/${sessionId}/warm-build-cache`, {
+    method: "POST",
+  }).catch(() => {});
+}
+
 function showConfirmationPanel(data) {
   pendingConfirmationQuestions = data.confirmation_questions || [];
   $("confirmSessionIdLabel").textContent = data.session_id;
@@ -520,6 +526,7 @@ function showConfirmationPanel(data) {
   setError($("confirmError"), "");
   $("confirmBuildBtn").disabled = false;
   showPanel("confirm");
+  warmBuildPromptCache(data.session_id);
 }
 
 function resumePollingAfterConfirm(sessionId) {

@@ -66,6 +66,37 @@ def _wait_for_complete(client: TestClient, session_id: str) -> dict:
     return data
 
 
+def test_warm_build_cache_while_awaiting_confirmation(client: TestClient) -> None:
+    create = client.post(
+        "/api/sessions",
+        json={"brief_text": BRIEF, "mock": True},
+    )
+    session_id = create.json()["session_id"]
+
+    for _ in range(120):
+        response = client.get(f"/api/sessions/{session_id}")
+        data = response.json()
+        if data.get("phase") == "awaiting_confirmation":
+            warm = client.post(f"/api/sessions/{session_id}/warm-build-cache")
+            assert warm.status_code == 204
+            return
+        if data["job_status"] == "failed":
+            pytest.fail(data.get("error"))
+        time.sleep(0.05)
+    pytest.fail("Session never reached awaiting_confirmation")
+
+
+def test_warm_build_cache_rejects_wrong_phase(client: TestClient) -> None:
+    create = client.post(
+        "/api/sessions",
+        json={"brief_text": BRIEF, "mock": True},
+    )
+    session_id = create.json()["session_id"]
+    _wait_for_complete(client, session_id)
+    response = client.post(f"/api/sessions/{session_id}/warm-build-cache")
+    assert response.status_code == 400
+
+
 def test_open_questions_pause_before_build(client: TestClient) -> None:
     create = client.post(
         "/api/sessions",

@@ -28,6 +28,12 @@ class MockLLMProvider:
     def warm_prompt_cache(self) -> None:
         return
 
+    def warm_wbs_build_prefix(self, parsed_brief_json: str) -> None:
+        return
+
+    def warm_raid_build_prefix(self, parsed_brief_json: str, wbs_json: str) -> None:
+        return
+
     def call_structured(
         self,
         messages: list[LLMMessage],

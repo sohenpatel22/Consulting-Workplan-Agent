@@ -18,6 +18,10 @@ from workplan_agent.llm.caching import (
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.raid import RAIDLog
 from workplan_agent.models.wbs import WBS
+from workplan_agent.llm.cache_warmup import (
+    raid_build_cache_blocks,
+    wbs_build_cache_blocks,
+)
 from workplan_agent.prompts import (
     brief_parser_system_blocks,
     raid_generator_system_blocks,
@@ -44,11 +48,33 @@ class AnthropicProvider:
         self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         self._settings = settings
 
+    def _ping_prompt_cache(
+        self,
+        name: str,
+        system_blocks: list[ContentBlock],
+        user_blocks: list[ContentBlock] | None = None,
+    ) -> None:
+        if not self._settings.enable_prompt_cache:
+            return
+        model = self._settings.resolve_model()
+        user_content: Any = "Reply with OK."
+        if user_blocks is not None:
+            user_content = system_blocks_to_api(user_blocks)
+        try:
+            self._client.messages.create(
+                model=model,
+                max_tokens=16,
+                system=system_blocks_to_api(system_blocks),
+                messages=[{"role": "user", "content": user_content}],
+            )
+            logger.debug("Warmed Anthropic prompt cache for %s", name)
+        except Exception as exc:
+            logger.warning("Prompt cache warmup failed for %s: %s", name, exc)
+
     def warm_prompt_cache(self) -> None:
         if not self._settings.enable_prompt_cache:
             return
 
-        model = self._settings.resolve_model()
         warmups: list[tuple[str, list[ContentBlock]]] = [
             ("brief_parser", brief_parser_system_blocks(ParsedBrief)),
             ("wbs_generator", wbs_generator_system_blocks(WBS)),
@@ -57,17 +83,17 @@ class AnthropicProvider:
         ]
 
         for name, system_blocks in warmups:
-            try:
-                warmup_kwargs: dict[str, Any] = {
-                    "model": model,
-                    "max_tokens": 16,
-                    "system": system_blocks_to_api(system_blocks),
-                    "messages": [{"role": "user", "content": "Reply with OK."}],
-                }
-                self._client.messages.create(**warmup_kwargs)
-                logger.debug("Warmed Anthropic prompt cache for %s", name)
-            except Exception as exc:
-                logger.warning("Prompt cache warmup failed for %s: %s", name, exc)
+            self._ping_prompt_cache(name, system_blocks)
+
+    def warm_wbs_build_prefix(self, parsed_brief_json: str) -> None:
+        """Cache WBS system templates + parsed brief (same cached blocks as real WBS call)."""
+        system_blocks, user_blocks = wbs_build_cache_blocks(parsed_brief_json)
+        self._ping_prompt_cache("wbs_build", system_blocks, user_blocks)
+
+    def warm_raid_build_prefix(self, parsed_brief_json: str, wbs_json: str) -> None:
+        """Cache RAID system templates + parsed brief before RAID generation."""
+        system_blocks, user_blocks = raid_build_cache_blocks(parsed_brief_json, wbs_json)
+        self._ping_prompt_cache("raid_build", system_blocks, user_blocks)
 
     def call_structured(
         self,

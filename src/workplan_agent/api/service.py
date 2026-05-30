@@ -1,3 +1,4 @@
+import logging
 import uuid
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from workplan_agent.models.brief import ResolvedQuestion
 from workplan_agent.diff import unified_text_diff
 from workplan_agent.api.store import SessionRecord, get_store
 from workplan_agent.config import get_settings
-from workplan_agent.llm import get_provider, warm_prompt_cache
+from workplan_agent.llm import get_provider, warm_build_prompt_cache, warm_prompt_cache
 from workplan_agent.models.session import SessionStatus, WorkplanSession
 from workplan_agent.orchestrator import OrchestratorAgent
 from workplan_agent.files.export import markdown_to_html_body
@@ -28,6 +29,7 @@ from workplan_agent.render import (
 )
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 DATA_ROOT = Path.cwd() / "data" / "sessions"
+logger = logging.getLogger(__name__)
 
 
 def _session_dir(session_id: str) -> Path:
@@ -149,8 +151,36 @@ def warm_session_prompt_cache(mock: bool) -> None:
         return
     try:
         warm_prompt_cache()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Session prompt cache warmup skipped: %s", exc)
+
+
+def warm_build_prompt_cache_for_record(
+    record: SessionRecord,
+    *,
+    wbs_json: str | None = None,
+) -> None:
+    """Prime Anthropic cache for WBS/RAID build (templates + parsed brief [+ WBS])."""
+    if record.mock:
+        return
+    parsed = record.session.parsed_brief
+    if parsed is None:
+        return
+    try:
+        warm_build_prompt_cache(
+            parsed.model_dump_json(indent=2),
+            wbs_json=wbs_json,
+            use_mock=record.mock,
+        )
+    except Exception as exc:
+        logger.debug("Build prompt cache warmup skipped: %s", exc)
+
+
+def run_warm_build_cache_job(session_id: str, *, wbs_json: str | None = None) -> None:
+    record = get_store().get(session_id)
+    if record is None:
+        return
+    warm_build_prompt_cache_for_record(record, wbs_json=wbs_json)
 
 
 def create_session(request: CreateSessionRequest) -> SessionRecord:
@@ -192,6 +222,7 @@ def run_build_artifacts(session_id: str) -> None:
 
     store.update(session_id, job_status="running", phase="generating_wbs", error=None)
     try:
+        warm_build_prompt_cache_for_record(record)
         orchestrator = _make_orchestrator(record)
         orchestrator.generate_workplan_artifacts(
             record.session,
@@ -240,6 +271,7 @@ def run_generation(record: SessionRecord) -> None:
                 session=record.session,
                 error=None,
             )
+            warm_build_prompt_cache_for_record(record)
             return
 
         run_build_artifacts(session_id)

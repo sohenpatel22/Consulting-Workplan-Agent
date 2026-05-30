@@ -87,6 +87,18 @@ class OrchestratorAgent:
 
         return session
 
+    def _warm_raid_build_cache(self, session: WorkplanSession) -> None:
+        parsed = session.parsed_brief
+        if parsed is None or session.wbs is None:
+            return
+        warm_raid = getattr(self.provider, "warm_raid_build_prefix", None)
+        if not callable(warm_raid):
+            return
+        warm_raid(
+            parsed.model_dump_json(indent=2),
+            session.wbs.model_dump_json(indent=2),
+        )
+
     def _generation_guidance(self, session: WorkplanSession, user_prompt: str) -> str:
         parsed = session.parsed_brief
         confirmed: list[tuple[str, str]] | None = None
@@ -169,6 +181,8 @@ class OrchestratorAgent:
         session.snapshot("initial_wbs")
         save_artifacts(self.output_dir, session)
         save_version_snapshot(self.output_dir, session, 1)
+
+        self._warm_raid_build_cache(session)
 
         self._log("[bold]Step 3:[/bold] Generating RAID log...")
         session.raid = self.raid_generator.run(
