@@ -7,7 +7,11 @@ import re
 from html import escape
 from typing import Literal
 
-ExportFormat = Literal["md", "html", "docx", "pdf"]
+from workplan_agent.models.brief import ParsedBrief
+from workplan_agent.models.raid import RAIDLog
+from workplan_agent.models.wbs import WBS
+
+ExportFormat = Literal["md", "html", "docx", "pdf", "xlsx"]
 ArtifactKind = Literal["wbs", "raid"]
 
 CONTENT_TYPES: dict[ExportFormat, str] = {
@@ -15,6 +19,7 @@ CONTENT_TYPES: dict[ExportFormat, str] = {
     "html": "text/html; charset=utf-8",
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "pdf": "application/pdf",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 
 
@@ -22,12 +27,36 @@ class ExportError(ValueError):
     """Raised when export cannot be produced."""
 
 
-def export_artifact(markdown: str, artifact: ArtifactKind, fmt: ExportFormat) -> tuple[bytes, str]:
+def export_artifact(
+    markdown: str,
+    artifact: ArtifactKind,
+    fmt: ExportFormat,
+    *,
+    wbs: WBS | None = None,
+    raid: RAIDLog | None = None,
+    parsed_brief: ParsedBrief | None = None,
+    use_deloitte_templates: bool = True,
+) -> tuple[bytes, str]:
     """Return (file_bytes, suggested_filename) for the given markdown and format."""
+    base_name = artifact
+
+    if fmt == "xlsx":
+        if artifact != "raid":
+            raise ExportError("XLSX export is only available for RAID.")
+        if raid is None or parsed_brief is None:
+            raise ExportError("RAID structured data is required for XLSX export.")
+        from workplan_agent.files.deloitte_export import export_raid_deloitte_xlsx
+
+        return export_raid_deloitte_xlsx(raid, parsed_brief), f"{base_name}.xlsx"
+
+    if fmt == "docx" and artifact == "wbs" and use_deloitte_templates and wbs and parsed_brief:
+        from workplan_agent.files.deloitte_export import export_wbs_deloitte_docx
+
+        return export_wbs_deloitte_docx(wbs, parsed_brief), f"{base_name}.docx"
+
     if not markdown.strip():
         raise ExportError(f"No {artifact.upper()} content available to export.")
 
-    base_name = artifact
     if fmt == "md":
         return markdown.encode("utf-8"), f"{base_name}.md"
     if fmt == "html":

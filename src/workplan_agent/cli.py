@@ -55,6 +55,12 @@ def run_pipeline(
         "--non-interactive",
         help="Skip review loop and save artifacts immediately",
     ),
+    prompt: str = typer.Option(
+        "",
+        "--prompt",
+        "-p",
+        help="Optional planner guidance applied alongside the brief during generation",
+    ),
 ) -> None:
     """Run the full workplan pipeline: parse brief → WBS → RAID → review."""
     try:
@@ -77,7 +83,7 @@ def run_pipeline(
     model = get_settings().resolve_model() if not mock else "mock"
     console.print(f"  Model:  {model}")
 
-    session = orchestrator.run_pipeline(brief)
+    session = orchestrator.run_pipeline(brief, user_prompt=prompt.strip())
     console.print(f"\n[bold]Done.[/bold] Session {session.session_id} → {session.status.value}")
     console.print(f"Artifacts saved to {output.resolve()}")
 

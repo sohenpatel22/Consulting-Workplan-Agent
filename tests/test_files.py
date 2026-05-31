@@ -7,8 +7,13 @@ from pypdf import PdfWriter
 
 from workplan_agent.api.app import app
 from workplan_agent.api.store import reset_store
+from workplan_agent.files.deloitte_export import export_raid_deloitte_xlsx, export_wbs_deloitte_docx
 from workplan_agent.files.export import export_artifact
 from workplan_agent.files.extract import BriefExtractError, extract_text_from_bytes
+from workplan_agent.llm.fixtures import PARSED_BRIEF_FIXTURE, RAID_FIXTURE, WBS_FIXTURE
+from workplan_agent.models.brief import ParsedBrief
+from workplan_agent.models.raid import RAIDLog
+from workplan_agent.models.wbs import WBS
 
 BRIEF = """# Test Brief
 
@@ -72,6 +77,40 @@ def test_export_formats() -> None:
         assert name.endswith(f".{fmt}")
 
 
+def test_deloitte_wbs_docx_export() -> None:
+    wbs = WBS.model_validate(WBS_FIXTURE)
+    brief = ParsedBrief.model_validate(PARSED_BRIEF_FIXTURE)
+    content = export_wbs_deloitte_docx(wbs, brief)
+    assert content[:2] == b"PK"
+
+
+def test_deloitte_raid_xlsx_export() -> None:
+    raid = RAIDLog.model_validate(RAID_FIXTURE)
+    brief = ParsedBrief.model_validate(PARSED_BRIEF_FIXTURE)
+    content = export_raid_deloitte_xlsx(raid, brief)
+    assert content[:2] == b"PK"
+
+
+def test_deloitte_raid_xlsx_export_many_rows() -> None:
+    """Simple sheet has merged cells in lower rows; export must not raise."""
+    import copy
+
+    data = copy.deepcopy(RAID_FIXTURE)
+    for index in range(4, 16):
+        data["risks"].append(
+            {**data["risks"][0], "id": f"R{index}", "title": f"Extra risk {index}"}
+        )
+    raid = RAIDLog.model_validate(data)
+    brief = ParsedBrief.model_validate(PARSED_BRIEF_FIXTURE)
+    content = export_raid_deloitte_xlsx(raid, brief)
+    assert content[:2] == b"PK"
+
+
+def test_export_raid_xlsx_requires_models() -> None:
+    with pytest.raises(ValueError, match="structured"):
+        export_artifact("# RAID", "raid", "xlsx")
+
+
 def test_upload_endpoint_md(client: TestClient) -> None:
     response = client.post(
         "/api/brief/upload",
@@ -111,3 +150,7 @@ def test_download_after_generation(client: TestClient) -> None:
         response = client.get(f"/api/sessions/{session_id}/download/wbs/{fmt}")
         assert response.status_code == 200, (fmt, response.text)
         assert response.content.startswith(content_prefix)
+
+    xlsx = client.get(f"/api/sessions/{session_id}/download/raid/xlsx")
+    assert xlsx.status_code == 200
+    assert xlsx.content.startswith(b"PK")

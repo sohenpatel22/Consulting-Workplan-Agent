@@ -1,4 +1,5 @@
 from workplan_agent.agents.base import BaseAgent
+from workplan_agent.llm.base import build_messages
 from workplan_agent.llm.caching import ContentBlock
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.raid import RAIDLog
@@ -6,6 +7,8 @@ from workplan_agent.models.wbs import WBS
 from workplan_agent.prompts import (
     RAID_GENERATOR_SYSTEM,
     RAID_GENERATOR_USER,
+    append_generation_context,
+    normalize_user_prompt,
     raid_generator_system_blocks,
     raid_generator_user_blocks,
 )
@@ -24,10 +27,12 @@ class RAIDGeneratorAgent(BaseAgent[RAIDLog]):
             raise TypeError("parsed_brief must be a ParsedBrief")
         if not isinstance(wbs, WBS):
             raise TypeError("wbs must be a WBS")
-        return RAID_GENERATOR_USER.format(
+        user_prompt = normalize_user_prompt(kwargs.get("user_prompt"))
+        body = RAID_GENERATOR_USER.format(
             brief_json=parsed_brief.model_dump_json(indent=2),
             wbs_json=wbs.model_dump_json(indent=2),
         )
+        return append_generation_context(body, user_prompt or None)
 
     def build_system_blocks(self) -> list[ContentBlock]:
         return raid_generator_system_blocks(self.response_model)
@@ -39,7 +44,14 @@ class RAIDGeneratorAgent(BaseAgent[RAIDLog]):
             raise TypeError("parsed_brief must be a ParsedBrief")
         if not isinstance(wbs, WBS):
             raise TypeError("wbs must be a WBS")
+        user_prompt = normalize_user_prompt(kwargs.get("user_prompt"))
         return raid_generator_user_blocks(
             parsed_brief.model_dump_json(indent=2),
             wbs.model_dump_json(indent=2),
+            user_prompt or None,
         )
+
+    def build_messages(self, **kwargs: object):
+        if self._caching_enabled():
+            return super().build_messages(**kwargs)
+        return build_messages(self.system_prompt, self.build_user_prompt(**kwargs))

@@ -5,35 +5,35 @@
 
 ## Risks
 
-| ID | Title | Description | Severity | Owner | Status | WBS Links | Mitigation |
-|----|-------|-------------|----------|-------|--------|-----------|------------|
+| ID | Title | Description | Status | Mitigation | Owner | WBS Links | Probability | Priority |
+|----|-------|-------------|--------|------------|-------|-----------|-------------|----------|
 {% for item in raid.risks -%}
-| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.severity }} | {{ item.owner }} | {{ item.status }} | {{ item.related_wbs_ids | join(', ') }} | {{ item.mitigation }} |
+| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.status }} | {{ item.mitigation }} | {{ item.owner }} | {{ item.wbs_links | join(', ') }} | {{ item.probability }} | {{ item.priority }} |
 {% endfor %}
 
-## Assumptions
+## Actions
 
-| ID | Title | Description | Severity | Owner | Status | WBS Links |
-|----|-------|-------------|----------|-------|--------|-----------|
-{% for item in raid.assumptions -%}
-| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.severity }} | {{ item.owner }} | {{ item.status }} | {{ item.related_wbs_ids | join(', ') }} |
+| ID | Title | Description | Status update | Status | Owner | WBS Links | Priority |
+|----|-------|-------------|---------------|--------|-------|-----------|----------|
+{% for item in raid.actions -%}
+| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.status_update }} | {{ item.status }} | {{ item.owner }} | {{ item.wbs_links | join(', ') }} | {{ item.priority }} |
 {% endfor %}
 
 ## Issues
 
-| ID | Title | Description | Severity | Owner | Status | WBS Links |
-|----|-------|-------------|----------|-------|--------|-----------|
+| ID | Title | Description | Resolution | Owner | Priority |
+|----|-------|-------------|------------|-------|----------|
 {% for item in raid.issues -%}
-| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.severity }} | {{ item.owner }} | {{ item.status }} | {{ item.related_wbs_ids | join(', ') }} |
+| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.resolution }} | {{ item.owner }} | {{ item.priority }} |
 {% endfor %}
 {% if not raid.issues %}
-| — | _No issues identified_ | | | | | |
+| — | _No issues identified_ | | | | |
 {% endif %}
 
-## Dependencies
+## Decisions
 
-| ID | Title | Description | Severity | Owner | Status | WBS Links |
-|----|-------|-------------|----------|-------|--------|-----------|
-{% for item in raid.dependencies -%}
-| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.severity }} | {{ item.owner }} | {{ item.status }} | {{ item.related_wbs_ids | join(', ') }} |
+| ID | Title | Description / Justification | Resolution | Owner | Priority |
+|----|-------|----------------------------|------------|-------|----------|
+{% for item in raid.decisions -%}
+| {{ item.id }} | {{ item.title }} | {{ item.description_justification }} | {{ item.resolution }} | {{ item.owner }} | {{ item.priority }} |
 {% endfor %}

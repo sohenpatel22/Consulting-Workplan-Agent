@@ -21,3 +21,24 @@ def warm_prompt_cache() -> None:
     """Prime Anthropic prompt cache with static templates and schemas."""
     provider = get_provider()
     provider.warm_prompt_cache()
+
+
+def warm_build_prompt_cache(
+    parsed_brief_json: str,
+    *,
+    wbs_json: str | None = None,
+    use_mock: bool = False,
+) -> None:
+    """Prime cache for WBS/RAID build calls (templates + parsed brief [+ WBS for RAID])."""
+    if use_mock:
+        return
+    from workplan_agent.config import get_settings
+
+    if not get_settings().enable_prompt_cache:
+        return
+    provider = get_provider(use_mock=False)
+    warm_prompt_cache()
+    if hasattr(provider, "warm_wbs_build_prefix"):
+        provider.warm_wbs_build_prefix(parsed_brief_json)
+    if wbs_json and hasattr(provider, "warm_raid_build_prefix"):
+        provider.warm_raid_build_prefix(parsed_brief_json, wbs_json)

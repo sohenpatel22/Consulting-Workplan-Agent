@@ -11,7 +11,6 @@ from workplan_agent.models.wbs import WBS
 
 T = TypeVar("T", bound=BaseModel)
 
-# Placeholder enrichment — mock does not call a real LLM; it simulates “more detail” edits.
 _WBS_DETAIL_SUFFIX = (
     " Expanded per review: additional tasks, acceptance criteria, and dependency notes documented."
 )
@@ -27,6 +26,12 @@ class MockLLMProvider:
         self.call_log: list[type[BaseModel]] = []
 
     def warm_prompt_cache(self) -> None:
+        return
+
+    def warm_wbs_build_prefix(self, parsed_brief_json: str) -> None:
+        return
+
+    def warm_raid_build_prefix(self, parsed_brief_json: str, wbs_json: str) -> None:
         return
 
     def call_structured(
@@ -74,26 +79,27 @@ class MockLLMProvider:
         updated = False
         for wp_id in wp_ids:
             for wp in data["work_packages"]:
-                if wp["id"] == wp_id:
-                    wp["description"] = (wp.get("description") or "") + _WBS_DETAIL_SUFFIX
+                if wp["wbs_code"] == wp_id:
+                    wp["description_scope"] = (wp.get("description_scope") or "") + _WBS_DETAIL_SUFFIX
                     updated = True
 
         if not updated:
             for wp in data["work_packages"]:
                 if wp["level"] == 2:
-                    wp["description"] = (wp.get("description") or "") + _WBS_DETAIL_SUFFIX
+                    wp["description_scope"] = (wp.get("description_scope") or "") + _WBS_DETAIL_SUFFIX
                     break
 
         if self._wants_add(feedback):
             data["work_packages"].append(
                 {
-                    "id": "3.3",
+                    "wbs_code": "3.3",
                     "level": 2,
-                    "parent_id": "3.0",
-                    "name": "Additional scope (per review)",
-                    "description": "New work package added from reviewer request." + _WBS_DETAIL_SUFFIX,
-                    "deliverables": ["Review deliverable"],
-                    "owner_role": "Tech Lead",
+                    "parent_wbs_code": "3.0",
+                    "wbs_element_title": "Additional scope (per review)",
+                    "description_scope": "New work package added from reviewer request."
+                    + _WBS_DETAIL_SUFFIX,
+                    "key_deliverable": "Review deliverable",
+                    "owner": "Tech Lead",
                     "estimated_duration": "2 weeks",
                     "dependencies": ["3.2"],
                 }
@@ -107,33 +113,35 @@ class MockLLMProvider:
         feedback = self._extract_feedback(user_text)
         data = copy.deepcopy(RAID_FIXTURE)
 
-        item_ids = re.findall(r"\b([RAID]\d+)\b", feedback, re.IGNORECASE)
+        item_ids = re.findall(r"\b([RADI]\d+)\b", feedback, re.IGNORECASE)
         item_ids = [i.upper() for i in item_ids]
-        updated = False
-        for item_id in item_ids:
-            for item in data["items"]:
+
+        def _touch(section: str, item_id: str) -> bool:
+            for item in data.get(section, []):
                 if item["id"].upper() == item_id:
                     item["description"] = (item.get("description") or "") + _RAID_DETAIL_SUFFIX
-                    updated = True
+                    return True
+            return False
 
-        if not updated:
-            for item in data["items"]:
-                if item["category"] == "R":
-                    item["description"] = (item.get("description") or "") + _RAID_DETAIL_SUFFIX
-                    break
+        updated = any(_touch("risks", i) or _touch("actions", i) for i in item_ids)
+
+        if not updated and data.get("risks"):
+            data["risks"][0]["description"] = (
+                data["risks"][0].get("description") or ""
+            ) + _RAID_DETAIL_SUFFIX
 
         if self._wants_add(feedback):
-            next_r = sum(1 for i in data["items"] if i["category"] == "R") + 1
-            data["items"].append(
+            next_r = len(data["risks"]) + 1
+            data["risks"].append(
                 {
                     "id": f"R{next_r}",
-                    "category": "R",
                     "title": "Additional risk (per review)",
                     "description": "New risk added from reviewer request." + _RAID_DETAIL_SUFFIX,
-                    "severity": "Medium",
+                    "priority": "Moderate",
+                    "probability": "Moderate",
                     "owner": "Engagement Manager",
                     "status": "Open",
-                    "related_wbs_ids": ["3.0"],
+                    "wbs_links": ["3.0"],
                     "mitigation": "Track in weekly steering committee",
                 }
             )

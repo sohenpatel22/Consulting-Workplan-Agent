@@ -7,12 +7,14 @@ let pollTimer = null;
 let reviewPollTimer = null;
 let reviewBusy = false;
 let lastSessionData = null;
+let pendingConfirmationQuestions = [];
 
 const $ = (id) => document.getElementById(id);
 
 const panels = {
   create: $("createPanel"),
   progress: $("progressPanel"),
+  confirm: $("confirmPanel"),
   results: $("resultsPanel"),
 };
 
@@ -93,12 +95,16 @@ const DOWNLOAD_ARTIFACTS = { wbs: "WBS", raid: "RAID", brief: null };
 function updateDownloadBar() {
   const bar = $("downloadBar");
   const artifact = DOWNLOAD_ARTIFACTS[currentTab];
+  const xlsxBtn = $("downloadXlsxBtn");
   if (!currentSessionId || !artifact) {
     bar.classList.add("hidden");
     return;
   }
   bar.classList.remove("hidden");
   $("downloadArtifactLabel").textContent = artifact;
+  if (xlsxBtn) {
+    xlsxBtn.classList.toggle("hidden", currentTab !== "raid");
+  }
 }
 
 async function downloadArtifact(format) {
@@ -150,6 +156,7 @@ function phaseLabel(phase, jobStatus, reviewInProgress) {
   const labels = {
     queued: "Queued…",
     parsing: "Parsing client brief…",
+    awaiting_confirmation: "Awaiting your answers…",
     generating_wbs: "Generating WBS…",
     ready_for_review: "Ready for review",
     failed: "Generation failed",
@@ -161,7 +168,13 @@ function phaseLabel(phase, jobStatus, reviewInProgress) {
 function progressPercent(phase, jobStatus) {
   if (jobStatus === "complete") return 100;
   if (jobStatus === "failed") return 100;
-  const map = { queued: 10, parsing: 35, generating_wbs: 70, ready_for_review: 100 };
+  const map = {
+    queued: 10,
+    parsing: 35,
+    awaiting_confirmation: 50,
+    generating_wbs: 70,
+    ready_for_review: 100,
+  };
   return map[phase] ?? 20;
 }
 
@@ -176,9 +189,9 @@ function renderSummary(summary) {
     ["Objectives", summary.objectives_count],
     ["WBS items", summary.wbs_items],
     ["Risks", summary.raid_risks],
-    ["Assumptions", summary.raid_assumptions],
+    ["Actions", summary.raid_actions ?? summary.raid_assumptions],
     ["Issues", summary.raid_issues],
-    ["Dependencies", summary.raid_dependencies],
+    ["Decisions", summary.raid_decisions ?? summary.raid_dependencies],
   ];
   $("summaryCards").innerHTML = cards
     .map(
@@ -350,11 +363,28 @@ function updateResults(data) {
   if (data.summary) {
     renderSummary(data.summary);
     const oq = $("openQuestions");
-    if (data.summary.open_questions?.length) {
+    const resolved =
+      data.parsed_brief?.resolved_open_questions?.filter(
+        (item) => item?.question && item?.answer
+      ) ?? [];
+    if (resolved.length) {
+      oq.classList.remove("hidden");
+      oq.innerHTML =
+        "<strong>Confirmed before build</strong> " +
+        '<span class="hint">(planner sign-off on open questions)</span>' +
+        "<ul>" +
+        resolved
+          .map(
+            (item) =>
+              `<li><strong>${escapeHtml(item.question)}</strong><br />${escapeHtml(item.answer)}</li>`
+          )
+          .join("") +
+        "</ul>";
+    } else if (data.summary.open_questions?.length) {
       oq.classList.remove("hidden");
       oq.innerHTML =
         "<strong>Open questions</strong> " +
-        '<span class="hint">(from the brief — items the client has not decided yet)</span>' +
+        '<span class="hint">(from the brief — not yet resolved)</span>' +
         "<ul>" +
         data.summary.open_questions.map((q) => `<li>${escapeHtml(q)}</li>`).join("") +
         "</ul>";
@@ -446,6 +476,135 @@ function startReviewPolling(initialMessage) {
   reviewPollTimer = setInterval(tick, 400);
 }
 
+function renderParsePreview(preview) {
+  const el = $("parsePreview");
+  if (!preview) {
+    el.classList.add("hidden");
+    el.innerHTML = "";
+    return;
+  }
+  el.classList.remove("hidden");
+  el.innerHTML = `
+    <div class="parse-preview-grid">
+      <div><span class="label">Client</span><strong>${escapeHtml(preview.client || "—")}</strong></div>
+      <div><span class="label">Project</span><strong>${escapeHtml(preview.project || "—")}</strong></div>
+      <div><span class="label">Objectives</span><strong>${preview.objectives_count ?? 0}</strong></div>
+      <div><span class="label">In-scope items</span><strong>${preview.scope_in_count ?? 0}</strong></div>
+    </div>`;
+}
+
+function renderConfirmationForm(questions) {
+  const form = $("confirmQuestionsForm");
+  form.innerHTML = questions
+    .map(
+      (question, index) => `
+    <label class="field confirm-question">
+      <span class="confirm-q-label">${index + 1}. ${escapeHtml(question)}</span>
+      <textarea
+        class="confirm-answer"
+        data-question-index="${index}"
+        rows="3"
+        required
+        placeholder="Your decision or assumption for the workplan…"
+      ></textarea>
+    </label>`
+    )
+    .join("");
+}
+
+function warmBuildPromptCache(sessionId) {
+  fetch(`${API}/api/sessions/${sessionId}/warm-build-cache`, {
+    method: "POST",
+  }).catch(() => {});
+}
+
+function showConfirmationPanel(data) {
+  pendingConfirmationQuestions = data.confirmation_questions || [];
+  $("confirmSessionIdLabel").textContent = data.session_id;
+  renderParsePreview(data.parse_preview);
+  renderConfirmationForm(pendingConfirmationQuestions);
+  setError($("confirmError"), "");
+  $("confirmBuildBtn").disabled = false;
+  showPanel("confirm");
+  warmBuildPromptCache(data.session_id);
+}
+
+function resumePollingAfterConfirm(sessionId) {
+  showPanel("progress");
+  $("sessionIdLabel").textContent = sessionId;
+  setError($("progressError"), "");
+
+  const tick = async () => {
+    try {
+      const data = await pollSession(sessionId);
+      $("phaseLabel").textContent = phaseLabel(
+        data.phase,
+        data.job_status,
+        data.review_in_progress
+      );
+      $("progressBar").style.width = `${progressPercent(data.phase, data.job_status)}%`;
+
+      if (data.awaiting_confirmation) {
+        return;
+      }
+      if (data.job_status === "complete" && !data.review_in_progress) {
+        clearInterval(pollTimer);
+        showPanel("results");
+        updateResults(data);
+        return;
+      }
+      if (data.job_status === "failed") {
+        clearInterval(pollTimer);
+        setError($("progressError"), data.error || "Unknown error");
+        return;
+      }
+    } catch (err) {
+      clearInterval(pollTimer);
+      setError($("progressError"), err.message);
+    }
+  };
+
+  tick();
+  pollTimer = setInterval(tick, 1200);
+}
+
+async function submitConfirmation() {
+  if (!currentSessionId) return;
+
+  const fields = document.querySelectorAll(".confirm-answer");
+  const answers = [];
+  for (const field of fields) {
+    const index = Number(field.dataset.questionIndex);
+    const question = pendingConfirmationQuestions[index] || "";
+    const answer = field.value.trim();
+    if (!answer) {
+      setError($("confirmError"), "Please answer every open question before continuing.");
+      field.focus();
+      return;
+    }
+    answers.push({ question, answer });
+  }
+
+  $("confirmBuildBtn").disabled = true;
+  setError($("confirmError"), "");
+
+  try {
+    const res = await fetch(`${API}/api/sessions/${currentSessionId}/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answers }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(parseApiError(body));
+    }
+    resumePollingAfterConfirm(currentSessionId);
+  } catch (err) {
+    setError($("confirmError"), err.message);
+    $("confirmBuildBtn").disabled = false;
+  }
+}
+
 function startPolling(sessionId) {
   currentSessionId = sessionId;
   $("sessionIdLabel").textContent = sessionId;
@@ -463,6 +622,11 @@ function startPolling(sessionId) {
       );
       $("progressBar").style.width = `${progressPercent(data.phase, data.job_status)}%`;
 
+      if (data.awaiting_confirmation || data.phase === "awaiting_confirmation") {
+        clearInterval(pollTimer);
+        showConfirmationPanel(data);
+        return;
+      }
       if (data.job_status === "complete" && !data.review_in_progress) {
         clearInterval(pollTimer);
         showPanel("results");
@@ -500,6 +664,7 @@ async function createSession() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         brief_text: briefText,
+        user_prompt: $("userPrompt").value.trim(),
         mock: $("mockMode").checked,
       }),
     });
@@ -631,6 +796,7 @@ function resetUi() {
   currentSessionId = null;
   pendingRevisionAction = null;
   lastSessionData = null;
+  pendingConfirmationQuestions = [];
   reviewBusy = false;
   cancelFeedbackForm();
   setArtifactPaneMode("source");
@@ -644,6 +810,10 @@ function resetUi() {
   setReviewBusy(false);
   $("progressBar").style.width = "0%";
   setUploadStatus("");
+  $("userPrompt").value = "";
+  $("confirmQuestionsForm").innerHTML = "";
+  $("parsePreview").classList.add("hidden");
+  setError($("confirmError"), "");
   $("downloadBar").classList.add("hidden");
   showPanel("create");
 }
@@ -679,6 +849,7 @@ document.querySelectorAll("[data-action]").forEach((btn) => {
 });
 
 $("generateBtn").addEventListener("click", createSession);
+$("confirmBuildBtn").addEventListener("click", submitConfirmation);
 $("loadSampleBtn").addEventListener("click", loadSampleBrief);
 $("submitRevisionBtn").addEventListener("click", submitRevision);
 $("cancelRevisionBtn").addEventListener("click", cancelFeedbackForm);

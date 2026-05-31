@@ -66,6 +66,16 @@ def save_artifacts(
             output_dir / "wbs.md",
             render_wbs_markdown(session.wbs, session.parsed_brief),
         )
+        try:
+            from workplan_agent.files.deloitte_export import export_wbs_deloitte_docx
+
+            docx_path = output_dir / "wbs.docx"
+            docx_path.parent.mkdir(parents=True, exist_ok=True)
+            docx_path.write_bytes(
+                export_wbs_deloitte_docx(session.wbs, session.parsed_brief)
+            )
+        except RuntimeError:
+            pass
 
     if session.raid is not None:
         save_json(output_dir / "raid.json", session.raid)
@@ -73,6 +83,16 @@ def save_artifacts(
             output_dir / "raid.md",
             render_raid_markdown(session.raid, session.parsed_brief),
         )
+        try:
+            from workplan_agent.files.deloitte_export import export_raid_deloitte_xlsx
+
+            xlsx_path = output_dir / "raid.xlsx"
+            xlsx_path.parent.mkdir(parents=True, exist_ok=True)
+            xlsx_path.write_bytes(
+                export_raid_deloitte_xlsx(session.raid, session.parsed_brief)
+            )
+        except (FileNotFoundError, RuntimeError):
+            pass
 
 
 def save_version_snapshot(output_dir: Path, session: WorkplanSession, version: int) -> None:
@@ -108,9 +128,9 @@ def save_status(output_dir: Path, session: WorkplanSession) -> None:
             "objectives_count": len(parsed.objectives) if parsed else 0,
             "wbs_items": len(session.wbs.work_packages) if session.wbs else 0,
             "raid_risks": len(session.raid.risks) if session.raid else 0,
-            "raid_assumptions": len(session.raid.assumptions) if session.raid else 0,
+            "raid_actions": len(session.raid.actions) if session.raid else 0,
             "raid_issues": len(session.raid.issues) if session.raid else 0,
-            "raid_dependencies": len(session.raid.dependencies) if session.raid else 0,
+            "raid_decisions": len(session.raid.decisions) if session.raid else 0,
             "open_questions": parsed.open_questions if parsed else [],
         },
     }
