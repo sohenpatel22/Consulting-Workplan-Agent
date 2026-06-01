@@ -163,7 +163,7 @@ def generate_quality_gates(session: WorkplanSession) -> QualityGates:
     if session.stakeholder_map:
         closely_managed = []
         for sh in session.stakeholder_map.stakeholders:
-            if "cmo" in sh.role.lower() or "cio" in sh.role.lower() or "vasquez" in sh.name.lower() or "chen" in sh.name.lower():
+            if "cmo" in sh.role_in_project.lower() or "cio" in sh.role_in_project.lower() or "vasquez" in sh.name.lower() or "chen" in sh.name.lower():
                 if sh.engagement_strategy == "Manage Closely":
                     closely_managed.append(sh.name)
         if len(closely_managed) < 2:
@@ -188,7 +188,7 @@ def generate_quality_gates(session: WorkplanSession) -> QualityGates:
     milestones_msg = "Status report milestones are synchronized with timeline objectives."
     if session.status_report and session.parsed_brief:
         brief_milestones = session.parsed_brief.timeline.milestones if session.parsed_brief.timeline else []
-        report_milestones = {m.milestone.lower() for m in session.status_report.milestones}
+        report_milestones = {m.name.lower() for m in session.status_report.milestones}
         missing = [m for m in brief_milestones if m.lower() not in report_milestones]
         if missing:
             milestones_ok = False
