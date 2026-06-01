@@ -274,7 +274,6 @@ function updateFeedbackPane(data) {
     } else {
       $("revisionTargetHint").textContent = `Submitting revises the ${label} only.`;
     }
-    loadFeedbackDraft();
   }
 
   const approved = data?.status === "approved";
@@ -1055,6 +1054,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
       renderTabContent(lastSessionData);
       updateTabIndicators(lastSessionData);
       updateReviewControls(lastSessionData);
+      loadFeedbackDraft();
     } else if (currentSessionId) {
       const data = await pollSession(currentSessionId);
       lastSessionData = data;
@@ -1081,6 +1081,7 @@ $("confirmBuildBtn").addEventListener("click", submitConfirmation);
 $("loadSampleBtn").addEventListener("click", loadSampleBrief);
 $("submitRevisionBtn").addEventListener("click", submitRevision);
 $("clearFeedbackBtn").addEventListener("click", clearFeedback);
+$("feedbackText").addEventListener("input", saveFeedbackDraft);
 $("newSessionBtn").addEventListener("click", resetUi);
 
 checkHealth();
