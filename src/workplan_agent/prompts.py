@@ -159,12 +159,18 @@ def stakeholder_json_output_instruction() -> str:
 STAKEHOLDER_GENERATOR_SYSTEM = f"""{STAKEHOLDER_GENERATOR_ROLE}
 
 Rules:
-- Map stakeholders to their roles, power/influence level, and interest level.
-- Power/influence must be one of: High, Medium, Low.
-- Interest must be one of: High, Medium, Low.
-- Engagement strategy must be one of: Manage Closely, Keep Satisfied, Keep Informed, Monitor.
-- Identify key concerns/expectations, preferred communication channels, and frequency.
-- Ensure all key stakeholders mentioned in the brief are included.
+- Grounding Rule: All stakeholders MUST be derived from the Client brief, WBS tasks, RAID items, or explicit project constraints. Do NOT create generic or fictional entities.
+- Extract all stakeholders explicitly mentioned in the brief.
+- Inference Rule: Infer additional stakeholders ONLY if required for execution of WBS, mitigation of RAID risks, or compliance with constraints.
+- Inferred Limit: Limit inferred stakeholders to max 3–5 total.
+- Inferred Rationale: Each inferred stakeholder MUST include a specific rationale linking them to WBS/RAID/constraints. Rationale must be a non-empty string.
+- Explicit Rationale: Explicitly mentioned stakeholders must have rationale set to null/None or empty string.
+- Categorical Enums: 
+  * source: explicit | inferred
+  * influence_level: High | Medium | Low
+  * interest_level: High | Medium | Low
+  * communication_frequency: Weekly | Bi-weekly | Monthly | Ad-hoc
+- Do NOT generate generic roles unless explicitly justified.
 
 {stakeholder_json_output_instruction()}"""
 
@@ -190,17 +196,16 @@ def status_json_output_instruction() -> str:
     return (
         "Respond with **valid JSON only** (no markdown fences or commentary). "
         "Follow the schema instructions and rules provided.\n"
-        'Root object: `{"project_title": "...", "client_name": "...", "reporting_period": "...", "overall_status": "...", "executive_summary": "...", "key_achievements": [...], "planned_activities": [...], "milestones": [...]}`'
+        'Root object: `{"project_name": "...", "project_manager": "...", "date": "...", "summary": "...", "new_initiatives": [...], "blockers": [...], "risks": [...], "milestones": [...], "supporting_links": [...]}`'
     )
 
 STATUS_GENERATOR_SYSTEM = f"""{STATUS_GENERATOR_ROLE}
 
 Rules:
-- reporting_period should be the first week of the project based on the timeline.
-- overall_status must be one of: Green, Amber, Red.
-- key_achievements should list significant accomplishments or kickoff activities.
-- planned_activities should list next steps corresponding to early WBS work packages.
-- milestones list should match the milestones from the brief/timeline, tracking their target dates and status.
+- The status report MUST be derived ONLY from the WBS, RAID, and constraints. Do NOT invent progress or status not supported by inputs.
+- Risks MUST come from RAID.
+- Blockers MUST come from unresolved RAID issues or WBS dependencies.
+- Milestones MUST match the WBS timeline.
 - milestone status must be one of: Not Started, In Progress, Completed, Delayed.
 
 {status_json_output_instruction()}"""
@@ -239,18 +244,27 @@ When revising the RAID log, follow this contract:
 REVISION_STAKEHOLDER_SYSTEM = f"""{REVISION_RULES}
 
 When revising the Stakeholder Map, follow these rules:
-- Map stakeholders to their roles, power/influence level, and interest level.
-- Power/influence: High, Medium, Low.
-- Interest: High, Medium, Low.
-- Engagement strategy: Manage Closely, Keep Satisfied, Keep Informed, Monitor.
+- Grounding Rule: All stakeholders MUST be derived from the Client brief, WBS tasks, RAID items, or explicit project constraints.
+- Extract all stakeholders explicitly mentioned in the brief.
+- Infer additional stakeholders ONLY if required for execution of WBS, mitigation of RAID risks, or compliance with constraints (max 3-5 total).
+- Each inferred stakeholder MUST include a specific rationale linking them to WBS/RAID/constraints.
+- Explicitly mentioned stakeholders must have rationale set to null/None or empty string.
+- Categorical Enums:
+  * source: explicit | inferred
+  * influence_level: High | Medium | Low
+  * interest_level: High | Medium | Low
+  * communication_frequency: Weekly | Bi-weekly | Monthly | Ad-hoc
 
 {stakeholder_json_output_instruction()}"""
 
 REVISION_STATUS_SYSTEM = f"""{REVISION_RULES}
 
 When revising the Weekly Status Report, follow these rules:
-- overall_status: Green, Amber, Red.
-- milestone status: Not Started, In Progress, Completed, Delayed.
+- The status report MUST be derived ONLY from the WBS, RAID, and constraints. Do NOT invent progress or status not supported by inputs.
+- Risks MUST come from RAID.
+- Blockers MUST come from unresolved RAID issues or WBS dependencies.
+- Milestones MUST match the WBS timeline.
+- milestone status must be one of: Not Started, In Progress, Completed, Delayed.
 
 {status_json_output_instruction()}"""
 
