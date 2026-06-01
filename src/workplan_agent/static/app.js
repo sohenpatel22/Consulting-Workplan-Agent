@@ -9,6 +9,8 @@ let pendingConfirmationQuestions = [];
 
 const REVISION_TABS = new Set(["wbs", "raid", "stakeholder", "status"]);
 const feedbackDrafts = { wbs: "", raid: "", stakeholder: "", status: "" };
+/** Artifacts submitted locally before the next poll confirms them. */
+const pendingRevisionTabs = new Set();
 
 const ARTIFACT_LABELS = {
   wbs: "WBS",
@@ -176,12 +178,31 @@ function loadFeedbackDraft() {
   }
 }
 
+function getRevisionsInProgress(data = lastSessionData) {
+  const serverList = data?.revisions_in_progress ?? [];
+  return [...new Set([...serverList, ...pendingRevisionTabs])];
+}
+
 function isTabRevising(tab = currentTab) {
-  return lastSessionData?.revisions_in_progress?.includes(tab) ?? false;
+  return getRevisionsInProgress().includes(tab);
 }
 
 function hasActiveRevisions(data = lastSessionData) {
-  return (data?.revisions_in_progress?.length ?? 0) > 0;
+  return getRevisionsInProgress(data).length > 0;
+}
+
+function syncPendingRevisions(data) {
+  const server = new Set(data?.revisions_in_progress ?? []);
+  if (!data?.review_in_progress && server.size === 0) {
+    pendingRevisionTabs.clear();
+    return;
+  }
+  for (const tab of pendingRevisionTabs) {
+    if (server.has(tab)) continue;
+    if (server.size > 0) {
+      pendingRevisionTabs.delete(tab);
+    }
+  }
 }
 
 function formatStaleMessage(artifact, upstreamKeys, data) {
@@ -196,11 +217,12 @@ function formatStaleMessage(artifact, upstreamKeys, data) {
 }
 
 function updateTabIndicators(data) {
+  const inProgress = getRevisionsInProgress(data);
   document.querySelectorAll(".tab[data-tab]").forEach((tab) => {
     const key = tab.dataset.tab;
     const stale = data.stale_artifacts?.[key];
     tab.classList.toggle("tab-stale", Boolean(stale?.length));
-    tab.classList.toggle("tab-revising", data.revisions_in_progress?.includes(key));
+    tab.classList.toggle("tab-revising", inProgress.includes(key));
   });
 }
 
@@ -243,14 +265,23 @@ function updateFeedbackPane(data) {
   if (showFeedback) {
     const label = ARTIFACT_LABELS[currentTab] || currentTab;
     $("feedbackFieldLabel").textContent = `Feedback for ${label}`;
-    $("revisionTargetHint").textContent = `Submitting revises the ${label} only.`;
+    const inProgress = getRevisionsInProgress(data);
+    if (isTabRevising()) {
+      $("revisionTargetHint").textContent = `${label} revision in progress…`;
+    } else if (inProgress.length) {
+      $("revisionTargetHint").textContent =
+        `Submitting revises ${label} only. Other tabs can be revised in parallel.`;
+    } else {
+      $("revisionTargetHint").textContent = `Submitting revises the ${label} only.`;
+    }
     loadFeedbackDraft();
   }
 
   const approved = data?.status === "approved";
   const limitedOut = data && !data.unlimited_revisions && data.revisions_remaining === 0;
   const revisingThisTab = isTabRevising();
-  $("submitRevisionBtn").disabled = !showFeedback || revisingThisTab || approved || limitedOut;
+  const canSubmit = showFeedback && !revisingThisTab && !approved && !limitedOut;
+  $("submitRevisionBtn").disabled = !canSubmit;
   $("clearFeedbackBtn").disabled = !showFeedback || revisingThisTab;
 }
 
@@ -520,16 +551,12 @@ function updateReviewControls(data) {
   updateFeedbackPane(data);
 
   if (hasActiveRevisions(data)) {
-    const active = data.revisions_in_progress
+    const active = getRevisionsInProgress(data)
       .map((key) => ARTIFACT_LABELS[key] || key)
       .join(", ");
     setReviewStatus(`Revising ${active}…`);
   } else {
     setReviewStatus("");
-  }
-
-  if (approved || limitedOut) {
-    $("submitRevisionBtn").disabled = true;
   }
 }
 
@@ -545,6 +572,7 @@ function updateRevisionHint(data) {
 
 function updateResults(data) {
   lastSessionData = data;
+  syncPendingRevisions(data);
   const badge = $("statusBadge");
   badge.textContent = data.status || data.job_status;
   badge.classList.toggle("done", data.status === "approved");
@@ -926,7 +954,13 @@ async function handleReviewAction(action) {
 
 async function submitRevision() {
   if (!isRevisionTab()) return;
-  if (isTabRevising()) return;
+  if (isTabRevising()) {
+    setError(
+      $("reviewError"),
+      `${ARTIFACT_LABELS[currentTab] || currentTab} is still being revised. Wait or switch to another tab.`
+    );
+    return;
+  }
 
   const feedback = $("feedbackText").value.trim();
   if (!feedback) {
@@ -936,12 +970,24 @@ async function submitRevision() {
 
   const action = currentTab;
   saveFeedbackDraft();
+  setError($("reviewError"), "");
+  $("submitRevisionBtn").disabled = true;
 
   try {
     const { status, body } = await submitReview(action, feedback);
     if (status === 202 || body.status === "accepted") {
       feedbackDrafts[action] = "";
       $("feedbackText").value = "";
+      pendingRevisionTabs.add(action);
+      if (lastSessionData) {
+        updateReviewControls({
+          ...lastSessionData,
+          review_in_progress: true,
+          revisions_in_progress: getRevisionsInProgress(lastSessionData),
+        });
+      }
+      const data = await pollSession(currentSessionId);
+      updateResults(data);
       startReviewPolling();
       return;
     }
@@ -953,6 +999,7 @@ async function submitRevision() {
     const data = await pollSession(currentSessionId);
     updateResults(data);
   } catch (err) {
+    pendingRevisionTabs.delete(action);
     setError($("reviewError"), err.message);
     if (lastSessionData) updateResults(lastSessionData);
   }
@@ -971,6 +1018,7 @@ function resetUi() {
   currentTab = "wbs";
   lastSessionData = null;
   pendingConfirmationQuestions = [];
+  pendingRevisionTabs.clear();
   Object.keys(feedbackDrafts).forEach((key) => {
     feedbackDrafts[key] = "";
   });
@@ -1006,6 +1054,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
     if (currentSessionId && lastSessionData) {
       renderTabContent(lastSessionData);
       updateTabIndicators(lastSessionData);
+      updateReviewControls(lastSessionData);
     } else if (currentSessionId) {
       const data = await pollSession(currentSessionId);
       lastSessionData = data;
