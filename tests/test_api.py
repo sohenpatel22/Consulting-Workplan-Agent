@@ -212,16 +212,55 @@ def test_mock_raid_revision_enriches_existing_item(client: TestClient) -> None:
     assert "more details in descriptions" not in r1["title"]
 
 
-def test_review_blocks_while_in_progress(client: TestClient) -> None:
+def test_review_blocks_same_artifact_in_progress(client: TestClient) -> None:
     create = client.post("/api/sessions", json={"brief_text": BRIEF, "mock": True})
     session_id = create.json()["session_id"]
     _wait_for_complete(client, session_id)
 
     from workplan_agent.api.store import get_store
 
-    get_store().update(session_id, review_in_progress=True)
+    get_store().add_revision_in_progress(session_id, "wbs")
     review = client.post(
         f"/api/sessions/{session_id}/review",
-        json={"action": "approve"},
+        json={"action": "wbs", "feedback": "Add integration testing phase."},
     )
     assert review.status_code == 409
+
+
+def test_concurrent_revision_different_artifacts(client: TestClient) -> None:
+    create = client.post("/api/sessions", json={"brief_text": BRIEF, "mock": True})
+    session_id = create.json()["session_id"]
+    _wait_for_complete(client, session_id)
+
+    from workplan_agent.api.store import get_store
+
+    get_store().add_revision_in_progress(session_id, "wbs")
+    review = client.post(
+        f"/api/sessions/{session_id}/review",
+        json={"action": "stakeholder", "feedback": "Add a steering committee row."},
+    )
+    assert review.status_code == 202
+
+
+def test_quality_check_after_revision(client: TestClient) -> None:
+    create = client.post("/api/sessions", json={"brief_text": BRIEF, "mock": True})
+    session_id = create.json()["session_id"]
+    _wait_for_complete(client, session_id)
+
+    revision = client.post(
+        f"/api/sessions/{session_id}/review",
+        json={"action": "wbs", "feedback": "Add integration testing phase."},
+    )
+    assert revision.status_code == 202
+    after = _wait_for_review(client, session_id)
+    assert after["quality_gates_stale"] is True
+    assert "raid" in after["stale_artifacts"]
+
+    check = client.post(
+        f"/api/sessions/{session_id}/review",
+        json={"action": "quality_check"},
+    )
+    assert check.status_code == 200
+    refreshed = client.get(f"/api/sessions/{session_id}").json()
+    assert refreshed["quality_gates_stale"] is False
+    assert "quality_gates" not in refreshed.get("stale_artifacts", {})

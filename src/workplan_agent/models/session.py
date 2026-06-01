@@ -41,6 +41,8 @@ class WorkplanSession(BaseModel):
     status_report: WeeklyStatusReport | None = None
     quality_gates: QualityGates | None = None
     versions: list[ArtifactVersion] = Field(default_factory=list)
+    artifact_versions: dict[str, int] = Field(default_factory=dict)
+    artifact_based_on: dict[str, dict[str, int]] = Field(default_factory=dict)
     status: SessionStatus = SessionStatus.PARSED
     revision_count: int = 0
 

@@ -13,6 +13,13 @@ from workplan_agent.api.schemas import (
     SessionResponse,
     SessionSummary,
 )
+from workplan_agent.models.artifact_versions import (
+    REVISION_ARTIFACTS,
+    after_multi_revision,
+    after_quality_check,
+    after_revision,
+    compute_stale_artifacts,
+)
 from workplan_agent.models.brief import ResolvedQuestion
 from workplan_agent.diff import unified_text_diff
 from workplan_agent.api.store import SessionRecord, get_store
@@ -29,6 +36,7 @@ from workplan_agent.render import (
     render_quality_gates_markdown,
     generate_quality_gates,
     save_artifacts,
+    save_quality_gates,
     save_status,
 )
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -155,6 +163,7 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
             confirmation_questions = list(session.parsed_brief.open_questions)
 
     last_review = record.last_review_result
+    stale = compute_stale_artifacts(session)
     return SessionResponse(
         session_id=session.session_id,
         job_status=record.job_status,
@@ -167,6 +176,11 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
         unlimited_revisions=unlimited,
         revisions_remaining=revisions_remaining,
         review_in_progress=record.review_in_progress,
+        revisions_in_progress=sorted(record.revisions_in_progress),
+        quality_gates_stale=record.quality_gates_stale,
+        artifact_versions=dict(session.artifact_versions),
+        artifact_based_on={k: dict(v) for k, v in session.artifact_based_on.items()},
+        stale_artifacts=stale,
         review_error=record.review_error,
         last_review_message=last_review.message if last_review else None,
         last_diff=last_review.diff if last_review else None,
@@ -405,12 +419,31 @@ def _validate_review(
 ) -> None:
     if record.job_status != "complete":
         raise ValueError("Session is not ready for review.")
-    if record.review_in_progress and not allow_in_progress:
-        raise ValueError("A review action is already in progress.")
     if record.session.status == SessionStatus.APPROVED:
         raise ValueError("Session is already approved.")
 
-    if request.action != "approve":
+    if request.action == "quality_check":
+        return
+
+    if request.action == "approve":
+        return
+
+    if request.action in REVISION_ARTIFACTS:
+        if request.action in record.revisions_in_progress and not allow_in_progress:
+            raise ValueError(
+                f"A revision for {request.action} is already in progress."
+            )
+        unlimited, _ = _revision_limits()
+        remaining = _revisions_remaining(record.session.revision_count)
+        if not unlimited and remaining == 0:
+            raise ValueError("Maximum revision count reached.")
+        if not request.feedback.strip():
+            raise ValueError("Feedback is required for revisions.")
+        return
+
+    if request.action in ("both", "all"):
+        if not allow_in_progress and record.revisions_in_progress:
+            raise ValueError("A revision action is already in progress.")
         unlimited, _ = _revision_limits()
         remaining = _revisions_remaining(record.session.revision_count)
         if not unlimited and remaining == 0:
@@ -442,6 +475,25 @@ def apply_review_work(session_id: str, request: ReviewRequest) -> ReviewResponse
             message="Workplan approved.",
         )
 
+    if request.action == "quality_check":
+        save_quality_gates(record.output_dir, session)
+        after_quality_check(session)
+        save_status(record.output_dir, session)
+        store.update(
+            session_id,
+            session=session,
+            quality_gates_stale=False,
+            review_error=None,
+        )
+        return ReviewResponse(
+            session_id=session_id,
+            status=session.status,
+            revision_count=session.revision_count,
+            unlimited_revisions=unlimited,
+            revisions_remaining=_revisions_remaining(session.revision_count),
+            message="Quality gates updated.",
+        )
+
     target_map = {
         "wbs": RevisionTarget.WBS,
         "raid": RevisionTarget.RAID,
@@ -458,6 +510,10 @@ def apply_review_work(session_id: str, request: ReviewRequest) -> ReviewResponse
     before_stakeholder_md = render_stakeholder_markdown(session.stakeholder_map, session.parsed_brief) if session.stakeholder_map else ""
     before_status_md = render_status_markdown(session.status_report, session.parsed_brief) if session.status_report else ""
 
+    upstream_snapshot = {
+        key: session.artifact_versions.get(key, 0) for key in REVISION_ARTIFACTS
+    }
+
     provider = get_provider(use_mock=record.mock)
     orchestrator = OrchestratorAgent(
         provider=provider,
@@ -467,6 +523,16 @@ def apply_review_work(session_id: str, request: ReviewRequest) -> ReviewResponse
         verbose=False,
     )
     orchestrator.apply_revision(session, target, request.feedback)
+    if request.action in REVISION_ARTIFACTS:
+        after_revision(session, request.action, upstream_snapshot)
+    elif request.action == "both":
+        after_multi_revision(session, ["wbs", "raid"], upstream_snapshot)
+    elif request.action == "all":
+        after_multi_revision(
+            session,
+            list(REVISION_ARTIFACTS),
+            upstream_snapshot,
+        )
     revision_diff = _compute_revision_diff(
         session,
         target,
@@ -484,8 +550,24 @@ def apply_review_work(session_id: str, request: ReviewRequest) -> ReviewResponse
         message=f"Revision {session.revision_count} applied ({request.action}).",
         diff=revision_diff,
     )
-    store.update(session_id, session=session, last_review_result=result, review_error=None)
+    store.update(
+        session_id,
+        session=session,
+        last_review_result=result,
+        review_error=None,
+        quality_gates_stale=True,
+    )
     return result
+
+
+def _revision_artifact(request: ReviewRequest) -> str:
+    if request.action in REVISION_ARTIFACTS:
+        return request.action
+    if request.action == "both":
+        return "both"
+    if request.action == "all":
+        return "all"
+    raise ValueError(f"Not a revision action: {request.action}")
 
 
 def start_revision(session_id: str, request: ReviewRequest) -> str:
@@ -494,9 +576,10 @@ def start_revision(session_id: str, request: ReviewRequest) -> str:
     if record is None:
         raise KeyError(f"Session {session_id} not found.")
     _validate_review(record, request)
+    artifact = _revision_artifact(request)
+    store.add_revision_in_progress(session_id, artifact)
     store.update(
         session_id,
-        review_in_progress=True,
         phase="revising",
         review_error=None,
     )
@@ -505,17 +588,17 @@ def start_revision(session_id: str, request: ReviewRequest) -> str:
 
 def run_revision_job(session_id: str, payload: dict) -> None:
     request = ReviewRequest.model_validate(payload)
+    artifact = _revision_artifact(request)
     store = get_store()
     try:
         apply_review_work(session_id, request)
     except Exception as exc:
         store.update(session_id, review_error=str(exc))
     finally:
-        store.update(
-            session_id,
-            review_in_progress=False,
-            phase="ready_for_review",
-        )
+        store.remove_revision_in_progress(session_id, artifact)
+        record = store.get(session_id)
+        if record is not None and not record.revisions_in_progress:
+            store.update(session_id, phase="ready_for_review")
 
 
 def apply_approve(session_id: str, request: ReviewRequest) -> ReviewResponse:
@@ -524,12 +607,8 @@ def apply_approve(session_id: str, request: ReviewRequest) -> ReviewResponse:
     if record is None:
         raise KeyError(f"Session {session_id} not found.")
     _validate_review(record, request)
-    store.update(session_id, review_in_progress=True, phase="approving", review_error=None)
+    store.update(session_id, phase="approving", review_error=None)
     try:
         return apply_review_work(session_id, request)
     finally:
-        store.update(
-            session_id,
-            review_in_progress=False,
-            phase="ready_for_review",
-        )
+        store.update(session_id, phase="ready_for_review")

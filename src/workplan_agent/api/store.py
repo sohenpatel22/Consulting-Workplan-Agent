@@ -16,9 +16,14 @@ class SessionRecord:
     mock: bool = False
     brief_text: str = ""
     user_prompt: str = ""
-    review_in_progress: bool = False
+    revisions_in_progress: set[str] = field(default_factory=set)
+    quality_gates_stale: bool = False
     review_error: str | None = None
     last_review_result: ReviewResponse | None = None
+
+    @property
+    def review_in_progress(self) -> bool:
+        return bool(self.revisions_in_progress)
 
 
 class SessionStore:
@@ -42,6 +47,18 @@ class SessionStore:
             for key, value in kwargs.items():
                 setattr(record, key, value)
             return record
+
+    def add_revision_in_progress(self, session_id: str, artifact: str) -> None:
+        with self._lock:
+            record = self._records.get(session_id)
+            if record is not None:
+                record.revisions_in_progress.add(artifact)
+
+    def remove_revision_in_progress(self, session_id: str, artifact: str) -> None:
+        with self._lock:
+            record = self._records.get(session_id)
+            if record is not None:
+                record.revisions_in_progress.discard(artifact)
 
 
 _store: SessionStore | None = None

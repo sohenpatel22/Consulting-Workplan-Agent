@@ -17,6 +17,7 @@ from workplan_agent.api.store import get_store
 from workplan_agent.api.service import (
     STATIC_DIR,
     apply_approve,
+    apply_review_work,
     confirm_open_questions,
     create_session,
     get_session,
@@ -144,6 +145,9 @@ def review_session(
     try:
         if request.action == "approve":
             return apply_approve(session_id, request)
+
+        if request.action == "quality_check":
+            return apply_review_work(session_id, request)
 
         start_revision(session_id, request)
         background_tasks.add_task(run_revision_job, session_id, request.model_dump())

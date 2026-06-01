@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Workplan Agent</title>
-    <link rel="stylesheet" href="/assets/style.css?v=11" />
+    <link rel="stylesheet" href="/assets/style.css?v=12" />
   </head>
   <body>
     <header class="header">
@@ -131,14 +131,17 @@
             <div class="artifact-pane artifact-pane-preview">
               <span class="pane-label">Document preview</span>
               <p class="pane-hint">Formatted view — same as downloaded HTML.</p>
+              <div id="staleNotice" class="stale-notice hidden" role="status"></div>
               <div id="artifactPreview" class="artifact-preview"></div>
             </div>
-            <aside class="artifact-pane artifact-pane-feedback hidden" id="artifactFeedbackColumn">
-              <span class="pane-label">Your feedback</span>
-              <p class="pane-hint">Describe changes in plain language.</p>
+            <aside class="artifact-pane artifact-pane-feedback" id="artifactFeedbackColumn">
+              <span class="pane-label">Revision feedback</span>
+              <p class="pane-hint" id="revisionTargetHint">
+                Changes apply to the active tab's document.
+              </p>
               <div id="feedbackPane" class="feedback-pane pane-body">
                 <label class="field feedback-field">
-                  <span>Your feedback</span>
+                  <span id="feedbackFieldLabel">Your feedback</span>
                   <textarea
                     id="feedbackText"
                     rows="12"
@@ -149,8 +152,8 @@
                   <button type="button" id="submitRevisionBtn" class="btn primary">
                     Submit revision
                   </button>
-                  <button type="button" id="cancelRevisionBtn" class="btn secondary">
-                    Cancel
+                  <button type="button" id="clearFeedbackBtn" class="btn secondary">
+                    Clear
                   </button>
                 </div>
               </div>
@@ -161,6 +164,7 @@
         <article id="briefTabContent" class="markdown-body brief-content hidden"></article>
 
         <div id="qualityGatesTabContent" class="quality-gates-content hidden">
+          <div id="qualityGatesStaleBanner" class="stale-notice hidden" role="status"></div>
           <div class="notice">
             <strong>Human Sign-off Check:</strong> Review the automated verification gate checks below. For manual checkpoints, verify the output and tick the checkboxes to sign off before approving the session.
           </div>
@@ -179,32 +183,13 @@
             <span id="revisionCountLabel">Revisions applied:</span>
             <strong id="revisionCount">0</strong>
           </p>
-          <p id="feedbackHint" class="feedback-hint hidden">
-            Review the document on the left, enter feedback on the right, then click
-            <strong>Submit revision</strong>.
-          </p>
           <p id="reviewStatus" class="review-status hidden" role="status" aria-live="polite"></p>
           <div class="review-actions">
             <button type="button" class="btn primary" data-action="approve">
               Approve
             </button>
-            <button type="button" class="btn secondary" data-action="wbs">
-              Revise WBS
-            </button>
-            <button type="button" class="btn secondary" data-action="raid">
-              Revise RAID
-            </button>
-            <button type="button" class="btn secondary" data-action="stakeholder">
-              Revise Stakeholders
-            </button>
-            <button type="button" class="btn secondary" data-action="status">
-              Revise Status Report
-            </button>
-            <button type="button" class="btn secondary" data-action="both">
-              Revise WBS + RAID
-            </button>
-            <button type="button" class="btn secondary" data-action="all">
-              Revise all
+            <button type="button" class="btn secondary" data-action="quality_check">
+              Run quality check
             </button>
           </div>
           <p id="reviewMessage" class="message hidden"></p>
@@ -217,6 +202,6 @@
       </section>
     </main>
 
-    <script src="/assets/app.js?v=11"></script>
+    <script src="/assets/app.js?v=12"></script>
   </body>
 </html>
