@@ -276,18 +276,10 @@ function previewHtmlForAction(data, action) {
 
 function setArtifactPaneMode(mode) {
   const resultsPanel = $("resultsPanel");
-  const sourcePane = $("tabContent");
-  const feedbackPane = $("feedbackPane");
   const isFeedback = mode === "feedback";
 
   resultsPanel.classList.toggle("revising", isFeedback);
-  sourcePane.classList.toggle("hidden", isFeedback);
-  feedbackPane.classList.toggle("hidden", !isFeedback);
-
-  $("secondaryPaneLabel").textContent = isFeedback ? "Your feedback" : "Source";
-  $("secondaryPaneHint").textContent = isFeedback
-    ? "Describe changes in plain language."
-    : "Technical markdown (optional).";
+  $("artifactFeedbackColumn").classList.toggle("hidden", !isFeedback);
 }
 
 function renderQualityGatesList(qualityGates) {
@@ -382,20 +374,15 @@ function renderTabContent(data) {
   qualityGatesView.classList.add("hidden");
 
   const preview = $("artifactPreview");
-  const source = $("tabContent");
 
   if (currentTab === "wbs") {
     preview.innerHTML = data.wbs_html || "<p class='empty-preview'>WBS not available yet.</p>";
-    source.textContent = data.wbs_markdown || "WBS not available yet.";
   } else if (currentTab === "raid") {
     preview.innerHTML = data.raid_html || "<p class='empty-preview'>RAID not available yet.</p>";
-    source.textContent = data.raid_markdown || "RAID not available yet.";
   } else if (currentTab === "stakeholder") {
     preview.innerHTML = data.stakeholder_html || "<p class='empty-preview'>Stakeholder Map not available yet.</p>";
-    source.textContent = data.stakeholder_markdown || "Stakeholder Map not available yet.";
   } else if (currentTab === "status") {
     preview.innerHTML = data.status_html || "<p class='empty-preview'>Status Report not available yet.</p>";
-    source.textContent = data.status_markdown || "Status Report not available yet.";
   }
 
   if (pendingRevisionAction) {
@@ -840,7 +827,7 @@ function showFeedbackForm(action) {
 function cancelFeedbackForm() {
   pendingRevisionAction = null;
   $("feedbackText").value = "";
-  setArtifactPaneMode("source");
+  setArtifactPaneMode("preview");
   $("feedbackHint").classList.add("hidden");
   if (!reviewBusy && lastSessionData) {
     updateResults(lastSessionData);
@@ -908,7 +895,7 @@ async function submitRevision() {
 
   const action = pendingRevisionAction;
   pendingRevisionAction = null;
-  setArtifactPaneMode("source");
+  setArtifactPaneMode("preview");
   $("feedbackHint").classList.add("hidden");
 
   try {
@@ -941,7 +928,7 @@ function resetUi() {
   pendingConfirmationQuestions = [];
   reviewBusy = false;
   cancelFeedbackForm();
-  setArtifactPaneMode("source");
+  setArtifactPaneMode("preview");
   $("artifactView").classList.add("hidden");
   $("briefTabContent").classList.add("hidden");
   $("qualityGatesTabContent").classList.add("hidden");
