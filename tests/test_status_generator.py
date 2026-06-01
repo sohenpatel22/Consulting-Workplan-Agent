@@ -36,31 +36,36 @@ def test_status_generator_returns_valid_report(
     agent = StatusReportGeneratorAgent(provider)
     report = agent.run(parsed_brief=parsed_brief, wbs=wbs, raid=raid)
     assert isinstance(report, WeeklyStatusReport)
-    assert report.project_title
-    assert report.overall_status in ["Green", "Amber", "Red"]
+    assert report.project_name
+    assert report.project_manager
     assert len(report.milestones) >= 2
 
 
 def test_status_markdown_render(parsed_brief: ParsedBrief) -> None:
     report = WeeklyStatusReport.model_validate(
         {
-            "project_title": "Modernization",
-            "client_name": "Northwind",
-            "reporting_period": "Week 1",
-            "overall_status": "Green",
-            "executive_summary": "Ongoing progress",
-            "key_achievements": ["Completed Kickoff"],
-            "planned_activities": ["Workshops"],
+            "project_name": "Modernization",
+            "project_manager": "Engagement Manager",
+            "date": "2026-06-08",
+            "summary": "Ongoing progress",
+            "new_initiatives": ["Completed Kickoff"],
+            "blockers": ["SME schedule"],
+            "risks": ["SME availability"],
             "milestones": [
                 {
-                    "milestone": "Kickoff",
+                    "name": "Kickoff",
                     "target_date": "2026-06-02",
+                    "actual_date": "2026-06-02",
                     "status": "Completed"
                 }
-            ]
+            ],
+            "supporting_links": ["http://northwind.com"]
         }
     )
     md = render_status_markdown(report, parsed_brief)
-    assert "Weekly Status Report" in md
-    assert "Modernization" in md
+    # The new template outputs only strict sections
+    assert "## Summary" in md
+    assert "## Blockers" in md
+    assert "## Risks" in md
+    assert "## Milestones" in md
     assert "Kickoff" in md
