@@ -1,12 +1,5 @@
-# Stakeholder Map
-
-**Project:** {{ project_title }}  
-**Client:** {{ client_name }}
-
-## Stakeholder Matrix & Engagement Strategy
-
-| Name | Role | Power / Influence | Interest | Engagement Strategy | Key Concerns | Preferred Communication Channel | Frequency |
-|------|------|-------------------|----------|---------------------|--------------|--------------------------------|-----------|
+| Stakeholder | Source | Rationale | Department | Role | Influence | Interest | Strategy | Concerns | Frequency | Engagement Approach | Communication Method |
+|-------------|--------|-----------|------------|------|-----------|----------|----------|----------|-----------|---------------------|----------------------|
 {% for sh in stakeholder_map.stakeholders -%}
-| {{ sh.name }} | {{ sh.role }} | {{ sh.influence }} | {{ sh.interest }} | {{ sh.engagement_strategy }} | {{ sh.key_concerns }} | {{ sh.communication_channel }} | {{ sh.frequency }} |
+| {{ sh.name }} | {{ sh.source.value }} | {{ sh.rationale or '' }} | {{ sh.department }} | {{ sh.role_in_project }} | {{ sh.influence_level.value }} | {{ sh.interest_level.value }} | {{ sh.engagement_strategy }} | {{ sh.key_concerns }} | {{ sh.communication_frequency.value }} | {{ sh.engagement_approach }} | {{ sh.communication_method }} |
 {% endfor %}
