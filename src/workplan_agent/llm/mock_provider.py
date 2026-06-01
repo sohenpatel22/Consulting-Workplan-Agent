@@ -165,13 +165,17 @@ class MockLLMProvider:
         if "add" in lower or "new" in lower:
             data["stakeholders"].append({
                 "name": "Jane Doe",
-                "role": "Project Sponsor",
-                "influence": "High",
-                "interest": "High",
+                "source": "explicit",
+                "rationale": None,
+                "department": "Finance",
+                "role_in_project": "Project Sponsor",
+                "influence_level": "High",
+                "interest_level": "High",
                 "engagement_strategy": "Manage Closely",
                 "key_concerns": "Project completion on schedule and budget.",
-                "communication_channel": "Steering Committee",
-                "frequency": "Monthly"
+                "communication_frequency": "Monthly",
+                "engagement_approach": "Monthly reports",
+                "communication_method": "Steering Committee",
             })
         elif "elena" in lower:
             for sh in data["stakeholders"]:
@@ -188,9 +192,14 @@ class MockLLMProvider:
 
         lower = feedback.lower()
         if "amber" in lower:
-            data["overall_status"] = "Amber"
-        elif "red" in lower:
-            data["overall_status"] = "Red"
-        if "add achievement" in lower or "achievement" in lower:
-            data["key_achievements"].append("Additional achievement added per reviewer feedback.")
+            # We don't have overall_status in WeeklyStatusReport anymore, but wait!
+            # If we don't have overall_status, where does RAG status come from?
+            # Let's check: the WeeklyStatusReport schema does not contain overall_status!
+            # Wait, let's see. Let's look at WeeklyStatusReport:
+            # project_name, project_manager, date, summary, new_initiatives, blockers, risks, milestones, supporting_links.
+            # No overall_status!
+            # Ah, so if it has "amber" or "red", we can ignore it or log it, but we can't assign it to overall_status.
+            pass
+        if "add achievement" in lower or "achievement" in lower or "initiative" in lower:
+            data["new_initiatives"].append("Additional initiative added per reviewer feedback.")
         return response_model.model_validate(data)
