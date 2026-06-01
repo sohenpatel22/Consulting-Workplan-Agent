@@ -10,8 +10,10 @@ Brief (.md/.txt)
         → BriefParserAgent      → ParsedBrief
         → WBSGeneratorAgent     → WBS
         → RAIDGeneratorAgent    → RAIDLog
+        → StakeholderAgent      → StakeholderMap
+        → StatusReportAgent     → WeeklyStatusReport
         → RevisionAgent         → updated artifacts (on feedback)
-    → JSON + Markdown outputs + status.json
+    → JSON + Markdown + status.json + Quality Gates Checklists
 ```
 
 Specialist agents are stateless; the orchestrator owns session state, versioning, and artifact persistence.
@@ -50,11 +52,14 @@ After generation, the CLI shows a numbered menu:
   [1] Approve — finalize and save status.json
   [2] WBS feedback — revise work breakdown
   [3] RAID feedback — revise RAID log
-  [4] Both — revise WBS and RAID
-  [5] Quit — exit without approving
+  [4] Stakeholder feedback — revise stakeholder map
+  [5] Status report feedback — revise weekly status report
+  [6] Both — revise WBS and RAID
+  [7] All — revise WBS, RAID, Stakeholder, and Status
+  [8] Quit — exit without approving
 ```
 
-Enter **1–5** when prompted (words like `approve`, `both`, `quit` also work).
+Enter **1–8** when prompted (words like `approve`, `all`, `quit` also work).
 
 Each revision is saved under `versions/vN/`.
 
@@ -65,6 +70,9 @@ Each revision is saved under `versions/vN/`.
 | `parsed_brief.json` | Structured extraction from client brief |
 | `wbs.json` / `wbs.md` / `wbs.docx` | Work Breakdown Structure (DOCX uses APS1049 Deloitte table layout) |
 | `raid.json` / `raid.md` / `raid.xlsx` | RAID log (XLSX filled from `templates/deloitte/raid_log_template.xlsx`) |
+| `stakeholder_map.json` / `stakeholder_map.md` | Stakeholder engagement map and strategy matrix |
+| `status_report.json` / `status_report.md` | Weekly status report synced with milestones |
+| `quality_gates.json` / `quality_gates.md` | Automated verification checklists and human review sign-offs |
 | `status.json` | Session summary and counts |
 | `versions/vN/` | Snapshot after each generation/revision |
 
@@ -111,14 +119,14 @@ uv run pytest
 
 ```
 src/workplan_agent/
-├── agents/          # Specialist agents (parser, WBS, RAID, revision)
+├── agents/          # Specialist agents (parser, WBS, RAID, stakeholder, status, revision)
 ├── api/             # FastAPI REST layer
 ├── llm/             # Provider abstraction (OpenAI, Anthropic, mock)
-├── models/          # Pydantic schemas
-├── static/          # Web UI assets
-├── templates/       # Jinja2 Markdown templates
+├── models/          # Pydantic schemas (WBS, RAID, stakeholder, status, quality gates)
+├── static/          # Web UI assets (interactive Quality Gates and checklists)
+├── templates/       # Jinja2 Markdown templates (WBS, RAID, stakeholder, status)
 ├── orchestrator.py  # Central workflow controller
-├── render.py        # JSON/Markdown export
+├── render.py        # JSON/Markdown export and Quality Gates validation rules
 └── cli.py           # Typer CLI entry point
 ```
 
@@ -143,9 +151,9 @@ This writes:
 
 Exports: `wbs.docx` and `raid.xlsx` fill the Deloitte layouts; download **XLSX** on the RAID tab in the UI.
 
-## Extension Hooks (Phase 2)
+## Quality Gates & Verification
 
-- Stakeholder map and status report agents
-- Quality gates checklist
-- Optional model overrides per agent type
-- Streaming progress and parallel generation where safe
+The pipeline incorporates **Quality Gates** to ensure deliverable alignment before final Engagement Manager approval:
+- **Automated Validation**: Verifies parent-child WBS codes, RAID-to-WBS links, stakeholder manager alignment, and status report milestone synchronization.
+- **Reference Guide**: [QUALITY_GATES.md](file:///c:/Users/ASUS/Desktop/UofT/Summer%202026/APS1049%20Managment%20Consultants/Deloitte%20Engagement%20Manager%20Agent%20Project/Updated%20My%20Part/Antigravity/IDE/1049-deloitte-project/QUALITY_GATES.md) defines validation tasks and failure modes.
+- **Interactive UI tab**: Facilitates human sign-offs on manual quality gate checks (durations, role mappings, and RAG status).
