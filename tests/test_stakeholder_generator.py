@@ -6,7 +6,7 @@ from workplan_agent.llm.mock_provider import MockLLMProvider
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.wbs import WBS
 from workplan_agent.models.raid import RAIDLog
-from workplan_agent.models.stakeholder import StakeholderMap
+from workplan_agent.models.stakeholder import StakeholderMap, StakeholderSource, InfluenceLevel, InterestLevel, CommunicationFrequency
 from workplan_agent.render import render_stakeholder_markdown
 
 
@@ -39,7 +39,7 @@ def test_stakeholder_generator_returns_valid_map(
     assert len(st_map.stakeholders) >= 2
     for stakeholder in st_map.stakeholders:
         assert stakeholder.name
-        assert stakeholder.role
+        assert stakeholder.role_in_project
 
 
 def test_stakeholder_markdown_render(parsed_brief: ParsedBrief) -> None:
@@ -48,18 +48,23 @@ def test_stakeholder_markdown_render(parsed_brief: ParsedBrief) -> None:
             "stakeholders": [
                 {
                     "name": "Elena Vasquez",
-                    "role": "CMO",
-                    "influence": "High",
-                    "interest": "High",
+                    "source": "explicit",
+                    "rationale": None,
+                    "department": "Marketing",
+                    "role_in_project": "CMO",
+                    "influence_level": "High",
+                    "interest_level": "High",
                     "engagement_strategy": "Manage Closely",
                     "key_concerns": "Campaign launch speed",
-                    "communication_channel": "Monthly dashboard",
-                    "frequency": "Monthly",
+                    "communication_frequency": "Monthly",
+                    "engagement_approach": "Direct consultation",
+                    "communication_method": "Steering Committee",
                 }
             ]
         }
     )
     md = render_stakeholder_markdown(st_map, parsed_brief)
-    assert "Stakeholder Map" in md
+    # The new template outputs only the table
+    assert "Stakeholder | Source" in md
     assert "Elena Vasquez" in md
     assert "CMO" in md
