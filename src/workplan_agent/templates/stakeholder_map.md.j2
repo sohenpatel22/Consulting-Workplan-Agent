@@ -1,0 +1,12 @@
+# Stakeholder Map
+
+**Project:** {{ project_title }}  
+**Client:** {{ client_name }}
+
+## Stakeholder Matrix & Engagement Strategy
+
+| Name | Role | Power / Influence | Interest | Engagement Strategy | Key Concerns | Preferred Communication Channel | Frequency |
+|------|------|-------------------|----------|---------------------|--------------|--------------------------------|-----------|
+{% for sh in stakeholder_map.stakeholders -%}
+| {{ sh.name }} | {{ sh.role }} | {{ sh.influence }} | {{ sh.interest }} | {{ sh.engagement_strategy }} | {{ sh.key_concerns }} | {{ sh.communication_channel }} | {{ sh.frequency }} |
+{% endfor %}

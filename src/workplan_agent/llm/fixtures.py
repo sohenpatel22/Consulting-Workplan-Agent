@@ -1,6 +1,8 @@
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.raid import RAIDLog
 from workplan_agent.models.wbs import WBS
+from workplan_agent.models.stakeholder import StakeholderMap
+from workplan_agent.models.status_report import WeeklyStatusReport
 
 PARSED_BRIEF_FIXTURE = {
     "client_name": "Northwind Retail Group",
@@ -214,13 +216,98 @@ RAID_FIXTURE = {
     ],
 }
 
+STAKEHOLDER_MAP_FIXTURE = {
+    "stakeholders": [
+        {
+            "name": "Elena Vasquez",
+            "role": "CMO",
+            "influence": "High",
+            "interest": "High",
+            "engagement_strategy": "Manage Closely",
+            "key_concerns": "Campaign launch speed, personalization ROI, data subject consent workflows.",
+            "communication_channel": "Steering Committee, Monthly Dashboard",
+            "frequency": "Bi-weekly",
+        },
+        {
+            "name": "Marcus Chen",
+            "role": "CIO",
+            "influence": "High",
+            "interest": "High",
+            "engagement_strategy": "Manage Closely",
+            "key_concerns": "Technical feasibility, security of Azure tenant, implementation cost under €1.2M.",
+            "communication_channel": "Weekly Progress Call, Architecture Review Board",
+            "frequency": "Weekly",
+        },
+        {
+            "name": "Priya Sharma",
+            "role": "Head of Data",
+            "influence": "Medium",
+            "interest": "High",
+            "engagement_strategy": "Keep Informed",
+            "key_concerns": "Data quality, GDPR-compliant consent tracks, team capabilities in Azure Data Factory.",
+            "communication_channel": "SME Workshops, Architecture Reviews",
+            "frequency": "Weekly",
+        },
+        {
+            "name": "James O'Brien",
+            "role": "Marketing Ops Lead",
+            "influence": "Low",
+            "interest": "High",
+            "engagement_strategy": "Keep Informed",
+            "key_concerns": "Audience builder usability, Shopify/SFMC sync speed.",
+            "communication_channel": "Day-to-day coordination, Tool training workshops",
+            "frequency": "As-needed",
+        },
+        {
+            "name": "Legal/Compliance",
+            "role": "DPO Office",
+            "influence": "High",
+            "interest": "Medium",
+            "engagement_strategy": "Keep Satisfied",
+            "key_concerns": "GDPR compliance, data residency inside EU, consent audit trail.",
+            "communication_channel": "Steering Committee, Legal Sign-off Meetings",
+            "frequency": "Milestone-based",
+        }
+    ]
+}
+
+STATUS_REPORT_FIXTURE = {
+    "project_title": "Customer Data Platform Modernization",
+    "client_name": "Northwind Retail Group",
+    "reporting_period": "Week 1 (Kickoff - Discovery Phase)",
+    "overall_status": "Green",
+    "executive_summary": "The CDP modernization initiative officially launched this week with a successful project kickoff. Initial discovery workshops have been scheduled to inventory the legacy data sources. Project is currently on track, within budget, and aligned with timeline objectives.",
+    "key_achievements": [
+        "Project kickoff meeting completed with all core stakeholders.",
+        "Detailed project charter and communication plan signed off.",
+        "SME workshop schedule pre-booked for Tuesdays and Thursdays."
+    ],
+    "planned_activities": [
+        "Conduct discovery interviews with Marketing and CRM owners.",
+        "Establish Azure sandbox environments for the Deloitte engineering team.",
+        "Catalog initial source systems data structures (Salesforce and Shopify)."
+    ],
+    "milestones": [
+        {"milestone": "Project kickoff", "target_date": "June 2, 2026", "status": "Completed"},
+        {"milestone": "Current-state assessment complete", "target_date": "July 15, 2026", "status": "In Progress"},
+        {"milestone": "Target architecture approved", "target_date": "August 1, 2026", "status": "Not Started"},
+        {"milestone": "MVP ingestion live", "target_date": "September 30, 2026", "status": "Not Started"},
+        {"milestone": "UAT complete", "target_date": "November 15, 2026", "status": "Not Started"},
+        {"milestone": "Go-live & handover", "target_date": "December 1, 2026", "status": "Not Started"}
+    ]
+}
+
 REVISION_FIXTURE = {
     "wbs": WBS_FIXTURE,
     "raid": RAID_FIXTURE,
+    "stakeholder_map": STAKEHOLDER_MAP_FIXTURE,
+    "status_report": STATUS_REPORT_FIXTURE,
 }
 
 FIXTURES: dict = {
     ParsedBrief: PARSED_BRIEF_FIXTURE,
     WBS: WBS_FIXTURE,
     RAIDLog: RAID_FIXTURE,
+    StakeholderMap: STAKEHOLDER_MAP_FIXTURE,
+    WeeklyStatusReport: STATUS_REPORT_FIXTURE,
 }

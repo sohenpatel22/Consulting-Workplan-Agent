@@ -90,7 +90,14 @@ async function uploadBriefFile(file) {
   }
 }
 
-const DOWNLOAD_ARTIFACTS = { wbs: "WBS", raid: "RAID", brief: null };
+const DOWNLOAD_ARTIFACTS = {
+  wbs: "WBS",
+  raid: "RAID",
+  stakeholder: "Stakeholder Map",
+  status: "Status Report",
+  quality_gates: "Quality Gates Checklist",
+  brief: null,
+};
 
 function updateDownloadBar() {
   const bar = $("downloadBar");
@@ -109,7 +116,14 @@ function updateDownloadBar() {
 
 async function downloadArtifact(format) {
   const artifact = currentTab;
-  if (artifact !== "wbs" && artifact !== "raid") return;
+  if (
+    artifact !== "wbs" &&
+    artifact !== "raid" &&
+    artifact !== "stakeholder" &&
+    artifact !== "status" &&
+    artifact !== "quality_gates"
+  )
+    return;
   if (!currentSessionId) return;
 
   const url = `${API}/api/sessions/${currentSessionId}/download/${artifact}/${format}`;
@@ -192,7 +206,12 @@ function renderSummary(summary) {
     ["Actions", summary.raid_actions ?? summary.raid_assumptions],
     ["Issues", summary.raid_issues],
     ["Decisions", summary.raid_decisions ?? summary.raid_dependencies],
+    ["Stakeholders", summary.stakeholders_count || 0],
+    ["Milestones", summary.status_milestones_count || 0],
   ];
+  if (summary.quality_gates_total) {
+    cards.push([`Quality Gates`, `${summary.quality_gates_passed}/${summary.quality_gates_total}`]);
+  }
   $("summaryCards").innerHTML = cards
     .map(
       ([label, value]) =>
@@ -208,6 +227,12 @@ function previewHtmlForAction(data, action) {
   if (action === "raid") {
     return data.raid_html || "";
   }
+  if (action === "stakeholder") {
+    return data.stakeholder_html || "";
+  }
+  if (action === "status") {
+    return data.status_html || "";
+  }
   if (action === "both") {
     const parts = [];
     if (data.wbs_html) {
@@ -218,6 +243,30 @@ function previewHtmlForAction(data, action) {
     if (data.raid_html) {
       parts.push('<section class="preview-section"><h2 class="preview-section-title">RAID</h2>');
       parts.push(data.raid_html);
+      parts.push("</section>");
+    }
+    return parts.join("");
+  }
+  if (action === "all") {
+    const parts = [];
+    if (data.wbs_html) {
+      parts.push('<section class="preview-section"><h2 class="preview-section-title">WBS</h2>');
+      parts.push(data.wbs_html);
+      parts.push("</section>");
+    }
+    if (data.raid_html) {
+      parts.push('<section class="preview-section"><h2 class="preview-section-title">RAID</h2>');
+      parts.push(data.raid_html);
+      parts.push("</section>");
+    }
+    if (data.stakeholder_html) {
+      parts.push('<section class="preview-section"><h2 class="preview-section-title">Stakeholder Map</h2>');
+      parts.push(data.stakeholder_html);
+      parts.push("</section>");
+    }
+    if (data.status_html) {
+      parts.push('<section class="preview-section"><h2 class="preview-section-title">Status Report</h2>');
+      parts.push(data.status_html);
       parts.push("</section>");
     }
     return parts.join("");
@@ -241,19 +290,96 @@ function setArtifactPaneMode(mode) {
     : "Technical markdown (optional).";
 }
 
+function renderQualityGatesList(qualityGates) {
+  const container = $("qualityGatesList");
+  if (!qualityGates || !qualityGates.items || !qualityGates.items.length) {
+    container.innerHTML = "<p class='empty-preview'>No Quality Gates checklists generated yet.</p>";
+    return;
+  }
+  
+  const groups = {};
+  qualityGates.items.forEach(item => {
+    if (!groups[item.category]) {
+      groups[item.category] = [];
+    }
+    groups[item.category].push(item);
+  });
+  
+  let html = "";
+  for (const [category, items] of Object.entries(groups)) {
+    html += `
+      <div class="gate-category-group">
+        <h3 class="gate-category-title">${escapeHtml(category)} Checklists</h3>
+        <div class="gate-items">
+    `;
+    
+    items.forEach(item => {
+      let statusClass = "review";
+      let badgeText = "Requires Review";
+      let isChecked = "";
+      let isDisabled = "";
+      
+      if (item.passed) {
+        statusClass = "passed";
+        badgeText = "Passed";
+        isChecked = "checked";
+        if (!item.manual) isDisabled = "disabled";
+      } else if (!item.passed && !item.manual) {
+        statusClass = "failed";
+        badgeText = "Failed Check";
+      }
+      
+      const badgeHtml = `<span class="badge ${statusClass}">${badgeText}</span>`;
+      const feedbackHtml = item.message ? `<div class="gate-feedback ${statusClass}">${escapeHtml(item.message)}</div>` : "";
+      
+      html += `
+        <div class="gate-item ${statusClass}">
+          <input type="checkbox" class="gate-checkbox" ${isChecked} ${isDisabled} />
+          <div class="gate-details">
+            <div class="gate-title-row">
+              <span class="gate-item-title">${escapeHtml(item.title)}</span>
+              ${badgeHtml}
+            </div>
+            <span class="gate-desc">${escapeHtml(item.description)}</span>
+            ${feedbackHtml}
+          </div>
+        </div>
+      `;
+    });
+    
+    html += `
+        </div>
+      </div>
+    `;
+  }
+  
+  container.innerHTML = html;
+}
+
 function renderTabContent(data) {
   const artifactView = $("artifactView");
   const briefView = $("briefTabContent");
+  const qualityGatesView = $("qualityGatesTabContent");
 
   if (currentTab === "brief") {
     artifactView.classList.add("hidden");
     briefView.classList.remove("hidden");
+    qualityGatesView.classList.add("hidden");
     briefView.textContent = JSON.stringify(data.parsed_brief, null, 2);
+    return;
+  }
+
+  if (currentTab === "quality_gates") {
+    artifactView.classList.add("hidden");
+    briefView.classList.add("hidden");
+    qualityGatesView.classList.remove("hidden");
+    renderQualityGatesList(data.quality_gates);
     return;
   }
 
   artifactView.classList.remove("hidden");
   briefView.classList.add("hidden");
+  qualityGatesView.classList.add("hidden");
 
   const preview = $("artifactPreview");
   const source = $("tabContent");
@@ -261,9 +387,15 @@ function renderTabContent(data) {
   if (currentTab === "wbs") {
     preview.innerHTML = data.wbs_html || "<p class='empty-preview'>WBS not available yet.</p>";
     source.textContent = data.wbs_markdown || "WBS not available yet.";
-  } else {
+  } else if (currentTab === "raid") {
     preview.innerHTML = data.raid_html || "<p class='empty-preview'>RAID not available yet.</p>";
     source.textContent = data.raid_markdown || "RAID not available yet.";
+  } else if (currentTab === "stakeholder") {
+    preview.innerHTML = data.stakeholder_html || "<p class='empty-preview'>Stakeholder Map not available yet.</p>";
+    source.textContent = data.stakeholder_markdown || "Stakeholder Map not available yet.";
+  } else if (currentTab === "status") {
+    preview.innerHTML = data.status_html || "<p class='empty-preview'>Status Report not available yet.</p>";
+    source.textContent = data.status_markdown || "Status Report not available yet.";
   }
 
   if (pendingRevisionAction) {
@@ -303,7 +435,7 @@ function formatDiffBlock(text) {
 function renderDiff(diff) {
   const panel = $("diffPanel");
   const content = $("diffContent");
-  if (!diff || (!diff.wbs && !diff.raid)) {
+  if (!diff || (!diff.wbs && !diff.raid && !diff.stakeholder_map && !diff.status_report)) {
     panel.classList.add("hidden");
     content.innerHTML = "";
     return;
@@ -315,6 +447,12 @@ function renderDiff(diff) {
   }
   if (diff.raid) {
     html += `<h4>RAID</h4><pre class="diff-body">${formatDiffBlock(diff.raid)}</pre>`;
+  }
+  if (diff.stakeholder_map) {
+    html += `<h4>Stakeholder Map</h4><pre class="diff-body">${formatDiffBlock(diff.stakeholder_map)}</pre>`;
+  }
+  if (diff.status_report) {
+    html += `<h4>Weekly Status Report</h4><pre class="diff-body">${formatDiffBlock(diff.status_report)}</pre>`;
   }
   content.innerHTML = html;
   panel.classList.remove("hidden");
@@ -728,7 +866,10 @@ async function submitReview(action, feedback = "") {
 const REVISION_MESSAGES = {
   wbs: "Revising WBS… Please wait — do not click again.",
   raid: "Revising RAID log… Please wait — do not click again.",
+  stakeholder: "Revising Stakeholders… Please wait — do not click again.",
+  status: "Revising Weekly Status Report… Please wait — do not click again.",
   both: "Revising WBS and RAID… Please wait — do not click again.",
+  all: "Revising WBS, RAID, Stakeholders, and Status… Please wait — do not click again.",
   approve: "Approving workplan…",
 };
 
@@ -794,6 +935,7 @@ function resetUi() {
   clearInterval(pollTimer);
   stopReviewPolling();
   currentSessionId = null;
+  currentTab = "wbs";
   pendingRevisionAction = null;
   lastSessionData = null;
   pendingConfirmationQuestions = [];
@@ -802,6 +944,7 @@ function resetUi() {
   setArtifactPaneMode("source");
   $("artifactView").classList.add("hidden");
   $("briefTabContent").classList.add("hidden");
+  $("qualityGatesTabContent").classList.add("hidden");
   setError($("createError"), "");
   setError($("progressError"), "");
   setError($("reviewError"), "");
@@ -815,6 +958,8 @@ function resetUi() {
   $("parsePreview").classList.add("hidden");
   setError($("confirmError"), "");
   $("downloadBar").classList.add("hidden");
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelector(".tab[data-tab='wbs']").classList.add("active");
   showPanel("create");
 }
 

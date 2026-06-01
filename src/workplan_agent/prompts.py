@@ -142,15 +142,88 @@ RAID_GENERATOR_USER = """Generate a RAID log from this parsed brief and WBS.
 ## WBS
 {wbs_json}"""
 
+# --- Stakeholder Map generator ---
+
+STAKEHOLDER_GENERATOR_ROLE = (
+    "You are a consulting stakeholder manager. Produce a Stakeholder Map that "
+    "defines and analyzes project stakeholders and engagement strategies."
+)
+
+def stakeholder_json_output_instruction() -> str:
+    return (
+        "Respond with **valid JSON only** (no markdown fences or commentary). "
+        "Follow the schema instructions and rules provided.\n"
+        'Root object: `{"stakeholders": [ ... ]}`'
+    )
+
+STAKEHOLDER_GENERATOR_SYSTEM = f"""{STAKEHOLDER_GENERATOR_ROLE}
+
+Rules:
+- Map stakeholders to their roles, power/influence level, and interest level.
+- Power/influence must be one of: High, Medium, Low.
+- Interest must be one of: High, Medium, Low.
+- Engagement strategy must be one of: Manage Closely, Keep Satisfied, Keep Informed, Monitor.
+- Identify key concerns/expectations, preferred communication channels, and frequency.
+- Ensure all key stakeholders mentioned in the brief are included.
+
+{stakeholder_json_output_instruction()}"""
+
+STAKEHOLDER_GENERATOR_USER = """Generate a Stakeholder Map from this parsed brief, WBS, and RAID log.
+
+## Parsed Brief
+{brief_json}
+
+## WBS
+{wbs_json}
+
+## RAID Log
+{raid_json}"""
+
+# --- Weekly Status Report generator ---
+
+STATUS_GENERATOR_ROLE = (
+    "You are an engagement manager. Produce a Weekly Status Report that "
+    "summarizes project health, achievements, next steps, and milestone progress."
+)
+
+def status_json_output_instruction() -> str:
+    return (
+        "Respond with **valid JSON only** (no markdown fences or commentary). "
+        "Follow the schema instructions and rules provided.\n"
+        'Root object: `{"project_title": "...", "client_name": "...", "reporting_period": "...", "overall_status": "...", "executive_summary": "...", "key_achievements": [...], "planned_activities": [...], "milestones": [...]}`'
+    )
+
+STATUS_GENERATOR_SYSTEM = f"""{STATUS_GENERATOR_ROLE}
+
+Rules:
+- reporting_period should be the first week of the project based on the timeline.
+- overall_status must be one of: Green, Amber, Red.
+- key_achievements should list significant accomplishments or kickoff activities.
+- planned_activities should list next steps corresponding to early WBS work packages.
+- milestones list should match the milestones from the brief/timeline, tracking their target dates and status.
+- milestone status must be one of: Not Started, In Progress, Completed, Delayed.
+
+{status_json_output_instruction()}"""
+
+STATUS_GENERATOR_USER = """Generate a Weekly Status Report from this parsed brief, WBS, and RAID log.
+
+## Parsed Brief
+{brief_json}
+
+## WBS
+{wbs_json}
+
+## RAID Log
+{raid_json}"""
+
 # --- Revision ---
 
-REVISION_RULES = """You are a consulting workplan reviewer. Apply reviewer feedback to WBS and/or RAID artifacts.
+REVISION_RULES = """You are a consulting workplan reviewer. Apply reviewer feedback to WBS, RAID, Stakeholder Map, and/or Weekly Status Report artifacts.
 
 Rules:
 - Apply ONLY the requested changes from the feedback.
 - Preserve unaffected items and IDs where possible.
-- Do not remove work packages or RAID items unless feedback explicitly asks.
-- When editing WBS or RAID, follow the Deloitte generation contracts below (same rules as initial generation).
+- Do not remove items unless feedback explicitly asks.
 - Return the complete updated artifact(s) in the response."""
 
 REVISION_SYSTEM = f"""{REVISION_RULES}
@@ -163,6 +236,24 @@ When revising the RAID log, follow this contract:
 
 {RAID_REQUIREMENTS}"""
 
+REVISION_STAKEHOLDER_SYSTEM = f"""{REVISION_RULES}
+
+When revising the Stakeholder Map, follow these rules:
+- Map stakeholders to their roles, power/influence level, and interest level.
+- Power/influence: High, Medium, Low.
+- Interest: High, Medium, Low.
+- Engagement strategy: Manage Closely, Keep Satisfied, Keep Informed, Monitor.
+
+{stakeholder_json_output_instruction()}"""
+
+REVISION_STATUS_SYSTEM = f"""{REVISION_RULES}
+
+When revising the Weekly Status Report, follow these rules:
+- overall_status: Green, Amber, Red.
+- milestone status: Not Started, In Progress, Completed, Delayed.
+
+{status_json_output_instruction()}"""
+
 REVISION_CONTEXT = """## Parsed Brief
 {parsed_brief_json}
 
@@ -170,7 +261,13 @@ REVISION_CONTEXT = """## Parsed Brief
 {wbs_json}
 
 ## Current RAID
-{raid_json}"""
+{raid_json}
+
+## Current Stakeholder Map
+{stakeholder_map_json}
+
+## Current Weekly Status Report
+{status_report_json}"""
 
 REVISION_WBS_USER = """Revise the WBS based on reviewer feedback.
 
@@ -180,7 +277,7 @@ REVISION_WBS_USER = """Revise the WBS based on reviewer feedback.
 ## Current WBS
 {wbs_json}
 
-## Current RAID (for context)
+## Current RAID
 {raid_json}
 
 ## Reviewer Feedback
@@ -196,6 +293,28 @@ REVISION_RAID_USER = """Revise the RAID log based on reviewer feedback.
 
 ## Current RAID
 {raid_json}
+
+## Reviewer Feedback
+{feedback}"""
+
+REVISION_STAKEHOLDER_USER = """Revise the Stakeholder Map based on reviewer feedback.
+
+## Parsed Brief
+{parsed_brief_json}
+
+## Current Stakeholder Map
+{stakeholder_map_json}
+
+## Reviewer Feedback
+{feedback}"""
+
+REVISION_STATUS_USER = """Revise the Weekly Status Report based on reviewer feedback.
+
+## Parsed Brief
+{parsed_brief_json}
+
+## Current Weekly Status Report
+{status_report_json}
 
 ## Reviewer Feedback
 {feedback}"""
@@ -287,11 +406,15 @@ def revision_user_blocks(
     wbs_json: str,
     raid_json: str,
     feedback: str,
+    stakeholder_map_json: str = "{}",
+    status_report_json: str = "{}",
 ) -> list[ContentBlock]:
     context = REVISION_CONTEXT.format(
         parsed_brief_json=parsed_brief_json,
         wbs_json=wbs_json,
         raid_json=raid_json,
+        stakeholder_map_json=stakeholder_map_json,
+        status_report_json=status_report_json,
     )
     return [
         cached_block(context),

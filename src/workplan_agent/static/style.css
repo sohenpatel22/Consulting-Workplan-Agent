@@ -690,3 +690,111 @@ textarea {
   gap: 0.5rem;
   margin: 0.75rem 0;
 }
+
+/* Quality Gates styles */
+.quality-gates-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.gates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.gate-category-group {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+}
+
+.gate-category-group:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.gate-category-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 0 0 0.75rem 0;
+}
+
+.gate-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.gate-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--surface-2);
+  border-radius: 6px;
+  border-left: 4px solid var(--border);
+}
+
+.gate-item.passed {
+  border-left-color: var(--success);
+}
+
+.gate-item.failed {
+  border-left-color: var(--danger);
+}
+
+.gate-item.review {
+  border-left-color: #f0c674;
+}
+
+.gate-checkbox {
+  margin-top: 0.2rem;
+  transform: scale(1.1);
+  cursor: pointer;
+}
+
+.gate-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.gate-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.gate-item-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.gate-desc {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.gate-feedback {
+  font-size: 0.82rem;
+  margin-top: 0.25rem;
+  padding: 0.35rem 0.5rem;
+  background: var(--bg);
+  border-radius: 4px;
+}
+
+.gate-feedback.passed {
+  color: var(--success);
+}
+
+.gate-feedback.failed {
+  color: var(--danger);
+}

@@ -9,8 +9,10 @@ from workplan_agent.agents.brief_parser import BriefParserAgent
 from workplan_agent.models.brief import ResolvedQuestion
 from workplan_agent.prompts import build_generation_guidance
 from workplan_agent.agents.raid_generator import RAIDGeneratorAgent
-from workplan_agent.agents.revision import RevisionAgent, RevisionTarget
 from workplan_agent.agents.wbs_generator import WBSGeneratorAgent
+from workplan_agent.agents.stakeholder_generator import StakeholderMapGeneratorAgent
+from workplan_agent.agents.status_generator import StatusReportGeneratorAgent
+from workplan_agent.agents.revision import RevisionAgent, RevisionTarget
 from workplan_agent.config import get_settings
 from workplan_agent.llm.base import LLMProvider
 from workplan_agent.models.session import SessionStatus, WorkplanSession
@@ -44,6 +46,8 @@ class OrchestratorAgent:
         self.brief_parser = BriefParserAgent(provider)
         self.wbs_generator = WBSGeneratorAgent(provider)
         self.raid_generator = RAIDGeneratorAgent(provider)
+        self.stakeholder_generator = StakeholderMapGeneratorAgent(provider)
+        self.status_generator = StatusReportGeneratorAgent(provider)
         self.revision_agent = RevisionAgent(provider)
 
     def _log(self, message: str) -> None:
@@ -168,7 +172,7 @@ class OrchestratorAgent:
         user_prompt: str = "",
     ) -> None:
         if session.parsed_brief is None:
-            raise ValueError("Brief must be parsed before generating WBS and RAID.")
+            raise ValueError("Brief must be parsed before generating artifacts.")
 
         guidance = self._generation_guidance(session, user_prompt)
 
@@ -177,11 +181,6 @@ class OrchestratorAgent:
             parsed_brief=session.parsed_brief,
             user_prompt=guidance,
         )
-        session.status = SessionStatus.WBS_GENERATED
-        session.snapshot("initial_wbs")
-        save_artifacts(self.output_dir, session)
-        save_version_snapshot(self.output_dir, session, 1)
-
         self._warm_raid_build_cache(session)
 
         self._log("[bold]Step 3:[/bold] Generating RAID log...")
@@ -190,9 +189,27 @@ class OrchestratorAgent:
             wbs=session.wbs,
             user_prompt=guidance,
         )
+
+        self._log("[bold]Step 4:[/bold] Generating Stakeholder Map...")
+        session.stakeholder_map = self.stakeholder_generator.run(
+            parsed_brief=session.parsed_brief,
+            wbs=session.wbs,
+            raid=session.raid,
+            user_prompt=guidance,
+        )
+
+        self._log("[bold]Step 5:[/bold] Generating Weekly Status Report...")
+        session.status_report = self.status_generator.run(
+            parsed_brief=session.parsed_brief,
+            wbs=session.wbs,
+            raid=session.raid,
+            user_prompt=guidance,
+        )
+
         session.status = SessionStatus.RAID_GENERATED
-        session.snapshot("initial_raid")
+        session.snapshot("initial_generation")
         save_artifacts(self.output_dir, session)
+        save_version_snapshot(self.output_dir, session, 1)
 
     def generate_artifacts(
         self,
@@ -236,6 +253,8 @@ class OrchestratorAgent:
             parsed_brief=session.parsed_brief,
             wbs=session.wbs,
             raid=session.raid,
+            stakeholder_map=session.stakeholder_map,
+            status_report=session.status_report,
             feedback=feedback.strip(),
             target=target,
         )
@@ -243,6 +262,10 @@ class OrchestratorAgent:
             session.wbs = result.wbs
         if result.raid is not None:
             session.raid = result.raid
+        if result.stakeholder_map is not None:
+            session.stakeholder_map = result.stakeholder_map
+        if result.status_report is not None:
+            session.status_report = result.status_report
 
         session.revision_count += 1
         session.snapshot(f"revision_{session.revision_count}")
@@ -270,6 +293,10 @@ class OrchestratorAgent:
         table.add_row("Actions", str(len(session.raid.actions)))
         table.add_row("Issues", str(len(session.raid.issues)))
         table.add_row("Decisions", str(len(session.raid.decisions)))
+        if session.stakeholder_map is not None:
+            table.add_row("Stakeholders mapped", str(len(session.stakeholder_map.stakeholders)))
+        if session.status_report is not None:
+            table.add_row("Status report milestones", str(len(session.status_report.milestones)))
         console.print(table)
 
     def _revision_loop(self, session: WorkplanSession) -> None:
@@ -279,13 +306,12 @@ class OrchestratorAgent:
 
         while self.max_revisions == 0 or session.revision_count < self.max_revisions:
             console.print(Panel(REVIEW_MENU.strip(), title="Review"))
-            raw = console.input("[bold]Enter choice (1-5):[/bold] ").strip()
+            raw = console.input("[bold]Enter choice (1-8):[/bold] ").strip()
             action = parse_review_choice(raw)
-
             if action is None:
                 console.print(
-                    "[red]Invalid choice.[/red] Enter 1–5, or: "
-                    "approve, wbs, raid, both, quit"
+                    "[red]Invalid choice.[/red] Enter 1–8, or: "
+                    "approve, wbs, raid, stakeholder, status, both, all, quit"
                 )
                 continue
 
@@ -304,7 +330,10 @@ class OrchestratorAgent:
             target_map = {
                 ReviewAction.WBS: RevisionTarget.WBS,
                 ReviewAction.RAID: RevisionTarget.RAID,
+                ReviewAction.STAKEHOLDER: RevisionTarget.STAKEHOLDER,
+                ReviewAction.STATUS: RevisionTarget.STATUS,
                 ReviewAction.BOTH: RevisionTarget.BOTH,
+                ReviewAction.ALL: RevisionTarget.ALL,
             }
             target = target_map[action]
 
@@ -318,6 +347,8 @@ class OrchestratorAgent:
                 parsed_brief=session.parsed_brief,
                 wbs=session.wbs,
                 raid=session.raid,
+                stakeholder_map=session.stakeholder_map,
+                status_report=session.status_report,
                 feedback=feedback,
                 target=target,
             )
@@ -326,6 +357,10 @@ class OrchestratorAgent:
                 session.wbs = result.wbs
             if result.raid is not None:
                 session.raid = result.raid
+            if result.stakeholder_map is not None:
+                session.stakeholder_map = result.stakeholder_map
+            if result.status_report is not None:
+                session.status_report = result.status_report
 
             session.revision_count += 1
             session.snapshot(f"revision_{session.revision_count}")

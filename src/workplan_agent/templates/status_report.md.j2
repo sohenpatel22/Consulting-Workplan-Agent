@@ -1,0 +1,36 @@
+# Weekly Status Report
+
+**Project:** {{ project_title }}  
+**Client:** {{ client_name }}  
+**Reporting Period:** {{ status_report.reporting_period }}  
+**Overall Status:** {{ status_report.overall_status }}
+
+## Executive Summary
+
+{{ status_report.executive_summary }}
+
+## Key Achievements (This Week)
+
+{% for achievement in status_report.key_achievements -%}
+- {{ achievement }}
+{% endfor %}
+{% if not status_report.key_achievements -%}
+_No key achievements recorded for this period._
+{%- endif %}
+
+## Key Activities Planned (Next Week)
+
+{% for activity in status_report.planned_activities -%}
+- {{ activity }}
+{% endfor %}
+{% if not status_report.planned_activities -%}
+_No activities planned._
+{%- endif %}
+
+## Milestone Tracking
+
+| Milestone | Target Date | Status |
+|-----------|-------------|--------|
+{% for m in status_report.milestones -%}
+| {{ m.milestone }} | {{ m.target_date }} | {{ m.status }} |
+{% endfor %}
