@@ -220,80 +220,99 @@ STAKEHOLDER_MAP_FIXTURE = {
     "stakeholders": [
         {
             "name": "Elena Vasquez",
-            "role": "CMO",
-            "influence": "High",
-            "interest": "High",
+            "source": "explicit",
+            "rationale": None,
+            "department": "Marketing",
+            "role_in_project": "CMO",
+            "influence_level": "High",
+            "interest_level": "High",
             "engagement_strategy": "Manage Closely",
             "key_concerns": "Campaign launch speed, personalization ROI, data subject consent workflows.",
-            "communication_channel": "Steering Committee, Monthly Dashboard",
-            "frequency": "Bi-weekly",
+            "communication_frequency": "Bi-weekly",
+            "engagement_approach": "Direct consultation",
+            "communication_method": "Steering Committee, Monthly Dashboard",
         },
         {
             "name": "Marcus Chen",
-            "role": "CIO",
-            "influence": "High",
-            "interest": "High",
+            "source": "explicit",
+            "rationale": None,
+            "department": "IT",
+            "role_in_project": "CIO",
+            "influence_level": "High",
+            "interest_level": "High",
             "engagement_strategy": "Manage Closely",
             "key_concerns": "Technical feasibility, security of Azure tenant, implementation cost under €1.2M.",
-            "communication_channel": "Weekly Progress Call, Architecture Review Board",
-            "frequency": "Weekly",
+            "communication_frequency": "Weekly",
+            "engagement_approach": "Collaborative planning",
+            "communication_method": "Weekly Progress Call, Architecture Review Board",
         },
         {
             "name": "Priya Sharma",
-            "role": "Head of Data",
-            "influence": "Medium",
-            "interest": "High",
+            "source": "explicit",
+            "rationale": None,
+            "department": "Data",
+            "role_in_project": "Head of Data",
+            "influence_level": "Medium",
+            "interest_level": "High",
             "engagement_strategy": "Keep Informed",
             "key_concerns": "Data quality, GDPR-compliant consent tracks, team capabilities in Azure Data Factory.",
-            "communication_channel": "SME Workshops, Architecture Reviews",
-            "frequency": "Weekly",
+            "communication_frequency": "Weekly",
+            "engagement_approach": "Technical workshops",
+            "communication_method": "SME Workshops, Architecture Reviews",
         },
         {
             "name": "James O'Brien",
-            "role": "Marketing Ops Lead",
-            "influence": "Low",
-            "interest": "High",
+            "source": "explicit",
+            "rationale": None,
+            "department": "Marketing Operations",
+            "role_in_project": "Marketing Ops Lead",
+            "influence_level": "Low",
+            "interest_level": "High",
             "engagement_strategy": "Keep Informed",
             "key_concerns": "Audience builder usability, Shopify/SFMC sync speed.",
-            "communication_channel": "Day-to-day coordination, Tool training workshops",
-            "frequency": "As-needed",
+            "communication_frequency": "Ad-hoc",
+            "engagement_approach": "Operational syncs",
+            "communication_method": "Day-to-day coordination, Tool training workshops",
         },
         {
             "name": "Legal/Compliance",
-            "role": "DPO Office",
-            "influence": "High",
-            "interest": "Medium",
+            "source": "inferred",
+            "rationale": "Required to ensure GDPR compliance of CDP Azure pipelines per constraints",
+            "department": "Compliance",
+            "role_in_project": "DPO Office",
+            "influence_level": "High",
+            "interest_level": "Medium",
             "engagement_strategy": "Keep Satisfied",
             "key_concerns": "GDPR compliance, data residency inside EU, consent audit trail.",
-            "communication_channel": "Steering Committee, Legal Sign-off Meetings",
-            "frequency": "Milestone-based",
+            "communication_frequency": "Monthly",
+            "engagement_approach": "Milestone reviews",
+            "communication_method": "Steering Committee, Legal Sign-off Meetings",
         }
     ]
 }
 
 STATUS_REPORT_FIXTURE = {
-    "project_title": "Customer Data Platform Modernization",
-    "client_name": "Northwind Retail Group",
-    "reporting_period": "Week 1 (Kickoff - Discovery Phase)",
-    "overall_status": "Green",
-    "executive_summary": "The CDP modernization initiative officially launched this week with a successful project kickoff. Initial discovery workshops have been scheduled to inventory the legacy data sources. Project is currently on track, within budget, and aligned with timeline objectives.",
-    "key_achievements": [
+    "project_name": "Customer Data Platform Modernization",
+    "project_manager": "Engagement Manager",
+    "date": "2026-06-08",
+    "summary": "The CDP modernization initiative officially launched this week with a successful project kickoff. Initial discovery workshops have been scheduled to inventory the legacy data sources. Project is currently on track, within budget, and aligned with timeline objectives.",
+    "new_initiatives": [
         "Project kickoff meeting completed with all core stakeholders.",
-        "Detailed project charter and communication plan signed off.",
-        "SME workshop schedule pre-booked for Tuesdays and Thursdays."
+        "Detailed project charter and communication plan signed off."
     ],
-    "planned_activities": [
-        "Conduct discovery interviews with Marketing and CRM owners.",
-        "Establish Azure sandbox environments for the Deloitte engineering team.",
-        "Catalog initial source systems data structures (Salesforce and Shopify)."
+    "blockers": [
+        "SME availability due to conflicting schedules"
+    ],
+    "risks": [
+        "SME availability may delay assessment (R1)"
     ],
     "milestones": [
-        {"milestone": "Project kickoff", "target_date": "June 2, 2026", "status": "Completed"},
-        {"milestone": "Current-state assessment complete", "target_date": "July 15, 2026", "status": "In Progress"},
-        {"milestone": "Target architecture approved", "target_date": "August 1, 2026", "status": "Not Started"},
-        {"milestone": "MVP ingestion live", "target_date": "September 30, 2026", "status": "Not Started"},
-        {"milestone": "UAT complete", "target_date": "November 15, 2026", "status": "Not Started"},
-        {"milestone": "Go-live & handover", "target_date": "December 1, 2026", "status": "Not Started"}
+        {"name": "Kickoff", "target_date": "June 2, 2026", "actual_date": "June 2, 2026", "status": "Completed"},
+        {"name": "Architecture approved", "target_date": "August 1, 2026", "actual_date": None, "status": "Not Started"},
+        {"name": "Go-live", "target_date": "December 1, 2026", "actual_date": None, "status": "Not Started"}
+    ],
+    "supporting_links": [
+        "https://sharepoint.northwind.com/cdp-charter.pdf"
     ]
 }
 
