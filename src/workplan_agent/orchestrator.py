@@ -15,6 +15,7 @@ from workplan_agent.agents.status_generator import StatusReportGeneratorAgent
 from workplan_agent.agents.revision import RevisionAgent, RevisionTarget
 from workplan_agent.config import get_settings
 from workplan_agent.llm.base import LLMProvider
+from workplan_agent.models.artifact_versions import init_after_generation
 from workplan_agent.models.session import SessionStatus, WorkplanSession
 from workplan_agent.render import (
     save_artifacts,
@@ -207,6 +208,7 @@ class OrchestratorAgent:
         )
 
         session.status = SessionStatus.RAID_GENERATED
+        init_after_generation(session)
         session.snapshot("initial_generation")
         save_artifacts(self.output_dir, session)
         save_version_snapshot(self.output_dir, session, 1)
@@ -269,7 +271,7 @@ class OrchestratorAgent:
 
         session.revision_count += 1
         session.snapshot(f"revision_{session.revision_count}")
-        save_artifacts(self.output_dir, session)
+        save_artifacts(self.output_dir, session, refresh_quality_gates=False)
         save_version_snapshot(
             self.output_dir,
             session,

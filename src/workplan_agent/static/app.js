@@ -2,12 +2,23 @@ const API = "";
 
 let currentSessionId = null;
 let currentTab = "wbs";
-let pendingRevisionAction = null;
 let pollTimer = null;
 let reviewPollTimer = null;
-let reviewBusy = false;
 let lastSessionData = null;
 let pendingConfirmationQuestions = [];
+
+const REVISION_TABS = new Set(["wbs", "raid", "stakeholder", "status"]);
+const feedbackDrafts = { wbs: "", raid: "", stakeholder: "", status: "" };
+/** Artifacts submitted locally before the next poll confirms them. */
+const pendingRevisionTabs = new Set();
+
+const ARTIFACT_LABELS = {
+  wbs: "WBS",
+  raid: "RAID",
+  stakeholder: "Stakeholder Map",
+  status: "Status Report",
+  quality_gates: "Quality Gates",
+};
 
 const $ = (id) => document.getElementById(id);
 
@@ -149,6 +160,130 @@ async function downloadArtifact(format) {
   }
 }
 
+function isRevisionTab(tab = currentTab) {
+  return REVISION_TABS.has(tab);
+}
+
+function saveFeedbackDraft() {
+  if (isRevisionTab()) {
+    feedbackDrafts[currentTab] = $("feedbackText").value;
+  }
+}
+
+function loadFeedbackDraft() {
+  if (isRevisionTab()) {
+    $("feedbackText").value = feedbackDrafts[currentTab] || "";
+  } else {
+    $("feedbackText").value = "";
+  }
+}
+
+function getRevisionsInProgress(data = lastSessionData) {
+  const serverList = data?.revisions_in_progress ?? [];
+  return [...new Set([...serverList, ...pendingRevisionTabs])];
+}
+
+function isTabRevising(tab = currentTab) {
+  return getRevisionsInProgress().includes(tab);
+}
+
+function hasActiveRevisions(data = lastSessionData) {
+  return getRevisionsInProgress(data).length > 0;
+}
+
+function syncPendingRevisions(data) {
+  const server = new Set(data?.revisions_in_progress ?? []);
+  if (!data?.review_in_progress && server.size === 0) {
+    pendingRevisionTabs.clear();
+    return;
+  }
+  for (const tab of pendingRevisionTabs) {
+    if (server.has(tab)) continue;
+    if (server.size > 0) {
+      pendingRevisionTabs.delete(tab);
+    }
+  }
+}
+
+function formatStaleMessage(artifact, upstreamKeys, data) {
+  const versions = data.artifact_versions || {};
+  const basedOn = data.artifact_based_on?.[artifact] || {};
+  const parts = upstreamKeys.map((dep) => {
+    const label = ARTIFACT_LABELS[dep] || dep;
+    return `${label} v${basedOn[dep] ?? "?"} (current v${versions[dep] ?? "?"})`;
+  });
+  const label = ARTIFACT_LABELS[artifact] || artifact;
+  return `${label} may be outdated — upstream revised since last update (${parts.join(", ")}). Consider revising this document.`;
+}
+
+function updateTabIndicators(data) {
+  const inProgress = getRevisionsInProgress(data);
+  document.querySelectorAll(".tab[data-tab]").forEach((tab) => {
+    const key = tab.dataset.tab;
+    const stale = data.stale_artifacts?.[key];
+    tab.classList.toggle("tab-stale", Boolean(stale?.length));
+    tab.classList.toggle("tab-revising", inProgress.includes(key));
+  });
+}
+
+function renderStaleNotice(data) {
+  const el = $("staleNotice");
+  if (!el) return;
+  const tabStale = data.stale_artifacts?.[currentTab];
+  if (!isRevisionTab() || !tabStale?.length) {
+    el.classList.add("hidden");
+    el.textContent = "";
+    return;
+  }
+  el.classList.remove("hidden");
+  el.textContent = formatStaleMessage(currentTab, tabStale, data);
+}
+
+function renderQualityGatesStaleBanner(data) {
+  const el = $("qualityGatesStaleBanner");
+  if (!el) return;
+  const staleKeys = data.stale_artifacts?.quality_gates || [];
+  if (!data.quality_gates_stale && !staleKeys.length) {
+    el.classList.add("hidden");
+    el.textContent = "";
+    return;
+  }
+  el.classList.remove("hidden");
+  if (staleKeys.length) {
+    el.textContent = formatStaleMessage("quality_gates", staleKeys, data);
+  } else {
+    el.textContent =
+      "Quality checks may be outdated — run a quality check after your revisions.";
+  }
+}
+
+function updateFeedbackPane(data) {
+  const showFeedback = isRevisionTab();
+  $("artifactFeedbackColumn").classList.toggle("hidden", !showFeedback);
+  $("resultsPanel").classList.toggle("artifact-review-mode", showFeedback);
+
+  if (showFeedback) {
+    const label = ARTIFACT_LABELS[currentTab] || currentTab;
+    $("feedbackFieldLabel").textContent = `Feedback for ${label}`;
+    const inProgress = getRevisionsInProgress(data);
+    if (isTabRevising()) {
+      $("revisionTargetHint").textContent = `${label} revision in progress…`;
+    } else if (inProgress.length) {
+      $("revisionTargetHint").textContent =
+        `Submitting revises ${label} only. Other tabs can be revised in parallel.`;
+    } else {
+      $("revisionTargetHint").textContent = `Submitting revises the ${label} only.`;
+    }
+  }
+
+  const approved = data?.status === "approved";
+  const limitedOut = data && !data.unlimited_revisions && data.revisions_remaining === 0;
+  const revisingThisTab = isTabRevising();
+  const canSubmit = showFeedback && !revisingThisTab && !approved && !limitedOut;
+  $("submitRevisionBtn").disabled = !canSubmit;
+  $("clearFeedbackBtn").disabled = !showFeedback || revisingThisTab;
+}
+
 async function loadSampleBrief() {
   try {
     const res = await fetch(`${API}/assets/sample_brief.md`);
@@ -159,8 +294,8 @@ async function loadSampleBrief() {
   }
 }
 
-function phaseLabel(phase, jobStatus, reviewInProgress) {
-  if (reviewInProgress) {
+function phaseLabel(phase, jobStatus, revisionsInProgress) {
+  if (revisionsInProgress?.length) {
     const labels = {
       revising: "Applying revision…",
       approving: "Approving workplan…",
@@ -220,74 +355,50 @@ function renderSummary(summary) {
     .join("");
 }
 
-function previewHtmlForAction(data, action) {
-  if (action === "wbs") {
-    return data.wbs_html || "";
-  }
-  if (action === "raid") {
-    return data.raid_html || "";
-  }
-  if (action === "stakeholder") {
-    return data.stakeholder_html || "";
-  }
-  if (action === "status") {
-    return data.status_html || "";
-  }
-  if (action === "both") {
-    const parts = [];
-    if (data.wbs_html) {
-      parts.push('<section class="preview-section"><h2 class="preview-section-title">WBS</h2>');
-      parts.push(data.wbs_html);
-      parts.push("</section>");
-    }
-    if (data.raid_html) {
-      parts.push('<section class="preview-section"><h2 class="preview-section-title">RAID</h2>');
-      parts.push(data.raid_html);
-      parts.push("</section>");
-    }
-    return parts.join("");
-  }
-  if (action === "all") {
-    const parts = [];
-    if (data.wbs_html) {
-      parts.push('<section class="preview-section"><h2 class="preview-section-title">WBS</h2>');
-      parts.push(data.wbs_html);
-      parts.push("</section>");
-    }
-    if (data.raid_html) {
-      parts.push('<section class="preview-section"><h2 class="preview-section-title">RAID</h2>');
-      parts.push(data.raid_html);
-      parts.push("</section>");
-    }
-    if (data.stakeholder_html) {
-      parts.push('<section class="preview-section"><h2 class="preview-section-title">Stakeholder Map</h2>');
-      parts.push(data.stakeholder_html);
-      parts.push("</section>");
-    }
-    if (data.status_html) {
-      parts.push('<section class="preview-section"><h2 class="preview-section-title">Status Report</h2>');
-      parts.push(data.status_html);
-      parts.push("</section>");
-    }
-    return parts.join("");
-  }
-  return "";
-}
+function renderTabContent(data) {
+  const artifactView = $("artifactView");
+  const briefView = $("briefTabContent");
+  const qualityGatesView = $("qualityGatesTabContent");
 
-function setArtifactPaneMode(mode) {
-  const resultsPanel = $("resultsPanel");
-  const sourcePane = $("tabContent");
-  const feedbackPane = $("feedbackPane");
-  const isFeedback = mode === "feedback";
+  if (currentTab === "brief") {
+    artifactView.classList.add("hidden");
+    briefView.classList.remove("hidden");
+    qualityGatesView.classList.add("hidden");
+    briefView.textContent = JSON.stringify(data.parsed_brief, null, 2);
+    updateFeedbackPane(data);
+    return;
+  }
 
-  resultsPanel.classList.toggle("revising", isFeedback);
-  sourcePane.classList.toggle("hidden", isFeedback);
-  feedbackPane.classList.toggle("hidden", !isFeedback);
+  if (currentTab === "quality_gates") {
+    artifactView.classList.add("hidden");
+    briefView.classList.add("hidden");
+    qualityGatesView.classList.remove("hidden");
+    renderQualityGatesList(data.quality_gates);
+    renderQualityGatesStaleBanner(data);
+    updateFeedbackPane(data);
+    return;
+  }
 
-  $("secondaryPaneLabel").textContent = isFeedback ? "Your feedback" : "Source";
-  $("secondaryPaneHint").textContent = isFeedback
-    ? "Describe changes in plain language."
-    : "Technical markdown (optional).";
+  artifactView.classList.remove("hidden");
+  briefView.classList.add("hidden");
+  qualityGatesView.classList.add("hidden");
+
+  const preview = $("artifactPreview");
+
+  if (currentTab === "wbs") {
+    preview.innerHTML = data.wbs_html || "<p class='empty-preview'>WBS not available yet.</p>";
+  } else if (currentTab === "raid") {
+    preview.innerHTML = data.raid_html || "<p class='empty-preview'>RAID not available yet.</p>";
+  } else if (currentTab === "stakeholder") {
+    preview.innerHTML =
+      data.stakeholder_html || "<p class='empty-preview'>Stakeholder Map not available yet.</p>";
+  } else if (currentTab === "status") {
+    preview.innerHTML =
+      data.status_html || "<p class='empty-preview'>Status Report not available yet.</p>";
+  }
+
+  renderStaleNotice(data);
+  updateFeedbackPane(data);
 }
 
 function renderQualityGatesList(qualityGates) {
@@ -356,56 +467,6 @@ function renderQualityGatesList(qualityGates) {
   container.innerHTML = html;
 }
 
-function renderTabContent(data) {
-  const artifactView = $("artifactView");
-  const briefView = $("briefTabContent");
-  const qualityGatesView = $("qualityGatesTabContent");
-
-  if (currentTab === "brief") {
-    artifactView.classList.add("hidden");
-    briefView.classList.remove("hidden");
-    qualityGatesView.classList.add("hidden");
-    briefView.textContent = JSON.stringify(data.parsed_brief, null, 2);
-    return;
-  }
-
-  if (currentTab === "quality_gates") {
-    artifactView.classList.add("hidden");
-    briefView.classList.add("hidden");
-    qualityGatesView.classList.remove("hidden");
-    renderQualityGatesList(data.quality_gates);
-    return;
-  }
-
-  artifactView.classList.remove("hidden");
-  briefView.classList.add("hidden");
-  qualityGatesView.classList.add("hidden");
-
-  const preview = $("artifactPreview");
-  const source = $("tabContent");
-
-  if (currentTab === "wbs") {
-    preview.innerHTML = data.wbs_html || "<p class='empty-preview'>WBS not available yet.</p>";
-    source.textContent = data.wbs_markdown || "WBS not available yet.";
-  } else if (currentTab === "raid") {
-    preview.innerHTML = data.raid_html || "<p class='empty-preview'>RAID not available yet.</p>";
-    source.textContent = data.raid_markdown || "RAID not available yet.";
-  } else if (currentTab === "stakeholder") {
-    preview.innerHTML = data.stakeholder_html || "<p class='empty-preview'>Stakeholder Map not available yet.</p>";
-    source.textContent = data.stakeholder_markdown || "Stakeholder Map not available yet.";
-  } else if (currentTab === "status") {
-    preview.innerHTML = data.status_html || "<p class='empty-preview'>Status Report not available yet.</p>";
-    source.textContent = data.status_markdown || "Status Report not available yet.";
-  }
-
-  if (pendingRevisionAction) {
-    const revisionPreview = previewHtmlForAction(data, pendingRevisionAction);
-    if (revisionPreview) {
-      preview.innerHTML = revisionPreview;
-    }
-  }
-}
-
 function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text;
@@ -459,26 +520,42 @@ function renderDiff(diff) {
   panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-function setReviewBusy(busy, message = "") {
-  reviewBusy = busy;
+function setReviewStatus(message = "") {
   const statusEl = $("reviewStatus");
-  const reviewButtons = document.querySelectorAll(
-    ".review-actions .btn, #submitRevisionBtn, #cancelRevisionBtn"
-  );
-
-  reviewButtons.forEach((btn) => {
-    btn.disabled = busy || lastSessionData?.status === "approved";
-  });
-
-  if (busy && message) {
+  if (message) {
     statusEl.classList.remove("hidden");
     statusEl.classList.add("busy");
     statusEl.textContent = message;
-    statusEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  } else if (!busy) {
+  } else if (!hasActiveRevisions()) {
     statusEl.classList.add("hidden");
     statusEl.classList.remove("busy");
     statusEl.textContent = "";
+  }
+}
+
+function updateReviewControls(data) {
+  const approved = data.status === "approved";
+  const limitedOut = !data.unlimited_revisions && data.revisions_remaining === 0;
+  const qualityBusy = false;
+
+  document.querySelectorAll(".review-actions .btn").forEach((btn) => {
+    const action = btn.dataset.action;
+    if (action === "approve") {
+      btn.disabled = approved;
+    } else if (action === "quality_check") {
+      btn.disabled = approved || qualityBusy;
+    }
+  });
+
+  updateFeedbackPane(data);
+
+  if (hasActiveRevisions(data)) {
+    const active = getRevisionsInProgress(data)
+      .map((key) => ARTIFACT_LABELS[key] || key)
+      .join(", ");
+    setReviewStatus(`Revising ${active}…`);
+  } else {
+    setReviewStatus("");
   }
 }
 
@@ -494,6 +571,7 @@ function updateRevisionHint(data) {
 
 function updateResults(data) {
   lastSessionData = data;
+  syncPendingRevisions(data);
   const badge = $("statusBadge");
   badge.textContent = data.status || data.job_status;
   badge.classList.toggle("done", data.status === "approved");
@@ -534,6 +612,7 @@ function updateResults(data) {
   renderTabContent(data);
   updateDownloadBar();
   updateRevisionHint(data);
+  updateTabIndicators(data);
 
   const approved = data.status === "approved";
   const limitedOut = !data.unlimited_revisions && data.revisions_remaining === 0;
@@ -546,24 +625,12 @@ function updateResults(data) {
     );
   }
 
-  if (data.review_in_progress) {
-    setReviewBusy(
-      true,
-      phaseLabel(data.phase, data.job_status, true) + " Please wait."
-    );
-  } else if (!reviewBusy) {
-    setReviewBusy(false);
-    document
-      .querySelectorAll(".review-actions .btn, #submitRevisionBtn, #cancelRevisionBtn")
-      .forEach((btn) => {
-        btn.disabled = approved || limitedOut;
-      });
-  }
+  updateReviewControls(data);
 
-  if (data.last_diff && !data.review_in_progress) {
+  if (data.last_diff && !hasActiveRevisions(data)) {
     renderDiff(data.last_diff);
   }
-  if (data.last_review_message && !data.review_in_progress && !reviewBusy) {
+  if (data.last_review_message && !hasActiveRevisions(data)) {
     $("reviewMessage").classList.remove("hidden");
     $("reviewMessage").textContent = data.last_review_message;
   }
@@ -576,18 +643,16 @@ function stopReviewPolling() {
   }
 }
 
-function startReviewPolling(initialMessage) {
+function startReviewPolling() {
   stopReviewPolling();
-  setReviewBusy(true, initialMessage);
 
   const tick = async () => {
     try {
       const data = await pollSession(currentSessionId);
       updateResults(data);
 
-      if (!data.review_in_progress) {
+      if (!hasActiveRevisions(data)) {
         stopReviewPolling();
-        setReviewBusy(false);
 
         if (data.review_error) {
           setError($("reviewError"), data.review_error);
@@ -601,11 +666,9 @@ function startReviewPolling(initialMessage) {
           $("reviewMessage").classList.remove("hidden");
           $("reviewMessage").textContent = data.last_review_message;
         }
-        updateResults(data);
       }
     } catch (err) {
       stopReviewPolling();
-      setReviewBusy(false);
       setError($("reviewError"), err.message);
     }
   };
@@ -820,33 +883,6 @@ async function createSession() {
   }
 }
 
-function showFeedbackForm(action) {
-  if (reviewBusy) return;
-  pendingRevisionAction = action;
-  setArtifactPaneMode("feedback");
-  $("feedbackHint").classList.remove("hidden");
-  document.querySelectorAll(".review-actions .btn").forEach((b) => {
-    b.disabled = true;
-  });
-  $("submitRevisionBtn").disabled = false;
-  $("cancelRevisionBtn").disabled = false;
-  if (lastSessionData) {
-    renderTabContent(lastSessionData);
-    $("artifactPreview").scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }
-  $("feedbackText").focus();
-}
-
-function cancelFeedbackForm() {
-  pendingRevisionAction = null;
-  $("feedbackText").value = "";
-  setArtifactPaneMode("source");
-  $("feedbackHint").classList.add("hidden");
-  if (!reviewBusy && lastSessionData) {
-    updateResults(lastSessionData);
-  }
-}
-
 async function submitReview(action, feedback = "") {
   setError($("reviewError"), "");
   $("reviewMessage").classList.add("hidden");
@@ -864,41 +900,66 @@ async function submitReview(action, feedback = "") {
 }
 
 const REVISION_MESSAGES = {
-  wbs: "Revising WBS… Please wait — do not click again.",
-  raid: "Revising RAID log… Please wait — do not click again.",
-  stakeholder: "Revising Stakeholders… Please wait — do not click again.",
-  status: "Revising Weekly Status Report… Please wait — do not click again.",
-  both: "Revising WBS and RAID… Please wait — do not click again.",
-  all: "Revising WBS, RAID, Stakeholders, and Status… Please wait — do not click again.",
-  approve: "Approving workplan…",
+  wbs: "Revising WBS…",
+  raid: "Revising RAID log…",
+  stakeholder: "Revising Stakeholder Map…",
+  status: "Revising Status Report…",
 };
 
 async function handleReviewAction(action) {
-  if (reviewBusy) return;
-
   if (action === "approve") {
-    setReviewBusy(true, REVISION_MESSAGES.approve);
+    const stale =
+      lastSessionData?.quality_gates_stale ||
+      Object.keys(lastSessionData?.stale_artifacts || {}).length > 0;
+    if (stale) {
+      const proceed = window.confirm(
+        "Some documents or quality checks may be outdated. Approve anyway?"
+      );
+      if (!proceed) return;
+    }
+
+    setReviewStatus("Approving workplan…");
     try {
-      const { status, body } = await submitReview("approve");
-      if (status === 200) {
-        $("reviewMessage").classList.remove("hidden");
-        $("reviewMessage").textContent = body.message;
-      }
+      const { body } = await submitReview("approve");
+      $("reviewMessage").classList.remove("hidden");
+      $("reviewMessage").textContent = body.message;
       const data = await pollSession(currentSessionId);
       updateResults(data);
     } catch (err) {
       setError($("reviewError"), err.message);
     } finally {
-      setReviewBusy(false);
+      setReviewStatus("");
       if (lastSessionData) updateResults(lastSessionData);
     }
     return;
   }
-  showFeedbackForm(action);
+
+  if (action === "quality_check") {
+    setReviewStatus("Running quality check…");
+    try {
+      const { body } = await submitReview("quality_check");
+      $("reviewMessage").classList.remove("hidden");
+      $("reviewMessage").textContent = body.message;
+      const data = await pollSession(currentSessionId);
+      updateResults(data);
+    } catch (err) {
+      setError($("reviewError"), err.message);
+    } finally {
+      setReviewStatus("");
+    }
+    return;
+  }
 }
 
 async function submitRevision() {
-  if (!pendingRevisionAction || reviewBusy) return;
+  if (!isRevisionTab()) return;
+  if (isTabRevising()) {
+    setError(
+      $("reviewError"),
+      `${ARTIFACT_LABELS[currentTab] || currentTab} is still being revised. Wait or switch to another tab.`
+    );
+    return;
+  }
 
   const feedback = $("feedbackText").value.trim();
   if (!feedback) {
@@ -906,15 +967,27 @@ async function submitRevision() {
     return;
   }
 
-  const action = pendingRevisionAction;
-  pendingRevisionAction = null;
-  setArtifactPaneMode("source");
-  $("feedbackHint").classList.add("hidden");
+  const action = currentTab;
+  saveFeedbackDraft();
+  setError($("reviewError"), "");
+  $("submitRevisionBtn").disabled = true;
 
   try {
     const { status, body } = await submitReview(action, feedback);
     if (status === 202 || body.status === "accepted") {
-      startReviewPolling(REVISION_MESSAGES[action] || "Applying revision…");
+      feedbackDrafts[action] = "";
+      $("feedbackText").value = "";
+      pendingRevisionTabs.add(action);
+      if (lastSessionData) {
+        updateReviewControls({
+          ...lastSessionData,
+          review_in_progress: true,
+          revisions_in_progress: getRevisionsInProgress(lastSessionData),
+        });
+      }
+      const data = await pollSession(currentSessionId);
+      updateResults(data);
+      startReviewPolling();
       return;
     }
     if (body.diff) {
@@ -925,10 +998,16 @@ async function submitRevision() {
     const data = await pollSession(currentSessionId);
     updateResults(data);
   } catch (err) {
+    pendingRevisionTabs.delete(action);
     setError($("reviewError"), err.message);
-    setReviewBusy(false);
     if (lastSessionData) updateResults(lastSessionData);
   }
+}
+
+function clearFeedback() {
+  if (!isRevisionTab()) return;
+  feedbackDrafts[currentTab] = "";
+  $("feedbackText").value = "";
 }
 
 function resetUi() {
@@ -936,12 +1015,13 @@ function resetUi() {
   stopReviewPolling();
   currentSessionId = null;
   currentTab = "wbs";
-  pendingRevisionAction = null;
   lastSessionData = null;
   pendingConfirmationQuestions = [];
-  reviewBusy = false;
-  cancelFeedbackForm();
-  setArtifactPaneMode("source");
+  pendingRevisionTabs.clear();
+  Object.keys(feedbackDrafts).forEach((key) => {
+    feedbackDrafts[key] = "";
+  });
+  $("feedbackText").value = "";
   $("artifactView").classList.add("hidden");
   $("briefTabContent").classList.add("hidden");
   $("qualityGatesTabContent").classList.add("hidden");
@@ -950,7 +1030,7 @@ function resetUi() {
   setError($("reviewError"), "");
   $("reviewMessage").classList.add("hidden");
   $("diffPanel").classList.add("hidden");
-  setReviewBusy(false);
+  setReviewStatus("");
   $("progressBar").style.width = "0%";
   setUploadStatus("");
   $("userPrompt").value = "";
@@ -965,17 +1045,20 @@ function resetUi() {
 
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", async () => {
-    if (pendingRevisionAction) {
-      cancelFeedbackForm();
-    }
+    saveFeedbackDraft();
     document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
     tab.classList.add("active");
     currentTab = tab.dataset.tab;
     updateDownloadBar();
-    if (currentSessionId) {
+    if (currentSessionId && lastSessionData) {
+      renderTabContent(lastSessionData);
+      updateTabIndicators(lastSessionData);
+      updateReviewControls(lastSessionData);
+      loadFeedbackDraft();
+    } else if (currentSessionId) {
       const data = await pollSession(currentSessionId);
       lastSessionData = data;
-      renderTabContent(data);
+      updateResults(data);
     }
   });
 });
@@ -997,7 +1080,8 @@ $("generateBtn").addEventListener("click", createSession);
 $("confirmBuildBtn").addEventListener("click", submitConfirmation);
 $("loadSampleBtn").addEventListener("click", loadSampleBrief);
 $("submitRevisionBtn").addEventListener("click", submitRevision);
-$("cancelRevisionBtn").addEventListener("click", cancelFeedbackForm);
+$("clearFeedbackBtn").addEventListener("click", clearFeedback);
+$("feedbackText").addEventListener("input", saveFeedbackDraft);
 $("newSessionBtn").addEventListener("click", resetUi);
 
 checkHealth();

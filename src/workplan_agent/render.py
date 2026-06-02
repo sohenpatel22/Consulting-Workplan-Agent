@@ -262,22 +262,30 @@ def save_text(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def save_artifacts(
-    output_dir: Path,
-    session: WorkplanSession,
-) -> None:
+def save_quality_gates(output_dir: Path, session: WorkplanSession) -> None:
     if session.parsed_brief is None:
         raise ValueError("Session has no parsed brief.")
-
-    save_json(output_dir / "parsed_brief.json", session.parsed_brief)
-
-    # Compute and store Quality Gates validation
     session.quality_gates = generate_quality_gates(session)
     save_json(output_dir / "quality_gates.json", session.quality_gates)
     save_text(
         output_dir / "quality_gates.md",
         render_quality_gates_markdown(session.quality_gates, session.parsed_brief),
     )
+
+
+def save_artifacts(
+    output_dir: Path,
+    session: WorkplanSession,
+    *,
+    refresh_quality_gates: bool = True,
+) -> None:
+    if session.parsed_brief is None:
+        raise ValueError("Session has no parsed brief.")
+
+    save_json(output_dir / "parsed_brief.json", session.parsed_brief)
+
+    if refresh_quality_gates:
+        save_quality_gates(output_dir, session)
 
     if session.wbs is not None:
         save_json(output_dir / "wbs.json", session.wbs)

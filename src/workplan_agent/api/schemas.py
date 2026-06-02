@@ -5,7 +5,16 @@ from pydantic import BaseModel, Field
 from workplan_agent.models.session import SessionStatus
 
 JobStatus = Literal["queued", "running", "complete", "failed"]
-ReviewActionName = Literal["approve", "wbs", "raid", "stakeholder", "status", "both", "all"]
+ReviewActionName = Literal[
+    "approve",
+    "quality_check",
+    "wbs",
+    "raid",
+    "stakeholder",
+    "status",
+    "both",
+    "all",
+]
 
 
 class CreateSessionRequest(BaseModel):
@@ -82,6 +91,11 @@ class SessionResponse(BaseModel):
     unlimited_revisions: bool = True
     revisions_remaining: int | None = None
     review_in_progress: bool = False
+    revisions_in_progress: list[str] = Field(default_factory=list)
+    quality_gates_stale: bool = False
+    artifact_versions: dict[str, int] = Field(default_factory=dict)
+    artifact_based_on: dict[str, dict[str, int]] = Field(default_factory=dict)
+    stale_artifacts: dict[str, list[str]] = Field(default_factory=dict)
     review_error: str | None = None
     last_review_message: str | None = None
     last_diff: RevisionDiff | None = None
