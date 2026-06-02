@@ -10,7 +10,7 @@
     <header class="header">
       <div>
         <h1>Workplan Agent</h1>
-        <p class="subtitle">Client brief → WBS + RAID with review</p>
+        <p class="subtitle">Client brief → WBS + RAID + Stakeholder Map + Status Report + Quality Gates</p>
       </div>
       <span id="healthBadge" class="badge">Checking API…</span>
     </header>
@@ -110,6 +110,9 @@
         <div class="tabs">
           <button type="button" class="tab active" data-tab="wbs">WBS</button>
           <button type="button" class="tab" data-tab="raid">RAID</button>
+          <button type="button" class="tab" data-tab="stakeholder">Stakeholder Map</button>
+          <button type="button" class="tab" data-tab="status">Status Report</button>
+          <button type="button" class="tab" data-tab="quality_gates">Quality Gates</button>
           <button type="button" class="tab" data-tab="brief">Parsed brief</button>
         </div>
         <div id="downloadBar" class="download-bar hidden">
@@ -168,6 +171,13 @@
 
         <article id="briefTabContent" class="markdown-body brief-content hidden"></article>
 
+        <div id="qualityGatesTabContent" class="quality-gates-content hidden">
+          <div class="notice">
+            <strong>Human Sign-off Check:</strong> Review the automated verification gate checks below. For manual checkpoints, verify the output and tick the checkboxes to sign off before approving the session.
+          </div>
+          <div id="qualityGatesList" class="gates-list"></div>
+        </div>
+
         <section class="diff-panel hidden" id="diffPanel">
           <h3>Changes in last revision</h3>
           <p class="hint">Unified diff vs. the previous version.</p>
@@ -195,8 +205,17 @@
             <button type="button" class="btn secondary" data-action="raid">
               Revise RAID
             </button>
+            <button type="button" class="btn secondary" data-action="stakeholder">
+              Revise Stakeholders
+            </button>
+            <button type="button" class="btn secondary" data-action="status">
+              Revise Status Report
+            </button>
             <button type="button" class="btn secondary" data-action="both">
-              Revise both
+              Revise WBS + RAID
+            </button>
+            <button type="button" class="btn secondary" data-action="all">
+              Revise all
             </button>
           </div>
           <p id="reviewMessage" class="message hidden"></p>

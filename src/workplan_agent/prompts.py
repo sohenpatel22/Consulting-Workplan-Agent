@@ -142,15 +142,93 @@ RAID_GENERATOR_USER = """Generate a RAID log from this parsed brief and WBS.
 ## WBS
 {wbs_json}"""
 
+# --- Stakeholder Map generator ---
+
+STAKEHOLDER_GENERATOR_ROLE = (
+    "You are a consulting stakeholder manager. Produce a Stakeholder Map that "
+    "defines and analyzes project stakeholders and engagement strategies."
+)
+
+def stakeholder_json_output_instruction() -> str:
+    return (
+        "Respond with **valid JSON only** (no markdown fences or commentary). "
+        "Follow the schema instructions and rules provided.\n"
+        'Root object: `{"stakeholders": [ ... ]}`'
+    )
+
+STAKEHOLDER_GENERATOR_SYSTEM = f"""{STAKEHOLDER_GENERATOR_ROLE}
+
+Rules:
+- Grounding Rule: All stakeholders MUST be derived from the Client brief, WBS tasks, RAID items, or explicit project constraints. Do NOT create generic or fictional entities.
+- Extract all stakeholders explicitly mentioned in the brief.
+- Inference Rule: Infer additional stakeholders ONLY if required for execution of WBS, mitigation of RAID risks, or compliance with constraints.
+- Inferred Limit: Limit inferred stakeholders to max 3–5 total.
+- Inferred Rationale: Each inferred stakeholder MUST include a specific rationale linking them to WBS/RAID/constraints. Rationale must be a non-empty string.
+- Explicit Rationale: Explicitly mentioned stakeholders must have rationale set to null/None or empty string.
+- Categorical Enums: 
+  * source: explicit | inferred
+  * influence_level: High | Medium | Low
+  * interest_level: High | Medium | Low
+  * communication_frequency: Weekly | Bi-weekly | Monthly | Ad-hoc
+- Do NOT generate generic roles unless explicitly justified.
+
+{stakeholder_json_output_instruction()}"""
+
+STAKEHOLDER_GENERATOR_USER = """Generate a Stakeholder Map from this parsed brief, WBS, and RAID log.
+
+## Parsed Brief
+{brief_json}
+
+## WBS
+{wbs_json}
+
+## RAID Log
+{raid_json}"""
+
+# --- Weekly Status Report generator ---
+
+STATUS_GENERATOR_ROLE = (
+    "You are an engagement manager. Produce a Weekly Status Report that "
+    "summarizes project health, achievements, next steps, and milestone progress."
+)
+
+def status_json_output_instruction() -> str:
+    return (
+        "Respond with **valid JSON only** (no markdown fences or commentary). "
+        "Follow the schema instructions and rules provided.\n"
+        'Root object: `{"project_name": "...", "project_manager": "...", "date": "...", "summary": "...", "new_initiatives": [...], "blockers": [...], "risks": [...], "milestones": [...], "supporting_links": [...]}`'
+    )
+
+STATUS_GENERATOR_SYSTEM = f"""{STATUS_GENERATOR_ROLE}
+
+Rules:
+- The status report MUST be derived ONLY from the WBS, RAID, and constraints. Do NOT invent progress or status not supported by inputs.
+- Risks MUST come from RAID.
+- Blockers MUST come from unresolved RAID issues or WBS dependencies.
+- Milestones MUST match the WBS timeline.
+- milestone status must be one of: Not Started, In Progress, Completed, Delayed.
+
+{status_json_output_instruction()}"""
+
+STATUS_GENERATOR_USER = """Generate a Weekly Status Report from this parsed brief, WBS, and RAID log.
+
+## Parsed Brief
+{brief_json}
+
+## WBS
+{wbs_json}
+
+## RAID Log
+{raid_json}"""
+
 # --- Revision ---
 
-REVISION_RULES = """You are a consulting workplan reviewer. Apply reviewer feedback to WBS and/or RAID artifacts.
+REVISION_RULES = """You are a consulting workplan reviewer. Apply reviewer feedback to WBS, RAID, Stakeholder Map, and/or Weekly Status Report artifacts.
 
 Rules:
 - Apply ONLY the requested changes from the feedback.
 - Preserve unaffected items and IDs where possible.
-- Do not remove work packages or RAID items unless feedback explicitly asks.
-- When editing WBS or RAID, follow the Deloitte generation contracts below (same rules as initial generation).
+- Do not remove items unless feedback explicitly asks.
 - Return the complete updated artifact(s) in the response."""
 
 REVISION_SYSTEM = f"""{REVISION_RULES}
@@ -163,6 +241,33 @@ When revising the RAID log, follow this contract:
 
 {RAID_REQUIREMENTS}"""
 
+REVISION_STAKEHOLDER_SYSTEM = f"""{REVISION_RULES}
+
+When revising the Stakeholder Map, follow these rules:
+- Grounding Rule: All stakeholders MUST be derived from the Client brief, WBS tasks, RAID items, or explicit project constraints.
+- Extract all stakeholders explicitly mentioned in the brief.
+- Infer additional stakeholders ONLY if required for execution of WBS, mitigation of RAID risks, or compliance with constraints (max 3-5 total).
+- Each inferred stakeholder MUST include a specific rationale linking them to WBS/RAID/constraints.
+- Explicitly mentioned stakeholders must have rationale set to null/None or empty string.
+- Categorical Enums:
+  * source: explicit | inferred
+  * influence_level: High | Medium | Low
+  * interest_level: High | Medium | Low
+  * communication_frequency: Weekly | Bi-weekly | Monthly | Ad-hoc
+
+{stakeholder_json_output_instruction()}"""
+
+REVISION_STATUS_SYSTEM = f"""{REVISION_RULES}
+
+When revising the Weekly Status Report, follow these rules:
+- The status report MUST be derived ONLY from the WBS, RAID, and constraints. Do NOT invent progress or status not supported by inputs.
+- Risks MUST come from RAID.
+- Blockers MUST come from unresolved RAID issues or WBS dependencies.
+- Milestones MUST match the WBS timeline.
+- milestone status must be one of: Not Started, In Progress, Completed, Delayed.
+
+{status_json_output_instruction()}"""
+
 REVISION_CONTEXT = """## Parsed Brief
 {parsed_brief_json}
 
@@ -170,7 +275,13 @@ REVISION_CONTEXT = """## Parsed Brief
 {wbs_json}
 
 ## Current RAID
-{raid_json}"""
+{raid_json}
+
+## Current Stakeholder Map
+{stakeholder_map_json}
+
+## Current Weekly Status Report
+{status_report_json}"""
 
 REVISION_WBS_USER = """Revise the WBS based on reviewer feedback.
 
@@ -180,7 +291,7 @@ REVISION_WBS_USER = """Revise the WBS based on reviewer feedback.
 ## Current WBS
 {wbs_json}
 
-## Current RAID (for context)
+## Current RAID
 {raid_json}
 
 ## Reviewer Feedback
@@ -196,6 +307,28 @@ REVISION_RAID_USER = """Revise the RAID log based on reviewer feedback.
 
 ## Current RAID
 {raid_json}
+
+## Reviewer Feedback
+{feedback}"""
+
+REVISION_STAKEHOLDER_USER = """Revise the Stakeholder Map based on reviewer feedback.
+
+## Parsed Brief
+{parsed_brief_json}
+
+## Current Stakeholder Map
+{stakeholder_map_json}
+
+## Reviewer Feedback
+{feedback}"""
+
+REVISION_STATUS_USER = """Revise the Weekly Status Report based on reviewer feedback.
+
+## Parsed Brief
+{parsed_brief_json}
+
+## Current Weekly Status Report
+{status_report_json}
 
 ## Reviewer Feedback
 {feedback}"""
@@ -287,11 +420,15 @@ def revision_user_blocks(
     wbs_json: str,
     raid_json: str,
     feedback: str,
+    stakeholder_map_json: str = "{}",
+    status_report_json: str = "{}",
 ) -> list[ContentBlock]:
     context = REVISION_CONTEXT.format(
         parsed_brief_json=parsed_brief_json,
         wbs_json=wbs_json,
         raid_json=raid_json,
+        stakeholder_map_json=stakeholder_map_json,
+        status_report_json=status_report_json,
     )
     return [
         cached_block(context),

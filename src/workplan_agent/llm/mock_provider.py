@@ -8,6 +8,8 @@ from workplan_agent.llm.caching import LLMMessage, flatten_content
 from workplan_agent.llm.fixtures import FIXTURES, RAID_FIXTURE, WBS_FIXTURE
 from workplan_agent.models.raid import RAIDLog
 from workplan_agent.models.wbs import WBS
+from workplan_agent.models.stakeholder import StakeholderMap
+from workplan_agent.models.status_report import WeeklyStatusReport
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -50,6 +52,10 @@ class MockLLMProvider:
             return self._mock_wbs_revision(user_text, response_model)
         if "Revise the RAID" in user_text:
             return self._mock_raid_revision(user_text, response_model)
+        if "Revise the Stakeholder Map" in user_text:
+            return self._mock_stakeholder_revision(user_text, response_model)
+        if "Revise the Weekly Status Report" in user_text:
+            return self._mock_status_revision(user_text, response_model)
 
         fixture = FIXTURES.get(response_model)
         if fixture is None:
@@ -146,4 +152,54 @@ class MockLLMProvider:
                 }
             )
 
+        return response_model.model_validate(data)
+
+    def _mock_stakeholder_revision(self, user_text: str, response_model: type[T]) -> T:
+        if response_model is not StakeholderMap:
+            raise ValueError(f"Expected StakeholderMap revision, got {response_model.__name__}")
+        feedback = self._extract_feedback(user_text)
+        from workplan_agent.llm.fixtures import STAKEHOLDER_MAP_FIXTURE
+        data = copy.deepcopy(STAKEHOLDER_MAP_FIXTURE)
+
+        lower = feedback.lower()
+        if "add" in lower or "new" in lower:
+            data["stakeholders"].append({
+                "name": "Jane Doe",
+                "source": "explicit",
+                "rationale": None,
+                "department": "Finance",
+                "role_in_project": "Project Sponsor",
+                "influence_level": "High",
+                "interest_level": "High",
+                "engagement_strategy": "Manage Closely",
+                "key_concerns": "Project completion on schedule and budget.",
+                "communication_frequency": "Monthly",
+                "engagement_approach": "Monthly reports",
+                "communication_method": "Steering Committee",
+            })
+        elif "elena" in lower:
+            for sh in data["stakeholders"]:
+                if "elena" in sh["name"].lower():
+                    sh["engagement_strategy"] = "Keep Satisfied"
+        return response_model.model_validate(data)
+
+    def _mock_status_revision(self, user_text: str, response_model: type[T]) -> T:
+        if response_model is not WeeklyStatusReport:
+            raise ValueError(f"Expected WeeklyStatusReport revision, got {response_model.__name__}")
+        feedback = self._extract_feedback(user_text)
+        from workplan_agent.llm.fixtures import STATUS_REPORT_FIXTURE
+        data = copy.deepcopy(STATUS_REPORT_FIXTURE)
+
+        lower = feedback.lower()
+        if "amber" in lower:
+            # We don't have overall_status in WeeklyStatusReport anymore, but wait!
+            # If we don't have overall_status, where does RAG status come from?
+            # Let's check: the WeeklyStatusReport schema does not contain overall_status!
+            # Wait, let's see. Let's look at WeeklyStatusReport:
+            # project_name, project_manager, date, summary, new_initiatives, blockers, risks, milestones, supporting_links.
+            # No overall_status!
+            # Ah, so if it has "amber" or "red", we can ignore it or log it, but we can't assign it to overall_status.
+            pass
+        if "add achievement" in lower or "achievement" in lower or "initiative" in lower:
+            data["new_initiatives"].append("Additional initiative added per reviewer feedback.")
         return response_model.model_validate(data)

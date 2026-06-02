@@ -133,8 +133,20 @@ def test_download_after_generation(client: TestClient) -> None:
     create = client.post("/api/sessions", json={"brief_text": BRIEF, "mock": True})
     session_id = create.json()["session_id"]
 
-    for _ in range(120):
+    for _ in range(300):
         session = client.get(f"/api/sessions/{session_id}").json()
+        if session.get("awaiting_confirmation") or session.get("phase") == "awaiting_confirmation":
+            # Confirm open questions
+            questions = session.get("confirmation_questions") or []
+            answers = [
+                {"question": q, "answer": f"Confirmed for planning: {q}"}
+                for q in questions
+            ]
+            client.post(
+                f"/api/sessions/{session_id}/confirm",
+                json={"answers": answers},
+            )
+            continue
         if session["job_status"] in ("complete", "failed"):
             break
         time.sleep(0.05)

@@ -1,6 +1,8 @@
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.raid import RAIDLog
 from workplan_agent.models.wbs import WBS
+from workplan_agent.models.stakeholder import StakeholderMap
+from workplan_agent.models.status_report import WeeklyStatusReport
 
 PARSED_BRIEF_FIXTURE = {
     "client_name": "Northwind Retail Group",
@@ -214,13 +216,117 @@ RAID_FIXTURE = {
     ],
 }
 
+STAKEHOLDER_MAP_FIXTURE = {
+    "stakeholders": [
+        {
+            "name": "Elena Vasquez",
+            "source": "explicit",
+            "rationale": None,
+            "department": "Marketing",
+            "role_in_project": "CMO",
+            "influence_level": "High",
+            "interest_level": "High",
+            "engagement_strategy": "Manage Closely",
+            "key_concerns": "Campaign launch speed, personalization ROI, data subject consent workflows.",
+            "communication_frequency": "Bi-weekly",
+            "engagement_approach": "Direct consultation",
+            "communication_method": "Steering Committee, Monthly Dashboard",
+        },
+        {
+            "name": "Marcus Chen",
+            "source": "explicit",
+            "rationale": None,
+            "department": "IT",
+            "role_in_project": "CIO",
+            "influence_level": "High",
+            "interest_level": "High",
+            "engagement_strategy": "Manage Closely",
+            "key_concerns": "Technical feasibility, security of Azure tenant, implementation cost under €1.2M.",
+            "communication_frequency": "Weekly",
+            "engagement_approach": "Collaborative planning",
+            "communication_method": "Weekly Progress Call, Architecture Review Board",
+        },
+        {
+            "name": "Priya Sharma",
+            "source": "explicit",
+            "rationale": None,
+            "department": "Data",
+            "role_in_project": "Head of Data",
+            "influence_level": "Medium",
+            "interest_level": "High",
+            "engagement_strategy": "Keep Informed",
+            "key_concerns": "Data quality, GDPR-compliant consent tracks, team capabilities in Azure Data Factory.",
+            "communication_frequency": "Weekly",
+            "engagement_approach": "Technical workshops",
+            "communication_method": "SME Workshops, Architecture Reviews",
+        },
+        {
+            "name": "James O'Brien",
+            "source": "explicit",
+            "rationale": None,
+            "department": "Marketing Operations",
+            "role_in_project": "Marketing Ops Lead",
+            "influence_level": "Low",
+            "interest_level": "High",
+            "engagement_strategy": "Keep Informed",
+            "key_concerns": "Audience builder usability, Shopify/SFMC sync speed.",
+            "communication_frequency": "Ad-hoc",
+            "engagement_approach": "Operational syncs",
+            "communication_method": "Day-to-day coordination, Tool training workshops",
+        },
+        {
+            "name": "Legal/Compliance",
+            "source": "inferred",
+            "rationale": "Required to ensure GDPR compliance of CDP Azure pipelines per constraints",
+            "department": "Compliance",
+            "role_in_project": "DPO Office",
+            "influence_level": "High",
+            "interest_level": "Medium",
+            "engagement_strategy": "Keep Satisfied",
+            "key_concerns": "GDPR compliance, data residency inside EU, consent audit trail.",
+            "communication_frequency": "Monthly",
+            "engagement_approach": "Milestone reviews",
+            "communication_method": "Steering Committee, Legal Sign-off Meetings",
+        }
+    ]
+}
+
+STATUS_REPORT_FIXTURE = {
+    "project_name": "Customer Data Platform Modernization",
+    "project_manager": "Engagement Manager",
+    "date": "2026-06-08",
+    "summary": "The CDP modernization initiative officially launched this week with a successful project kickoff. Initial discovery workshops have been scheduled to inventory the legacy data sources. Project is currently on track, within budget, and aligned with timeline objectives.",
+    "new_initiatives": [
+        "Project kickoff meeting completed with all core stakeholders.",
+        "Detailed project charter and communication plan signed off."
+    ],
+    "blockers": [
+        "SME availability due to conflicting schedules"
+    ],
+    "risks": [
+        "SME availability may delay assessment (R1)"
+    ],
+    "milestones": [
+        {"name": "Kickoff", "target_date": "June 2, 2026", "actual_date": "June 2, 2026", "status": "Completed"},
+        {"name": "Architecture approved", "target_date": "August 1, 2026", "actual_date": None, "status": "Not Started"},
+        {"name": "Go-live", "target_date": "December 1, 2026", "actual_date": None, "status": "Not Started"}
+    ],
+    "supporting_links": [
+        "https://sharepoint.northwind.com/cdp-charter.pdf"
+    ]
+}
+
 REVISION_FIXTURE = {
     "wbs": WBS_FIXTURE,
     "raid": RAID_FIXTURE,
+    "stakeholder_map": STAKEHOLDER_MAP_FIXTURE,
+    "status_report": STATUS_REPORT_FIXTURE,
 }
 
 FIXTURES: dict = {
     ParsedBrief: PARSED_BRIEF_FIXTURE,
     WBS: WBS_FIXTURE,
     RAIDLog: RAID_FIXTURE,
+    StakeholderMap: STAKEHOLDER_MAP_FIXTURE,
+    WeeklyStatusReport: STATUS_REPORT_FIXTURE,
 }

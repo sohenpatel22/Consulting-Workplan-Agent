@@ -1,0 +1,47 @@
+## Summary
+
+{{ status_report.summary }}
+
+## New Initiatives
+
+{% for item in status_report.new_initiatives -%}
+- {{ item }}
+{% endfor %}
+{% if not status_report.new_initiatives -%}
+_No new initiatives._
+{%- endif %}
+
+## Blockers
+
+{% for item in status_report.blockers -%}
+- {{ item }}
+{% endfor %}
+{% if not status_report.blockers -%}
+_No blockers._
+{%- endif %}
+
+## Risks
+
+{% for item in status_report.risks -%}
+- {{ item }}
+{% endfor %}
+{% if not status_report.risks -%}
+_No risks._
+{%- endif %}
+
+## Milestones
+
+| Milestone | Target Date | Actual Date | Status |
+|-----------|-------------|-------------|--------|
+{% for m in status_report.milestones -%}
+| {{ m.name }} | {{ m.target_date }} | {{ m.actual_date or '' }} | {{ m.status }} |
+{% endfor %}
+
+## Supporting Links
+
+{% for link in status_report.supporting_links -%}
+- {{ link }}
+{% endfor %}
+{% if not status_report.supporting_links -%}
+_No supporting links._
+{%- endif %}

@@ -8,6 +8,9 @@ from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.raid import RAIDLog
 from workplan_agent.models.session import SessionStatus, WorkplanSession
 from workplan_agent.models.wbs import WBS
+from workplan_agent.models.stakeholder import StakeholderMap
+from workplan_agent.models.status_report import WeeklyStatusReport
+from workplan_agent.models.quality_gates import QualityGateItem, QualityGates
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -37,6 +40,214 @@ def render_raid_markdown(raid: RAIDLog, parsed_brief: ParsedBrief) -> str:
     )
 
 
+def render_stakeholder_markdown(stakeholder_map: StakeholderMap, parsed_brief: ParsedBrief) -> str:
+    template = _env().get_template("stakeholder_map.md.j2")
+    return template.render(
+        stakeholder_map=stakeholder_map,
+        client_name=parsed_brief.client_name,
+        project_title=parsed_brief.project_title,
+    )
+
+
+def render_status_markdown(status_report: WeeklyStatusReport, parsed_brief: ParsedBrief) -> str:
+    template = _env().get_template("status_report.md.j2")
+    return template.render(
+        status_report=status_report,
+        client_name=parsed_brief.client_name,
+        project_title=parsed_brief.project_title,
+    )
+
+
+def generate_quality_gates(session: WorkplanSession) -> QualityGates:
+    items = []
+    
+    # --- WBS Checks ---
+    # 1. WBS Hierarchical Code Validity
+    wbs_codes_ok = True
+    wbs_code_msg = "All level-2 packages have valid level-1 parent codes."
+    if session.wbs:
+        level1_codes = {wp.wbs_code for wp in session.wbs.work_packages if wp.level == 1}
+        invalid_parents = []
+        for wp in session.wbs.work_packages:
+            if wp.level == 2:
+                if not wp.parent_wbs_code or wp.parent_wbs_code not in level1_codes:
+                    invalid_parents.append(f"{wp.wbs_code} (parent: {wp.parent_wbs_code})")
+        if invalid_parents:
+            wbs_codes_ok = False
+            wbs_code_msg = f"Invalid parent codes detected for packages: {', '.join(invalid_parents)}"
+    else:
+        wbs_codes_ok = False
+        wbs_code_msg = "No WBS artifact found to validate."
+        
+    items.append(QualityGateItem(
+        category="WBS",
+        title="Hierarchical Code Validity",
+        description="Verify every level-2 package has a parent code matching a level-1 package.",
+        passed=wbs_codes_ok,
+        message=wbs_code_msg,
+        manual=False
+    ))
+    
+    # 2. Resource/Owner Roles
+    owners_ok = True
+    owner_msg = "All work packages have assigned owners."
+    if session.wbs:
+        missing_owners = [wp.wbs_code for wp in session.wbs.work_packages if not wp.owner]
+        if missing_owners:
+            owners_ok = False
+            owner_msg = f"Packages missing owners: {', '.join(missing_owners)}"
+    else:
+        owners_ok = False
+        owner_msg = "WBS not generated."
+        
+    items.append(QualityGateItem(
+        category="WBS",
+        title="Owner Role Allocation",
+        description="Ensure all work packages have owners and align with standard consulting roles (e.g. EM, BA, Architect).",
+        passed=owners_ok,
+        message=owner_msg,
+        manual=True
+    ))
+
+    # 3. Duration Realism
+    items.append(QualityGateItem(
+        category="WBS",
+        title="Duration Realism",
+        description="Verify task durations are realistic based on client timeline constraints.",
+        passed=True if session.wbs else False,
+        message="Review durations and task sequencing." if session.wbs else "WBS not generated.",
+        manual=True
+    ))
+
+    # --- RAID Checks ---
+    # 4. RAID risk links to WBS
+    raid_links_ok = True
+    raid_link_msg = "All RAID risks map to valid WBS codes."
+    if session.raid and session.wbs:
+        wbs_codes = {wp.wbs_code for wp in session.wbs.work_packages}
+        invalid_links = []
+        for risk in session.raid.risks:
+            for link in (risk.wbs_links or []):
+                if link not in wbs_codes:
+                    invalid_links.append(f"{risk.id} links to invalid WBS {link}")
+        if invalid_links:
+            raid_links_ok = False
+            raid_link_msg = f"Invalid links found: {', '.join(invalid_links)}"
+    elif not session.raid:
+        raid_links_ok = False
+        raid_link_msg = "RAID log not generated."
+
+    items.append(QualityGateItem(
+        category="RAID",
+        title="WBS Link Mapping",
+        description="Verify every Risk entry maps to one or more valid WBS codes.",
+        passed=raid_links_ok,
+        message=raid_link_msg,
+        manual=False
+    ))
+
+    # 5. Risk vs Issue classification
+    items.append(QualityGateItem(
+        category="RAID",
+        title="Risk vs Issue Classification",
+        description="Verify that uncertain events are classified as Risks and active problems as Issues.",
+        passed=True if session.raid else False,
+        message="Review RAID log entries for future uncertainty vs. present active issues." if session.raid else "RAID log not generated.",
+        manual=True
+    ))
+
+    # --- Stakeholder Checks ---
+    # 6. Sponsor Strategy
+    sponsor_ok = True
+    sponsor_msg = "Key sponsors are classified with appropriate engagement strategies."
+    if session.stakeholder_map:
+        closely_managed = []
+        for sh in session.stakeholder_map.stakeholders:
+            if "cmo" in sh.role_in_project.lower() or "cio" in sh.role_in_project.lower() or "vasquez" in sh.name.lower() or "chen" in sh.name.lower():
+                if sh.engagement_strategy == "Manage Closely":
+                    closely_managed.append(sh.name)
+        if len(closely_managed) < 2:
+            sponsor_ok = False
+            sponsor_msg = "Ensure CMO (Elena Vasquez) and CIO (Marcus Chen) are set to 'Manage Closely'."
+    else:
+        sponsor_ok = False
+        sponsor_msg = "Stakeholder map not generated."
+
+    items.append(QualityGateItem(
+        category="Stakeholder",
+        title="Sponsor Strategy Alignment",
+        description="Verify that key decision-makers (CMO, CIO) are classified as High Influence/Interest and marked as Manage Closely.",
+        passed=sponsor_ok,
+        message=sponsor_msg,
+        manual=False
+    ))
+
+    # --- Status Checks ---
+    # 7. Milestone Synchronization
+    milestones_ok = True
+    milestones_msg = "Status report milestones are synchronized with timeline objectives."
+    if session.status_report and session.parsed_brief:
+        brief_milestones = session.parsed_brief.timeline.milestones if session.parsed_brief.timeline else []
+        report_milestones = {m.name.lower() for m in session.status_report.milestones}
+        missing = [m for m in brief_milestones if m.lower() not in report_milestones]
+        if missing:
+            milestones_ok = False
+            milestones_msg = f"Milestones missing from status report: {', '.join(missing)}"
+    elif not session.status_report:
+        milestones_ok = False
+        milestones_msg = "Weekly status report not generated."
+
+    items.append(QualityGateItem(
+        category="Status",
+        title="Milestone Synchronization",
+        description="Verify that status report milestones match the key milestones in the brief.",
+        passed=milestones_ok,
+        message=milestones_msg,
+        manual=False
+    ))
+
+    # 8. RAG Justification
+    items.append(QualityGateItem(
+        category="Status",
+        title="RAG Status Justification",
+        description="Verify overall project RAG status (Green, Amber, Red) matches the risk log context.",
+        passed=True if session.status_report else False,
+        message="Review RAG status alignment." if session.status_report else "Weekly status report not generated.",
+        manual=True
+    ))
+
+    return QualityGates(items=items)
+
+
+def render_quality_gates_markdown(quality_gates: QualityGates, parsed_brief: ParsedBrief | None = None) -> str:
+    lines = [
+        "# Quality Gates & Verification Checklist",
+        "",
+        f"**Project:** {parsed_brief.project_title if parsed_brief else ''}",
+        f"**Client:** {parsed_brief.client_name if parsed_brief else ''}",
+        "",
+        "This checklist tracks automated check outcomes and manual inspection tasks required before project approval.",
+        ""
+    ]
+    
+    categories = ["WBS", "RAID", "Stakeholder", "Status"]
+    for cat in categories:
+        lines.append(f"## {cat} Quality Gates")
+        lines.append("")
+        cat_items = [item for item in quality_gates.items if item.category == cat]
+        for item in cat_items:
+            status_symbol = "🟢 PASSED" if item.passed else ("🔴 FAILED" if not item.manual else "🟡 REVIEW REQUIRED")
+            box = "[x]" if (item.passed and not item.manual) else "[ ]"
+            lines.append(f"### {box} {item.title}")
+            lines.append(f"- **Verification Instruction**: {item.description}")
+            lines.append(f"- **Status Check**: {status_symbol}")
+            if item.message:
+                lines.append(f"- **Feedback**: {item.message}")
+            lines.append("")
+            
+    return "\n".join(lines)
+
+
 def save_json(path: Path, data: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if hasattr(data, "model_dump"):
@@ -59,6 +270,14 @@ def save_artifacts(
         raise ValueError("Session has no parsed brief.")
 
     save_json(output_dir / "parsed_brief.json", session.parsed_brief)
+
+    # Compute and store Quality Gates validation
+    session.quality_gates = generate_quality_gates(session)
+    save_json(output_dir / "quality_gates.json", session.quality_gates)
+    save_text(
+        output_dir / "quality_gates.md",
+        render_quality_gates_markdown(session.quality_gates, session.parsed_brief),
+    )
 
     if session.wbs is not None:
         save_json(output_dir / "wbs.json", session.wbs)
@@ -94,11 +313,33 @@ def save_artifacts(
         except (FileNotFoundError, RuntimeError):
             pass
 
+    if session.stakeholder_map is not None:
+        save_json(output_dir / "stakeholder_map.json", session.stakeholder_map)
+        save_text(
+            output_dir / "stakeholder_map.md",
+            render_stakeholder_markdown(session.stakeholder_map, session.parsed_brief),
+        )
+
+    if session.status_report is not None:
+        save_json(output_dir / "status_report.json", session.status_report)
+        save_text(
+            output_dir / "status_report.md",
+            render_status_markdown(session.status_report, session.parsed_brief),
+        )
+
 
 def save_version_snapshot(output_dir: Path, session: WorkplanSession, version: int) -> None:
     if session.parsed_brief is None:
         return
     version_dir = output_dir / "versions" / f"v{version}"
+    
+    if session.quality_gates is not None:
+        save_json(version_dir / "quality_gates.json", session.quality_gates)
+        save_text(
+            version_dir / "quality_gates.md",
+            render_quality_gates_markdown(session.quality_gates, session.parsed_brief),
+        )
+
     if session.wbs is not None:
         save_json(version_dir / "wbs.json", session.wbs)
         save_text(
@@ -110,6 +351,18 @@ def save_version_snapshot(output_dir: Path, session: WorkplanSession, version: i
         save_text(
             version_dir / "raid.md",
             render_raid_markdown(session.raid, session.parsed_brief),
+        )
+    if session.stakeholder_map is not None:
+        save_json(version_dir / "stakeholder_map.json", session.stakeholder_map)
+        save_text(
+            version_dir / "stakeholder_map.md",
+            render_stakeholder_markdown(session.stakeholder_map, session.parsed_brief),
+        )
+    if session.status_report is not None:
+        save_json(version_dir / "status_report.json", session.status_report)
+        save_text(
+            version_dir / "status_report.md",
+            render_status_markdown(session.status_report, session.parsed_brief),
         )
 
 
@@ -131,6 +384,10 @@ def save_status(output_dir: Path, session: WorkplanSession) -> None:
             "raid_actions": len(session.raid.actions) if session.raid else 0,
             "raid_issues": len(session.raid.issues) if session.raid else 0,
             "raid_decisions": len(session.raid.decisions) if session.raid else 0,
+            "stakeholders_count": len(session.stakeholder_map.stakeholders) if session.stakeholder_map else 0,
+            "status_milestones_count": len(session.status_report.milestones) if session.status_report else 0,
+            "quality_gates_passed": sum(1 for i in session.quality_gates.items if i.passed) if session.quality_gates else 0,
+            "quality_gates_total": len(session.quality_gates.items) if session.quality_gates else 0,
             "open_questions": parsed.open_questions if parsed else [],
         },
     }

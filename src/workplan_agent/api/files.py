@@ -10,7 +10,12 @@ from workplan_agent.api.service import get_session
 from workplan_agent.api.store import get_store
 from workplan_agent.files.export import CONTENT_TYPES, ArtifactKind, ExportFormat, export_artifact
 from workplan_agent.files.extract import BriefExtractError, extract_text_from_upload
-from workplan_agent.render import render_raid_markdown, render_wbs_markdown
+from workplan_agent.render import (
+    render_raid_markdown,
+    render_wbs_markdown,
+    render_stakeholder_markdown,
+    render_status_markdown,
+)
 
 router = APIRouter(prefix="/api", tags=["files"])
 
@@ -55,6 +60,10 @@ def download_artifact(
         markdown = render_wbs_markdown(workplan.wbs, parsed)
     elif parsed and workplan.raid and artifact == "raid":
         markdown = render_raid_markdown(workplan.raid, parsed)
+    elif parsed and workplan.stakeholder_map and artifact == "stakeholder":
+        markdown = render_stakeholder_markdown(workplan.stakeholder_map, parsed)
+    elif parsed and workplan.status_report and artifact == "status":
+        markdown = render_status_markdown(workplan.status_report, parsed)
 
     if fmt != "xlsx" and not markdown:
         raise HTTPException(status_code=404, detail=f"{artifact.upper()} content not available.")

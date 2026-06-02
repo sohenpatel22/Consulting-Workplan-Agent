@@ -12,7 +12,7 @@ from workplan_agent.models.raid import RAIDLog
 from workplan_agent.models.wbs import WBS
 
 ExportFormat = Literal["md", "html", "docx", "pdf", "xlsx"]
-ArtifactKind = Literal["wbs", "raid"]
+ArtifactKind = Literal["wbs", "raid", "stakeholder", "status"]
 
 CONTENT_TYPES: dict[ExportFormat, str] = {
     "md": "text/markdown; charset=utf-8",
