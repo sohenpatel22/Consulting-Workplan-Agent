@@ -831,23 +831,76 @@ function renderParsePreview(preview) {
     </div>`;
 }
 
+function normalizeConfirmationQuestion(item) {
+  if (typeof item === "string") {
+    return { question: item, suggested_answers: [] };
+  }
+  return {
+    question: item?.question || "",
+    suggested_answers: Array.isArray(item?.suggested_answers)
+      ? item.suggested_answers
+      : [],
+  };
+}
+
 function renderConfirmationForm(questions) {
   const form = $("confirmQuestionsForm");
   form.innerHTML = questions
-    .map(
-      (question, index) => `
-    <label class="field confirm-question">
-      <span class="confirm-q-label">${index + 1}. ${escapeHtml(question)}</span>
+    .map((item, index) => {
+      const { question, suggested_answers: choices } = normalizeConfirmationQuestion(item);
+      const choicesHtml =
+        choices.length > 0
+          ? `<div class="confirm-choices" role="group" aria-label="Suggested answers">
+          <span class="confirm-choices-label">Tentative options (click to prefill — edit as needed)</span>
+          <div class="confirm-choice-list">
+            ${choices
+              .map(
+                (choice, choiceIndex) => `
+            <button
+              type="button"
+              class="confirm-choice-chip"
+              data-question-index="${index}"
+              data-choice-index="${choiceIndex}"
+            >${escapeHtml(choice)}</button>`
+              )
+              .join("")}
+          </div>
+        </div>`
+          : "";
+      return `
+    <div class="field confirm-question">
+      <label class="confirm-q-label" for="confirm-answer-${index}">
+        ${index + 1}. ${escapeHtml(question)}
+      </label>
+      ${choicesHtml}
       <textarea
+        id="confirm-answer-${index}"
         class="confirm-answer"
         data-question-index="${index}"
         rows="3"
         required
         placeholder="Your decision or assumption for the workplan…"
       ></textarea>
-    </label>`
-    )
+    </div>`;
+    })
     .join("");
+
+  form.querySelectorAll(".confirm-choice-chip").forEach((button) => {
+    button.addEventListener("click", () => {
+      const index = button.dataset.questionIndex;
+      const choiceIndex = Number(button.dataset.choiceIndex);
+      const normalized = normalizeConfirmationQuestion(questions[index]);
+      const choice = normalized.suggested_answers[choiceIndex];
+      const textarea = form.querySelector(`.confirm-answer[data-question-index="${index}"]`);
+      if (textarea && choice) {
+        textarea.value = choice;
+        textarea.focus();
+      }
+      form.querySelectorAll(`.confirm-choice-chip[data-question-index="${index}"]`).forEach((chip) => {
+        chip.classList.toggle("selected", chip === button);
+      });
+    });
+  });
 }
 
 function warmBuildPromptCache(sessionId) {
@@ -894,7 +947,8 @@ async function submitConfirmation() {
   const answers = [];
   for (const field of fields) {
     const index = Number(field.dataset.questionIndex);
-    const question = pendingConfirmationQuestions[index] || "";
+    const question =
+      normalizeConfirmationQuestion(pendingConfirmationQuestions[index]).question || "";
     const answer = field.value.trim();
     if (!answer) {
       setError($("confirmError"), "Please answer every open question before continuing.");

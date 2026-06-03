@@ -139,7 +139,10 @@ def test_download_after_generation(client: TestClient) -> None:
             # Confirm open questions
             questions = session.get("confirmation_questions") or []
             answers = [
-                {"question": q, "answer": f"Confirmed for planning: {q}"}
+                {
+                    "question": q if isinstance(q, str) else q.get("question", ""),
+                    "answer": f"Confirmed for planning: {q if isinstance(q, str) else q.get('question', '')}",
+                }
                 for q in questions
             ]
             client.post(

@@ -32,6 +32,11 @@ BRIEF_PARSER_SYSTEM = """You are a consulting engagement analyst. Extract struct
 Rules:
 - Do not invent scope, objectives, or constraints not implied by the brief.
 - Put ambiguities, missing information, and unclear items in open_questions.
+- For each open question (at most four), add a matching planner_confirmations entry with
+  the same question text and 2–5 tentative suggested_answers the planner might choose
+  before build (concrete options implied by the brief where possible).
+- Do not include overall engagement risk appetite in open_questions or
+  planner_confirmations (the application adds that separately).
 - Preserve client naming and terminology from the brief.
 - Extract all objectives with clear success criteria where stated.
 - Separate in-scope and out-of-scope items explicitly.

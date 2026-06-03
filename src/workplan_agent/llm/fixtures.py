@@ -41,6 +41,16 @@ PARSED_BRIEF_FIXTURE = {
     ],
     "assumptions_from_brief": ["Salesforce APIs remain stable"],
     "open_questions": ["Identity resolution vendor decision pending"],
+    "planner_confirmations": [
+        {
+            "question": "Identity resolution vendor decision pending",
+            "suggested_answers": [
+                "Standardize on the incumbent identity platform",
+                "Run a short vendor bake-off before architecture sign-off",
+                "Defer vendor selection — document as a RAID decision",
+            ],
+        }
+    ],
 }
 
 WBS_FIXTURE = {

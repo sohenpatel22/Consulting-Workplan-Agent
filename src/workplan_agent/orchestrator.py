@@ -158,13 +158,22 @@ class OrchestratorAgent:
                 title="Open questions",
             )
         )
-        for question in session.parsed_brief.open_questions:
+        from workplan_agent.confirmation import build_confirmation_questions
+
+        pending = build_confirmation_questions(session.parsed_brief)
+        session.parsed_brief.open_questions = [item.question for item in pending]
+        for item in pending:
+            console.print(f"[bold]{item.question}[/bold]")
+            if item.suggested_answers:
+                console.print("[dim]Suggested options:[/dim]")
+                for index, choice in enumerate(item.suggested_answers, start=1):
+                    console.print(f"  {index}. {choice}")
             while True:
-                answer = console.input(f"[bold]{question}[/bold]\nYour answer: ").strip()
+                answer = console.input("Your answer (pick a suggestion or write your own): ").strip()
                 if answer:
                     break
                 console.print("[red]An answer is required to continue.[/red]")
-            resolutions.append(ResolvedQuestion(question=question, answer=answer))
+            resolutions.append(ResolvedQuestion(question=item.question, answer=answer))
         return resolutions
 
     def generate_workplan_artifacts(
@@ -232,7 +241,11 @@ class OrchestratorAgent:
     ) -> None:
         self.parse_brief_only(session, brief_text, user_prompt=user_prompt)
 
-        if session.parsed_brief and session.parsed_brief.open_questions:
+        if session.parsed_brief:
+            from workplan_agent.confirmation import build_confirmation_questions
+
+            pending = build_confirmation_questions(session.parsed_brief)
+            session.parsed_brief.open_questions = [item.question for item in pending]
             if self.interactive:
                 resolutions = self._collect_open_question_answers_cli(session)
                 session.parsed_brief.apply_open_question_resolutions(resolutions)

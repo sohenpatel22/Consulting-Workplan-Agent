@@ -132,9 +132,51 @@ body {
 }
 
 .confirm-question .confirm-q-label {
+  display: block;
   color: var(--text);
   font-size: 0.9rem;
   line-height: 1.4;
+  margin-bottom: 0.5rem;
+}
+
+.confirm-choices {
+  margin-bottom: 0.5rem;
+}
+
+.confirm-choices-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.confirm-choice-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.confirm-choice-chip {
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  text-align: left;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.confirm-choice-chip:hover {
+  border-color: var(--accent);
+}
+
+.confirm-choice-chip.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
 }
 
 textarea {

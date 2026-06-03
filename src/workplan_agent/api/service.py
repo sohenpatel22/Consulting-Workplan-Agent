@@ -4,6 +4,7 @@ from pathlib import Path
 
 from workplan_agent.agents.revision import RevisionTarget
 from workplan_agent.api.schemas import (
+    ConfirmationQuestionItem,
     ConfirmQuestionsRequest,
     CreateSessionRequest,
     ParsePreview,
@@ -13,6 +14,7 @@ from workplan_agent.api.schemas import (
     SessionResponse,
     SessionSummary,
 )
+from workplan_agent.confirmation import build_confirmation_questions
 from workplan_agent.models.artifact_versions import (
     REVISION_ARTIFACTS,
     after_multi_revision,
@@ -176,12 +178,18 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
             status_html = markdown_to_html_body(status_markdown)
 
     awaiting_confirmation = record.phase == "awaiting_confirmation"
-    confirmation_questions: list[str] = []
+    confirmation_questions: list[ConfirmationQuestionItem] = []
     parse_preview = None
     if session.parsed_brief is not None:
         parse_preview = _parse_preview(session)
-        if awaiting_confirmation:
-            confirmation_questions = list(session.parsed_brief.open_questions)
+        if awaiting_confirmation and record.pending_confirmation:
+            confirmation_questions = [
+                ConfirmationQuestionItem(
+                    question=item.question,
+                    suggested_answers=list(item.suggested_answers),
+                )
+                for item in record.pending_confirmation
+            ]
 
     last_review = record.last_review_result
     stale = compute_stale_artifacts(session)
@@ -368,21 +376,22 @@ def run_generation(record: SessionRecord) -> None:
         )
         store.update(session_id, session=record.session)
 
-        open_questions = record.session.parsed_brief.open_questions if record.session.parsed_brief else []
-        if open_questions:
-            record.session.status = SessionStatus.AWAITING_CONFIRMATION
-            save_status(record.output_dir, record.session)
-            store.update(
-                session_id,
-                job_status="running",
-                phase="awaiting_confirmation",
-                session=record.session,
-                error=None,
-            )
-            warm_build_prompt_cache_for_record(record)
-            return
-
-        run_build_artifacts(session_id)
+        parsed = record.session.parsed_brief
+        assert parsed is not None
+        pending = build_confirmation_questions(parsed)
+        parsed.open_questions = [item.question for item in pending]
+        record.session.status = SessionStatus.AWAITING_CONFIRMATION
+        save_status(record.output_dir, record.session)
+        store.update(
+            session_id,
+            job_status="running",
+            phase="awaiting_confirmation",
+            session=record.session,
+            pending_confirmation=pending,
+            error=None,
+        )
+        warm_build_prompt_cache_for_record(record)
+        return
     except Exception as exc:
         store.update(
             session_id,
@@ -409,7 +418,11 @@ def confirm_open_questions(session_id: str, request: ConfirmQuestionsRequest) ->
     record.session.parsed_brief.apply_open_question_resolutions(resolutions)
     record.session.status = SessionStatus.PARSED
     save_artifacts(record.output_dir, record.session)
-    store.update(session_id, session=record.session)
+    store.update(
+        session_id,
+        session=record.session,
+        pending_confirmation=[],
+    )
 
 
 def get_session(session_id: str) -> SessionResponse | None:

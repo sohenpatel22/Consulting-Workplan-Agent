@@ -31,6 +31,11 @@ class CreateSessionResponse(BaseModel):
     job_status: JobStatus
 
 
+class ConfirmationQuestionItem(BaseModel):
+    question: str = Field(min_length=1)
+    suggested_answers: list[str] = Field(default_factory=list)
+
+
 class QuestionAnswer(BaseModel):
     question: str = Field(min_length=1)
     answer: str = Field(min_length=1)
@@ -84,7 +89,7 @@ class SessionResponse(BaseModel):
     job_status: JobStatus
     phase: str
     awaiting_confirmation: bool = False
-    confirmation_questions: list[str] = Field(default_factory=list)
+    confirmation_questions: list[ConfirmationQuestionItem] = Field(default_factory=list)
     parse_preview: ParsePreview | None = None
     status: SessionStatus | None = None
     revision_count: int = 0

@@ -41,12 +41,18 @@ def test_index_page(client: TestClient) -> None:
     assert "text/html" in response.headers["content-type"]
 
 
+def _question_text(item: str | dict) -> str:
+    if isinstance(item, str):
+        return item
+    return str(item.get("question", ""))
+
+
 def _confirm_open_questions(client: TestClient, session_id: str, data: dict) -> None:
     questions = data.get("confirmation_questions") or []
     if not questions:
         return
     answers = [
-        {"question": question, "answer": f"Confirmed for planning: {question}"}
+        {"question": _question_text(question), "answer": f"Confirmed for planning: {_question_text(question)}"}
         for question in questions
     ]
     response = client.post(
@@ -122,7 +128,16 @@ def test_open_questions_pause_before_build(client: TestClient) -> None:
 
     assert paused is not None
     assert paused["awaiting_confirmation"] is True
-    assert len(paused["confirmation_questions"]) >= 1
+    assert 1 <= len(paused["confirmation_questions"]) <= 5
+    risk_items = [
+        q
+        for q in paused["confirmation_questions"]
+        if "risk appetite" in _question_text(q).lower()
+    ]
+    assert len(risk_items) == 1
+    vendor = paused["confirmation_questions"][0]
+    assert isinstance(vendor, dict)
+    assert len(vendor.get("suggested_answers") or []) >= 2
     assert paused["parse_preview"] is not None
     assert paused["wbs"] is None
     assert paused["raid"] is None
