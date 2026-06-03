@@ -4,6 +4,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from workplan_agent.display_values import display_cell, display_stakeholder_rationale
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.raid import RAIDLog
 from workplan_agent.models.session import SessionStatus, WorkplanSession
@@ -13,13 +14,24 @@ from workplan_agent.models.status_report import WeeklyStatusReport
 from workplan_agent.models.quality_gates import QualityGateItem, QualityGates
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+_TEMPLATE_ENV: Environment | None = None
+
+
+def _cell_filter(value: object, note: str = "") -> str:
+    return display_cell(value, note=note.strip() or None)
 
 
 def _env() -> Environment:
-    return Environment(
-        loader=FileSystemLoader(TEMPLATES_DIR),
-        autoescape=select_autoescape(default=False),
-    )
+    global _TEMPLATE_ENV
+    if _TEMPLATE_ENV is None:
+        env = Environment(
+            loader=FileSystemLoader(TEMPLATES_DIR),
+            autoescape=select_autoescape(default=False),
+        )
+        env.filters["cell"] = _cell_filter
+        env.globals["display_stakeholder_rationale"] = display_stakeholder_rationale
+        _TEMPLATE_ENV = env
+    return _TEMPLATE_ENV
 
 
 def render_wbs_markdown(wbs: WBS, parsed_brief: ParsedBrief) -> str:

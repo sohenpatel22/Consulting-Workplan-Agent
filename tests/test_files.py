@@ -160,14 +160,20 @@ def test_deloitte_status_pdf_export() -> None:
 
 
 def test_deloitte_raid_xlsx_export() -> None:
+    from io import BytesIO
+
+    from openpyxl import load_workbook
+
     raid = RAIDLog.model_validate(RAID_FIXTURE)
     brief = ParsedBrief.model_validate(PARSED_BRIEF_FIXTURE)
     content = export_raid_deloitte_xlsx(raid, brief)
     assert content[:2] == b"PK"
+    workbook = load_workbook(BytesIO(content))
+    assert workbook.sheetnames == ["RAID Log - Detail"]
 
 
 def test_deloitte_raid_xlsx_export_many_rows() -> None:
-    """Simple sheet has merged cells in lower rows; export must not raise."""
+    """Detail sheet has merged cells in lower rows; export must not raise."""
     import copy
 
     data = copy.deepcopy(RAID_FIXTURE)

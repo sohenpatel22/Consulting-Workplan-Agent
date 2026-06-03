@@ -10,6 +10,7 @@ from openpyxl import load_workbook
 from openpyxl.cell.cell import MergedCell
 from openpyxl.worksheet.worksheet import Worksheet
 
+from workplan_agent.display_values import Notes, display_cell, display_stakeholder_rationale
 from workplan_agent.files.pdf_render import (
     add_landscape_table_section,
     pdf_text,
@@ -29,9 +30,7 @@ _PACKAGE_TEMPLATES = Path(__file__).resolve().parent.parent / "templates" / "del
 RAID_TEMPLATE_PATH = _PACKAGE_TEMPLATES / "raid_log_template.xlsx"
 
 _DETAIL_SHEET = "RAID Log - Detail"
-_SIMPLE_SHEET = "RAID Log - simple"
 _DETAIL_DATA_START_ROW = 7
-_SIMPLE_DATA_START_ROW = 6
 
 
 def resolve_raid_template(path: Path | None = None) -> Path:
@@ -86,12 +85,12 @@ def export_wbs_deloitte_docx(wbs: WBS, parsed_brief: ParsedBrief) -> bytes:
         row = table.add_row().cells
         row[0].text = str(wp.level)
         row[1].text = wp.wbs_code
-        row[2].text = wp.wbs_element_title
-        row[3].text = wp.description_scope
-        row[4].text = wp.key_deliverable
-        row[5].text = wp.owner
-        row[6].text = wp.estimated_duration
-        row[7].text = ", ".join(wp.dependencies)
+        row[2].text = display_cell(wp.wbs_element_title)
+        row[3].text = display_cell(wp.description_scope, note=Notes.SIGNOFF_DETAIL)
+        row[4].text = display_cell(wp.key_deliverable, note=Notes.SIGNOFF)
+        row[5].text = display_cell(wp.owner, note=Notes.SIGNOFF_ASSIGNED)
+        row[6].text = display_cell(wp.estimated_duration, note=Notes.SIGNOFF_ESTIMATE)
+        row[7].text = display_cell(wp.dependencies, note=Notes.NONE_IDENTIFIED)
 
     for para in document.paragraphs:
         for run in para.runs:
@@ -177,7 +176,7 @@ _STAKEHOLDER_PDF_HEADERS = [
     "Interest",
     "Strategy",
     "Concerns",
-    "Frequency",
+    "Communication Frequency",
     "Engagement Approach",
     "Communication Method",
 ]
@@ -220,21 +219,21 @@ def export_wbs_deloitte_pdf(wbs: WBS, parsed_brief: ParsedBrief) -> bytes:
             )
         pdf.ln(2)
 
-    write_section_heading(pdf, "Work packages (Deloitte template)")
+    write_section_heading(pdf, "Work packages")
     render_table(
         pdf,
         _WBS_PDF_HEADERS,
         [
             [
-                str(wp.level),
-                wp.wbs_code,
-                wp.wbs_element_title,
-                wp.description_scope,
-                wp.key_deliverable,
-                wp.owner,
-                wp.owner_side,
-                wp.estimated_duration,
-                ", ".join(wp.dependencies),
+                display_cell(wp.level),
+                display_cell(wp.wbs_code),
+                display_cell(wp.wbs_element_title),
+                display_cell(wp.description_scope, note=Notes.SIGNOFF_DETAIL),
+                display_cell(wp.key_deliverable, note=Notes.SIGNOFF),
+                display_cell(wp.owner, note=Notes.SIGNOFF_ASSIGNED),
+                display_cell(wp.owner_side),
+                display_cell(wp.estimated_duration, note=Notes.SIGNOFF_ESTIMATE),
+                display_cell(wp.dependencies, note=Notes.NONE_IDENTIFIED),
             ]
             for wp in sorted(wbs.work_packages, key=_wbs_sort_key)
         ],
@@ -259,16 +258,16 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
 
     risk_rows = [
         [
-            item.id,
-            item.title,
-            item.description,
-            item.status,
-            item.mitigation,
-            item.owner,
-            item.owner_side,
-            ", ".join(item.wbs_links),
-            item.probability,
-            item.priority,
+            display_cell(item.id),
+            display_cell(item.title),
+            display_cell(item.description, note=Notes.SIGNOFF_DETAIL),
+            display_cell(item.status),
+            display_cell(item.mitigation, note=Notes.NOT_YET_DEFINED),
+            display_cell(item.owner, note=Notes.SIGNOFF_ASSIGNED),
+            display_cell(item.owner_side),
+            display_cell(item.wbs_links, note=Notes.NOT_LINKED_WBS),
+            display_cell(item.probability),
+            display_cell(item.priority),
         ]
         for item in raid.risks
     ]
@@ -283,15 +282,15 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
 
     action_rows = [
         [
-            item.id,
-            item.title,
-            item.description,
-            item.status_update,
-            item.status,
-            item.owner,
-            item.owner_side,
-            ", ".join(item.wbs_links),
-            item.priority,
+            display_cell(item.id),
+            display_cell(item.title),
+            display_cell(item.description, note=Notes.SIGNOFF_DETAIL),
+            display_cell(item.status_update, note=Notes.NO_UPDATE),
+            display_cell(item.status),
+            display_cell(item.owner, note=Notes.SIGNOFF_ASSIGNED),
+            display_cell(item.owner_side),
+            display_cell(item.wbs_links, note=Notes.NOT_LINKED_WBS),
+            display_cell(item.priority),
         ]
         for item in raid.actions
     ]
@@ -307,18 +306,28 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
     if raid.issues:
         issue_rows = [
             [
-                item.id,
-                item.title,
-                item.description,
-                item.resolution,
-                item.owner,
-                item.owner_side,
-                item.priority,
+                display_cell(item.id),
+                display_cell(item.title),
+                display_cell(item.description, note=Notes.SIGNOFF_DETAIL),
+                display_cell(item.resolution, note=Notes.PENDING_RESOLUTION),
+                display_cell(item.owner, note=Notes.SIGNOFF_ASSIGNED),
+                display_cell(item.owner_side),
+                display_cell(item.priority),
             ]
             for item in raid.issues
         ]
     else:
-        issue_rows = [["-", "No issues identified", "", "", "", "", ""]]
+        issue_rows = [
+            [
+                "—",
+                "No issues identified",
+                display_cell(None, note=Notes.NONE_IDENTIFIED),
+                display_cell(None, note=Notes.PENDING_RESOLUTION),
+                display_cell(None, note=Notes.SIGNOFF_ASSIGNED),
+                display_cell(None),
+                display_cell(None),
+            ]
+        ]
     add_landscape_table_section(
         pdf,
         "Issues",
@@ -329,13 +338,13 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
 
     decision_rows = [
         [
-            item.id,
-            item.title,
-            item.description_justification,
-            item.resolution,
-            item.owner,
-            item.owner_side,
-            item.priority,
+            display_cell(item.id),
+            display_cell(item.title),
+            display_cell(item.description_justification, note=Notes.SIGNOFF_DETAIL),
+            display_cell(item.resolution, note=Notes.PENDING_RESOLUTION),
+            display_cell(item.owner, note=Notes.SIGNOFF_ASSIGNED),
+            display_cell(item.owner_side),
+            display_cell(item.priority),
         ]
         for item in raid.decisions
     ]
@@ -369,19 +378,19 @@ def export_stakeholder_deloitte_pdf(
 
     rows = [
         [
-            sh.name,
-            sh.organization_side.value,
-            sh.source.value,
-            sh.rationale or "",
-            sh.department,
-            sh.role_in_project,
-            sh.influence_level.value,
-            sh.interest_level.value,
-            sh.engagement_strategy,
-            sh.key_concerns,
-            sh.communication_frequency.value,
-            sh.engagement_approach,
-            sh.communication_method,
+            display_cell(sh.name),
+            display_cell(sh.organization_side.value),
+            display_cell(sh.source.value),
+            display_stakeholder_rationale(sh.source.value, sh.rationale),
+            display_cell(sh.department, note=Notes.SIGNOFF),
+            display_cell(sh.role_in_project, note=Notes.SIGNOFF),
+            display_cell(sh.influence_level.value),
+            display_cell(sh.interest_level.value),
+            display_cell(sh.engagement_strategy, note=Notes.SIGNOFF),
+            display_cell(sh.key_concerns, note=Notes.SIGNOFF),
+            display_cell(sh.communication_frequency.value),
+            display_cell(sh.engagement_approach, note=Notes.SIGNOFF),
+            display_cell(sh.communication_method, note=Notes.SIGNOFF),
         ]
         for sh in stakeholder_map.stakeholders
     ]
@@ -448,11 +457,11 @@ def export_status_deloitte_pdf(
     write_section_heading(pdf, "Milestones")
     milestone_rows = [
         [
-            milestone.name,
-            milestone.target_date,
-            milestone.actual_date or "",
-            milestone.owner_side,
-            milestone.status,
+            display_cell(milestone.name),
+            display_cell(milestone.target_date),
+            display_cell(milestone.actual_date, note=Notes.NOT_YET_REACHED),
+            display_cell(milestone.owner_side),
+            display_cell(milestone.status),
         ]
         for milestone in status_report.milestones
     ]
@@ -482,16 +491,18 @@ def export_raid_deloitte_xlsx(
     parsed_brief: ParsedBrief,
     template_path: Path | None = None,
 ) -> bytes:
-    """Fill the Deloitte RAID Excel template (detail + simple sheets)."""
+    """Fill the RAID Excel template detail sheet only."""
     path = resolve_raid_template(template_path)
     workbook = load_workbook(path)
     project = parsed_brief.project_title or "Project"
     today = date.today().strftime("%Y-%m-%d")
 
-    if _DETAIL_SHEET in workbook.sheetnames:
-        _fill_raid_detail_sheet(workbook[_DETAIL_SHEET], raid, project, today)
-    if _SIMPLE_SHEET in workbook.sheetnames:
-        _fill_raid_simple_sheet(workbook[_SIMPLE_SHEET], raid, project, today)
+    if _DETAIL_SHEET not in workbook.sheetnames:
+        raise ValueError(f"RAID template missing required sheet: {_DETAIL_SHEET!r}")
+    _fill_raid_detail_sheet(workbook[_DETAIL_SHEET], raid, project, today)
+    for sheet_name in list(workbook.sheetnames):
+        if sheet_name != _DETAIL_SHEET:
+            workbook.remove(workbook[sheet_name])
 
     buffer = io.BytesIO()
     workbook.save(buffer)
@@ -522,8 +533,15 @@ def _writable_cell(ws: Worksheet, row: int, col: int):
     return cell
 
 
-def _set_cell(ws: Worksheet, row: int, col: int, value: object) -> None:
-    _writable_cell(ws, row, col).value = value
+def _set_cell(
+    ws: Worksheet,
+    row: int,
+    col: int,
+    value: object,
+    *,
+    note: str | None = None,
+) -> None:
+    _writable_cell(ws, row, col).value = display_cell(value, note=note)
 
 
 def _clear_row_range(ws: Worksheet, start_row: int, end_row: int, max_col: int) -> None:
@@ -584,11 +602,11 @@ def _fill_raid_detail_sheet(
 def _write_detail_risk(ws: Worksheet, row: int, item: RiskEntry) -> None:
     _set_cell(ws, row, 1, item.id)
     _set_cell(ws, row, 2, item.title)
-    _set_cell(ws, row, 3, item.description)
+    _set_cell(ws, row, 3, item.description, note=Notes.SIGNOFF_DETAIL)
     _set_cell(ws, row, 4, item.status)
-    _set_cell(ws, row, 5, item.mitigation)
-    _set_cell(ws, row, 6, item.owner)
-    _set_cell(ws, row, 7, ", ".join(item.wbs_links))
+    _set_cell(ws, row, 5, item.mitigation, note=Notes.NOT_YET_DEFINED)
+    _set_cell(ws, row, 6, item.owner, note=Notes.SIGNOFF_ASSIGNED)
+    _set_cell(ws, row, 7, item.wbs_links, note=Notes.NOT_LINKED_WBS)
     _set_cell(ws, row, 8, item.probability)
     _set_cell(ws, row, 9, item.priority)
 
@@ -596,68 +614,28 @@ def _write_detail_risk(ws: Worksheet, row: int, item: RiskEntry) -> None:
 def _write_detail_action(ws: Worksheet, row: int, item: ActionEntry) -> None:
     _set_cell(ws, row, 11, item.id)
     _set_cell(ws, row, 12, item.title)
-    _set_cell(ws, row, 13, item.description)
-    _set_cell(ws, row, 14, item.status_update)
+    _set_cell(ws, row, 13, item.description, note=Notes.SIGNOFF_DETAIL)
+    _set_cell(ws, row, 14, item.status_update, note=Notes.NO_UPDATE)
     _set_cell(ws, row, 15, item.status)
-    _set_cell(ws, row, 16, item.owner)
-    _set_cell(ws, row, 17, ", ".join(item.wbs_links))
+    _set_cell(ws, row, 16, item.owner, note=Notes.SIGNOFF_ASSIGNED)
+    _set_cell(ws, row, 17, item.wbs_links, note=Notes.NOT_LINKED_WBS)
     _set_cell(ws, row, 18, item.priority)
 
 
 def _write_detail_issue(ws: Worksheet, row: int, item: IssueEntry) -> None:
     _set_cell(ws, row, 20, item.id)
     _set_cell(ws, row, 21, item.title)
-    _set_cell(ws, row, 22, item.description)
-    _set_cell(ws, row, 23, item.resolution)
-    _set_cell(ws, row, 24, item.owner)
+    _set_cell(ws, row, 22, item.description, note=Notes.SIGNOFF_DETAIL)
+    _set_cell(ws, row, 23, item.resolution, note=Notes.PENDING_RESOLUTION)
+    _set_cell(ws, row, 24, item.owner, note=Notes.SIGNOFF_ASSIGNED)
     _set_cell(ws, row, 25, item.priority)
 
 
 def _write_detail_decision(ws: Worksheet, row: int, item: DecisionEntry) -> None:
     _set_cell(ws, row, 27, item.id)
     _set_cell(ws, row, 28, item.title)
-    _set_cell(ws, row, 29, item.description_justification)
-    _set_cell(ws, row, 30, item.resolution)
-    _set_cell(ws, row, 31, item.owner)
+    _set_cell(ws, row, 29, item.description_justification, note=Notes.SIGNOFF_DETAIL)
+    _set_cell(ws, row, 30, item.resolution, note=Notes.PENDING_RESOLUTION)
+    _set_cell(ws, row, 31, item.owner, note=Notes.SIGNOFF_ASSIGNED)
     _set_cell(ws, row, 32, item.priority)
 
-
-def _fill_raid_simple_sheet(
-    ws: Worksheet,
-    raid: RAIDLog,
-    project: str,
-    today: str,
-) -> None:
-    _set_cell(ws, 4, 3, project)
-    _set_cell(ws, 1, 6, today)
-
-    rows: list[tuple[str, RiskEntry | ActionEntry | IssueEntry | DecisionEntry]] = []
-    for item in raid.risks:
-        rows.append(("Risk", item))
-    for item in raid.actions:
-        rows.append(("Action", item))
-    for item in raid.issues:
-        rows.append(("Issue", item))
-    for item in raid.decisions:
-        rows.append(("Decision", item))
-
-    end_row = _SIMPLE_DATA_START_ROW + max(len(rows), 6) + 5
-    _clear_row_range(ws, _SIMPLE_DATA_START_ROW, end_row, 14)
-
-    for index, (category, item) in enumerate(rows):
-        row = _SIMPLE_DATA_START_ROW + index
-        _set_cell(ws, row, 1, index + 1)
-        _set_cell(ws, row, 2, category)
-        _set_cell(ws, row, 3, item.title)
-        description = getattr(item, "description", None) or getattr(
-            item, "description_justification", ""
-        )
-        _set_cell(ws, row, 4, description)
-        priority = getattr(item, "priority", "")
-        _set_cell(ws, row, 5, priority)
-        status = getattr(item, "status", "Open")
-        _set_cell(ws, row, 6, status)
-        _set_cell(ws, row, 7, item.owner)
-        _set_cell(ws, row, 8, priority)
-        if isinstance(item, RiskEntry) and item.mitigation:
-            _set_cell(ws, row, 14, item.mitigation)

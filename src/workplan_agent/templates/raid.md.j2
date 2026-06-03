@@ -8,7 +8,7 @@
 | ID | Title | Description | Status | Mitigation | Owner | Owner Side | WBS Links | Probability | Priority |
 |----|-------|-------------|--------|------------|-------|------------|-----------|-------------|----------|
 {% for item in raid.risks -%}
-| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.status }} | {{ item.mitigation }} | {{ item.owner }} | {{ item.owner_side }} | {{ item.wbs_links | join(', ') }} | {{ item.probability }} | {{ item.priority }} |
+| {{ item.id | cell }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.status | cell }} | {{ item.mitigation | cell('not yet defined') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.owner_side | cell }} | {{ item.wbs_links | cell('not linked to WBS') }} | {{ item.probability | cell }} | {{ item.priority | cell }} |
 {% endfor %}
 
 ## Actions
@@ -16,7 +16,7 @@
 | ID | Title | Description | Status update | Status | Owner | Owner Side | WBS Links | Priority |
 |----|-------|-------------|---------------|--------|-------|------------|-----------|----------|
 {% for item in raid.actions -%}
-| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.status_update }} | {{ item.status }} | {{ item.owner }} | {{ item.owner_side }} | {{ item.wbs_links | join(', ') }} | {{ item.priority }} |
+| {{ item.id | cell }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.status_update | cell('no update recorded yet') }} | {{ item.status | cell }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.owner_side | cell }} | {{ item.wbs_links | cell('not linked to WBS') }} | {{ item.priority | cell }} |
 {% endfor %}
 
 ## Issues
@@ -24,10 +24,10 @@
 | ID | Title | Description | Resolution | Owner | Owner Side | Priority |
 |----|-------|-------------|------------|-------|------------|----------|
 {% for item in raid.issues -%}
-| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.resolution }} | {{ item.owner }} | {{ item.owner_side }} | {{ item.priority }} |
+| {{ item.id | cell }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.resolution | cell('pending resolution') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.owner_side | cell }} | {{ item.priority | cell }} |
 {% endfor %}
 {% if not raid.issues %}
-| — | _No issues identified_ | | | | | |
+| — | No issues identified | n/a (none identified) | n/a (pending resolution) | n/a (not assigned at sign-off) | n/a | n/a |
 {% endif %}
 
 ## Decisions
@@ -35,5 +35,5 @@
 | ID | Title | Description / Justification | Resolution | Owner | Owner Side | Priority |
 |----|-------|----------------------------|------------|-------|------------|----------|
 {% for item in raid.decisions -%}
-| {{ item.id }} | {{ item.title }} | {{ item.description_justification }} | {{ item.resolution }} | {{ item.owner }} | {{ item.owner_side }} | {{ item.priority }} |
+| {{ item.id | cell }} | {{ item.title | cell }} | {{ item.description_justification | cell('not detailed at sign-off') }} | {{ item.resolution | cell('pending resolution') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.owner_side | cell }} | {{ item.priority | cell }} |
 {% endfor %}
