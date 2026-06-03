@@ -27,7 +27,12 @@ def client() -> TestClient:
 def test_health(client: TestClient) -> None:
     response = client.get("/api/health")
     assert response.status_code == 200
-    assert response.json()["status"] == "ok"
+    data = response.json()
+    assert data["status"] == "ok"
+    assert "configured_model" in data
+    assert "model" in data
+    assert "provider" in data
+    assert "ready" in data
 
 
 def test_index_page(client: TestClient) -> None:
@@ -126,6 +131,41 @@ def test_open_questions_pause_before_build(client: TestClient) -> None:
     final = _wait_for_complete(client, session_id)
     assert final["job_status"] == "complete"
     assert final["wbs"] is not None
+
+
+def test_session_response_exposes_partial_artifacts(client: TestClient) -> None:
+    from workplan_agent.api.schemas import CreateSessionRequest
+    from workplan_agent.api.service import create_session, get_store, session_to_response
+    from workplan_agent.llm.fixtures import PARSED_BRIEF_FIXTURE, RAID_FIXTURE, WBS_FIXTURE
+    from workplan_agent.models.brief import ParsedBrief
+    from workplan_agent.models.raid import RAIDLog
+    from workplan_agent.models.wbs import WBS
+
+    record = create_session(CreateSessionRequest(brief_text=BRIEF, mock=True))
+    record.session.parsed_brief = ParsedBrief.model_validate(PARSED_BRIEF_FIXTURE)
+    record.session.wbs = WBS.model_validate(WBS_FIXTURE)
+    record.job_status = "running"
+    record.phase = "generating_raid"
+    get_store().update(
+        record.session.session_id,
+        session=record.session,
+        job_status="running",
+        phase="generating_raid",
+    )
+
+    data = session_to_response(record)
+    assert data.wbs_html
+    assert data.raid_html is None
+    assert data.stakeholder_html is None
+    assert data.summary is not None
+    assert data.summary.wbs_items > 0
+    assert data.summary.raid_risks == 0
+
+    record.session.raid = RAIDLog.model_validate(RAID_FIXTURE)
+    record.phase = "generating_stakeholder"
+    data = session_to_response(record)
+    assert data.raid_html
+    assert data.stakeholder_html is None
 
 
 def test_create_session_mock(client: TestClient) -> None:

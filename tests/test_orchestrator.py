@@ -4,8 +4,10 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from workplan_agent.llm.fixtures import PARSED_BRIEF_FIXTURE
 from workplan_agent.llm.mock_provider import MockLLMProvider
-from workplan_agent.models.session import SessionStatus
+from workplan_agent.models.brief import ParsedBrief
+from workplan_agent.models.session import SessionStatus, WorkplanSession
 from workplan_agent.orchestrator import OrchestratorAgent
 
 runner = CliRunner()
@@ -15,6 +17,24 @@ SAMPLES = Path(__file__).parent.parent / "samples" / "client_brief.md"
 @pytest.fixture
 def output_dir(tmp_path: Path) -> Path:
     return tmp_path / "out"
+
+
+def test_generate_workplan_artifacts_notifies_per_step(output_dir: Path) -> None:
+    provider = MockLLMProvider()
+    orchestrator = OrchestratorAgent(
+        provider=provider,
+        output_dir=output_dir,
+        interactive=False,
+        verbose=False,
+    )
+    session = WorkplanSession(session_id="t1", brief_path="test")
+    session.parsed_brief = ParsedBrief.model_validate(PARSED_BRIEF_FIXTURE)
+    ready: list[str] = []
+    orchestrator.generate_workplan_artifacts(
+        session,
+        on_artifact_ready=ready.append,
+    )
+    assert ready == ["wbs", "raid", "stakeholder", "status"]
 
 
 def test_orchestrator_pipeline_non_interactive(output_dir: Path) -> None:

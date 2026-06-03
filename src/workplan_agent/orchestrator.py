@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 
 from rich.console import Console
@@ -171,17 +172,23 @@ class OrchestratorAgent:
         session: WorkplanSession,
         *,
         user_prompt: str = "",
+        on_artifact_ready: Callable[[str], None] | None = None,
     ) -> None:
         if session.parsed_brief is None:
             raise ValueError("Brief must be parsed before generating artifacts.")
 
         guidance = self._generation_guidance(session, user_prompt)
 
+        def _notify(artifact: str) -> None:
+            if on_artifact_ready is not None:
+                on_artifact_ready(artifact)
+
         self._log("[bold]Step 2:[/bold] Generating WBS...")
         session.wbs = self.wbs_generator.run(
             parsed_brief=session.parsed_brief,
             user_prompt=guidance,
         )
+        _notify("wbs")
         self._warm_raid_build_cache(session)
 
         self._log("[bold]Step 3:[/bold] Generating RAID log...")
@@ -190,6 +197,7 @@ class OrchestratorAgent:
             wbs=session.wbs,
             user_prompt=guidance,
         )
+        _notify("raid")
 
         self._log("[bold]Step 4:[/bold] Generating Stakeholder Map...")
         session.stakeholder_map = self.stakeholder_generator.run(
@@ -198,6 +206,7 @@ class OrchestratorAgent:
             raid=session.raid,
             user_prompt=guidance,
         )
+        _notify("stakeholder")
 
         self._log("[bold]Step 5:[/bold] Generating Weekly Status Report...")
         session.status_report = self.status_generator.run(
@@ -206,6 +215,7 @@ class OrchestratorAgent:
             raid=session.raid,
             user_prompt=guidance,
         )
+        _notify("status")
 
         session.status = SessionStatus.RAID_GENERATED
         init_after_generation(session)

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Workplan Agent</title>
-    <link rel="stylesheet" href="/assets/style.css?v=14" />
+    <link rel="stylesheet" href="/assets/style.css?v=16" />
   </head>
   <body>
     <header class="header">
@@ -12,7 +12,12 @@
         <h1>Workplan Agent</h1>
         <p class="subtitle">Client brief → WBS + RAID + Stakeholder Map + Status Report + Quality Gates</p>
       </div>
-      <span id="healthBadge" class="badge">Checking API…</span>
+      <div class="header-meta">
+        <span id="modelBadge" class="badge" title="Backend LLM when not in mock mode"
+          >Loading model…</span
+        >
+        <span id="healthBadge" class="badge">Checking API…</span>
+      </div>
     </header>
 
     <main class="layout" id="appLayout">
@@ -103,6 +108,12 @@
         <div class="results-header">
           <h2>Artifacts</h2>
           <span id="statusBadge" class="badge"></span>
+        </div>
+        <div id="generationBanner" class="generation-banner hidden" role="status">
+          <div class="progress generation-progress">
+            <div class="progress-bar" id="generationProgressBar"></div>
+          </div>
+          <p id="generationPhaseLabel" class="phase"></p>
         </div>
         <div id="summaryCards" class="cards"></div>
         <div id="openQuestions" class="notice hidden"></div>
@@ -202,6 +213,6 @@
       </section>
     </main>
 
-    <script src="/assets/app.js?v=14"></script>
+    <script src="/assets/app.js?v=16"></script>
   </body>
 </html>

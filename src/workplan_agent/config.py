@@ -21,12 +21,32 @@ class Settings(BaseSettings):
     max_revisions: int = 0  # 0 = unlimited revisions
     max_repair_attempts: int = 2
     enable_prompt_cache: bool = True
+    # Anthropic/OpenAI max output tokens for structured JSON (WBS/RAID can be large).
+    llm_max_output_tokens: int = 16384
 
     def is_anthropic_model(self, model: str) -> bool:
         return model.startswith("claude")
 
     def has_api_keys(self) -> bool:
         return bool(self.openai_api_key or self.anthropic_api_key)
+
+    def llm_status(self) -> dict[str, str | bool]:
+        """Resolved backend model for display and health checks."""
+        if not self.has_api_keys():
+            return {
+                "configured_model": self.model,
+                "model": "",
+                "provider": "",
+                "ready": False,
+            }
+        model = self.resolve_model()
+        provider = "anthropic" if self.is_anthropic_model(model) else "openai"
+        return {
+            "configured_model": self.model,
+            "model": model,
+            "provider": provider,
+            "ready": True,
+        }
 
     def resolve_model(self) -> str:
         model = self.model

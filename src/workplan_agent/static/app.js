@@ -55,14 +55,60 @@ function parseApiError(body) {
   return String(body.detail);
 }
 
+let backendLlm = null;
+
+function formatModelBadge({ model, provider, ready, configured_model }) {
+  if (!ready || !model) {
+    return {
+      text: configured_model
+        ? `No API keys (MODEL=${configured_model})`
+        : "No API keys configured",
+      title: "Set OPENAI_API_KEY or ANTHROPIC_API_KEY for live generation",
+      warn: true,
+    };
+  }
+  const vendor = provider === "anthropic" ? "Anthropic" : "OpenAI";
+  const title =
+    model !== configured_model
+      ? `Configured MODEL=${configured_model}; using ${model} based on available API keys`
+      : `Backend LLM (${vendor})`;
+  return { text: `${vendor} · ${model}`, title, warn: false };
+}
+
+function refreshModelBadge() {
+  const el = $("modelBadge");
+  if (!el || !backendLlm) return;
+  const { text, title, warn } = formatModelBadge(backendLlm);
+  const mock = $("mockMode")?.checked;
+  el.textContent = mock ? `Mock mode · ${text}` : text;
+  el.title = mock
+    ? "Mock mode is on — revisions are simulated; this is the configured backend model for live runs"
+    : title;
+  el.classList.toggle("warn", warn);
+  el.classList.toggle("ok", !warn);
+}
+
 async function checkHealth() {
   const badge = $("healthBadge");
+  const modelBadge = $("modelBadge");
   try {
     const res = await fetch(`${API}/api/health`);
     if (!res.ok) throw new Error("unhealthy");
+    const data = await res.json();
+    backendLlm = {
+      model: data.model,
+      provider: data.provider,
+      ready: data.ready,
+      configured_model: data.configured_model,
+    };
+    refreshModelBadge();
     badge.textContent = "API online";
     badge.classList.add("ok");
   } catch {
+    if (modelBadge) {
+      modelBadge.textContent = "Model unknown";
+      modelBadge.classList.add("warn");
+    }
     badge.textContent = "API offline";
     badge.classList.add("warn");
   }
@@ -114,7 +160,11 @@ function updateDownloadBar() {
   const bar = $("downloadBar");
   const artifact = DOWNLOAD_ARTIFACTS[currentTab];
   const xlsxBtn = $("downloadXlsxBtn");
-  if (!currentSessionId || !artifact) {
+  if (
+    !currentSessionId ||
+    !artifact ||
+    (lastSessionData && isArtifactGenerationRunning(lastSessionData))
+  ) {
     bar.classList.add("hidden");
     return;
   }
@@ -307,6 +357,9 @@ function phaseLabel(phase, jobStatus, revisionsInProgress) {
     parsing: "Parsing client brief…",
     awaiting_confirmation: "Awaiting your answers…",
     generating_wbs: "Generating WBS…",
+    generating_raid: "Generating RAID log…",
+    generating_stakeholder: "Generating Stakeholder Map…",
+    generating_status: "Generating Status Report…",
     ready_for_review: "Ready for review",
     failed: "Generation failed",
   };
@@ -319,12 +372,93 @@ function progressPercent(phase, jobStatus) {
   if (jobStatus === "failed") return 100;
   const map = {
     queued: 10,
-    parsing: 35,
-    awaiting_confirmation: 50,
-    generating_wbs: 70,
+    parsing: 25,
+    awaiting_confirmation: 40,
+    generating_wbs: 55,
+    generating_raid: 70,
+    generating_stakeholder: 85,
+    generating_status: 95,
     ready_for_review: 100,
   };
   return map[phase] ?? 20;
+}
+
+function hasViewableArtifacts(data) {
+  return Boolean(
+    data?.wbs_html ||
+      data?.raid_html ||
+      data?.stakeholder_html ||
+      data?.status_html
+  );
+}
+
+function isArtifactGenerationRunning(data) {
+  return (
+    data?.job_status === "running" &&
+    !data?.awaiting_confirmation &&
+    data?.phase !== "awaiting_confirmation" &&
+    data?.phase !== "parsing" &&
+    data?.phase !== "queued"
+  );
+}
+
+function updateGenerationBanner(data) {
+  const banner = $("generationBanner");
+  if (!banner) return;
+  const inProgress = isArtifactGenerationRunning(data);
+  banner.classList.toggle("hidden", !inProgress);
+  if (!inProgress) return;
+  const label = phaseLabel(data.phase, data.job_status, data.revisions_in_progress);
+  $("generationPhaseLabel").textContent = `${label} — completed reports are shown below as they finish.`;
+  $("generationProgressBar").style.width = `${progressPercent(data.phase, data.job_status)}%`;
+}
+
+function updateProgressPanel(data) {
+  $("phaseLabel").textContent = phaseLabel(
+    data.phase,
+    data.job_status,
+    data.revisions_in_progress
+  );
+  $("progressBar").style.width = `${progressPercent(data.phase, data.job_status)}%`;
+}
+
+function handleGenerationPoll(data) {
+  updateProgressPanel(data);
+
+  if (data.awaiting_confirmation || data.phase === "awaiting_confirmation") {
+    clearInterval(pollTimer);
+    showConfirmationPanel(data);
+    return true;
+  }
+
+  if (hasViewableArtifacts(data) && isArtifactGenerationRunning(data)) {
+    showPanel("results");
+    updateResults(data);
+    updateGenerationBanner(data);
+  }
+
+  if (data.job_status === "complete" && !data.review_in_progress) {
+    clearInterval(pollTimer);
+    showPanel("results");
+    updateResults(data);
+    updateGenerationBanner(data);
+    return true;
+  }
+
+  if (data.job_status === "failed") {
+    clearInterval(pollTimer);
+    if (hasViewableArtifacts(data)) {
+      showPanel("results");
+      updateResults(data);
+      updateGenerationBanner(data);
+      setError($("reviewError"), data.error || "Generation failed before completion.");
+    } else {
+      setError($("progressError"), data.error || "Unknown error");
+    }
+    return true;
+  }
+
+  return false;
 }
 
 async function pollSession(sessionId) {
@@ -535,15 +669,16 @@ function setReviewStatus(message = "") {
 
 function updateReviewControls(data) {
   const approved = data.status === "approved";
+  const generating = isArtifactGenerationRunning(data);
   const limitedOut = !data.unlimited_revisions && data.revisions_remaining === 0;
   const qualityBusy = false;
 
   document.querySelectorAll(".review-actions .btn").forEach((btn) => {
     const action = btn.dataset.action;
     if (action === "approve") {
-      btn.disabled = approved;
+      btn.disabled = approved || generating;
     } else if (action === "quality_check") {
-      btn.disabled = approved || qualityBusy;
+      btn.disabled = approved || qualityBusy || generating;
     }
   });
 
@@ -615,8 +750,10 @@ function updateResults(data) {
   updateTabIndicators(data);
 
   const approved = data.status === "approved";
+  const generating = isArtifactGenerationRunning(data);
   const limitedOut = !data.unlimited_revisions && data.revisions_remaining === 0;
-  $("reviewSection").classList.toggle("hidden", approved);
+  $("reviewSection").classList.toggle("hidden", approved || generating);
+  updateGenerationBanner(data);
 
   if (limitedOut && !approved) {
     setError(
@@ -734,31 +871,12 @@ function resumePollingAfterConfirm(sessionId) {
   showPanel("progress");
   $("sessionIdLabel").textContent = sessionId;
   setError($("progressError"), "");
+  setError($("reviewError"), "");
 
   const tick = async () => {
     try {
       const data = await pollSession(sessionId);
-      $("phaseLabel").textContent = phaseLabel(
-        data.phase,
-        data.job_status,
-        data.review_in_progress
-      );
-      $("progressBar").style.width = `${progressPercent(data.phase, data.job_status)}%`;
-
-      if (data.awaiting_confirmation) {
-        return;
-      }
-      if (data.job_status === "complete" && !data.review_in_progress) {
-        clearInterval(pollTimer);
-        showPanel("results");
-        updateResults(data);
-        return;
-      }
-      if (data.job_status === "failed") {
-        clearInterval(pollTimer);
-        setError($("progressError"), data.error || "Unknown error");
-        return;
-      }
+      if (handleGenerationPoll(data)) return;
     } catch (err) {
       clearInterval(pollTimer);
       setError($("progressError"), err.message);
@@ -766,7 +884,7 @@ function resumePollingAfterConfirm(sessionId) {
   };
 
   tick();
-  pollTimer = setInterval(tick, 1200);
+  pollTimer = setInterval(tick, 800);
 }
 
 async function submitConfirmation() {
@@ -816,29 +934,10 @@ function startPolling(sessionId) {
   const tick = async () => {
     try {
       const data = await pollSession(sessionId);
-      $("phaseLabel").textContent = phaseLabel(
-        data.phase,
-        data.job_status,
-        data.review_in_progress
-      );
-      $("progressBar").style.width = `${progressPercent(data.phase, data.job_status)}%`;
-
-      if (data.awaiting_confirmation || data.phase === "awaiting_confirmation") {
-        clearInterval(pollTimer);
-        showConfirmationPanel(data);
-        return;
+      if (data.phase === "parsing" || data.phase === "queued" || !hasViewableArtifacts(data)) {
+        showPanel("progress");
       }
-      if (data.job_status === "complete" && !data.review_in_progress) {
-        clearInterval(pollTimer);
-        showPanel("results");
-        updateResults(data);
-        return;
-      }
-      if (data.job_status === "failed") {
-        clearInterval(pollTimer);
-        setError($("progressError"), data.error || "Unknown error");
-        return;
-      }
+      if (handleGenerationPoll(data)) return;
     } catch (err) {
       clearInterval(pollTimer);
       setError($("progressError"), err.message);
@@ -846,7 +945,7 @@ function startPolling(sessionId) {
   };
 
   tick();
-  pollTimer = setInterval(tick, 1200);
+  pollTimer = setInterval(tick, 800);
 }
 
 async function createSession() {
@@ -1083,5 +1182,6 @@ $("submitRevisionBtn").addEventListener("click", submitRevision);
 $("clearFeedbackBtn").addEventListener("click", clearFeedback);
 $("feedbackText").addEventListener("input", saveFeedbackDraft);
 $("newSessionBtn").addEventListener("click", resetUi);
+$("mockMode")?.addEventListener("change", refreshModelBadge);
 
 checkHealth();

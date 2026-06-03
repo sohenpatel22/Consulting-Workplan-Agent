@@ -76,7 +76,13 @@ def _parse_preview(session: WorkplanSession) -> ParsePreview | None:
 
 def _build_summary(session: WorkplanSession) -> SessionSummary:
     parsed = session.parsed_brief
-    if session.quality_gates is None and (session.wbs is not None or session.raid is not None):
+    if (
+        session.quality_gates is None
+        and session.wbs is not None
+        and session.raid is not None
+        and session.stakeholder_map is not None
+        and session.status_report is not None
+    ):
         session.quality_gates = generate_quality_gates(session)
     return SessionSummary(
         client=parsed.client_name if parsed else "",
@@ -120,8 +126,9 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
     quality_gates_html = None
     summary = None
 
-    if session.parsed_brief is not None:
-        parsed_brief = session.parsed_brief.model_dump(mode="json")
+    parsed = session.parsed_brief
+    if parsed is not None:
+        parsed_brief = parsed.model_dump(mode="json")
     if session.wbs is not None:
         wbs = session.wbs.model_dump(mode="json")
     if session.raid is not None:
@@ -130,29 +137,43 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
         stakeholder_map = session.stakeholder_map.model_dump(mode="json")
     if session.status_report is not None:
         status_report = session.status_report.model_dump(mode="json")
-    if session.wbs is not None and session.quality_gates is None:
-        session.quality_gates = generate_quality_gates(session)
-    if session.quality_gates is not None:
-        quality_gates = session.quality_gates.model_dump(mode="json")
+
     if (
-        session.parsed_brief is not None
-        and session.wbs is not None
+        session.wbs is not None
         and session.raid is not None
+        and session.stakeholder_map is not None
+        and session.status_report is not None
+        and session.quality_gates is None
     ):
+        session.quality_gates = generate_quality_gates(session)
+
+    if session.quality_gates is not None and parsed is not None:
+        quality_gates = session.quality_gates.model_dump(mode="json")
+        quality_gates_markdown = render_quality_gates_markdown(session.quality_gates, parsed)
+        quality_gates_html = markdown_to_html_body(quality_gates_markdown)
+
+    has_artifacts = any(
+        (
+            session.wbs is not None,
+            session.raid is not None,
+            session.stakeholder_map is not None,
+            session.status_report is not None,
+        )
+    )
+    if parsed is not None and has_artifacts:
         summary = _build_summary(session)
-        wbs_markdown = render_wbs_markdown(session.wbs, session.parsed_brief)
-        raid_markdown = render_raid_markdown(session.raid, session.parsed_brief)
-        wbs_html = markdown_to_html_body(wbs_markdown)
-        raid_html = markdown_to_html_body(raid_markdown)
+        if session.wbs is not None:
+            wbs_markdown = render_wbs_markdown(session.wbs, parsed)
+            wbs_html = markdown_to_html_body(wbs_markdown)
+        if session.raid is not None:
+            raid_markdown = render_raid_markdown(session.raid, parsed)
+            raid_html = markdown_to_html_body(raid_markdown)
         if session.stakeholder_map is not None:
-            stakeholder_markdown = render_stakeholder_markdown(session.stakeholder_map, session.parsed_brief)
+            stakeholder_markdown = render_stakeholder_markdown(session.stakeholder_map, parsed)
             stakeholder_html = markdown_to_html_body(stakeholder_markdown)
         if session.status_report is not None:
-            status_markdown = render_status_markdown(session.status_report, session.parsed_brief)
+            status_markdown = render_status_markdown(session.status_report, parsed)
             status_html = markdown_to_html_body(status_markdown)
-        if session.quality_gates is not None:
-            quality_gates_markdown = render_quality_gates_markdown(session.quality_gates, session.parsed_brief)
-            quality_gates_html = markdown_to_html_body(quality_gates_markdown)
 
     awaiting_confirmation = record.phase == "awaiting_confirmation"
     confirmation_questions: list[str] = []
@@ -273,6 +294,28 @@ def _make_orchestrator(record: SessionRecord) -> OrchestratorAgent:
     )
 
 
+_BUILD_PHASE_AFTER_ARTIFACT = {
+    "wbs": "generating_raid",
+    "raid": "generating_stakeholder",
+    "stakeholder": "generating_status",
+    "status": "ready_for_review",
+}
+
+
+def _publish_build_progress(
+    session_id: str,
+    record: SessionRecord,
+    *,
+    artifact: str,
+) -> None:
+    save_artifacts(record.output_dir, record.session, refresh_quality_gates=False)
+    get_store().update(
+        session_id,
+        phase=_BUILD_PHASE_AFTER_ARTIFACT[artifact],
+        session=record.session,
+    )
+
+
 def run_build_artifacts(session_id: str) -> None:
     store = get_store()
     record = store.get(session_id)
@@ -283,11 +326,17 @@ def run_build_artifacts(session_id: str) -> None:
     try:
         warm_build_prompt_cache_for_record(record)
         orchestrator = _make_orchestrator(record)
+
+        def on_artifact_ready(artifact: str) -> None:
+            _publish_build_progress(session_id, record, artifact=artifact)
+
         orchestrator.generate_workplan_artifacts(
             record.session,
             user_prompt=record.user_prompt,
+            on_artifact_ready=on_artifact_ready,
         )
         record.session.status = SessionStatus.UNDER_REVIEW
+        save_artifacts(record.output_dir, record.session)
         save_status(record.output_dir, record.session)
         store.update(
             session_id,
