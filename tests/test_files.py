@@ -8,11 +8,25 @@ from pypdf import PdfWriter
 from workplan_agent.api.app import app
 from workplan_agent.api.store import reset_store
 from workplan_agent.files.deloitte_export import export_raid_deloitte_xlsx, export_wbs_deloitte_docx
+from workplan_agent.render import (
+    render_raid_markdown,
+    render_stakeholder_markdown,
+    render_status_markdown,
+    render_wbs_markdown,
+)
 from workplan_agent.files.export import export_artifact
 from workplan_agent.files.extract import BriefExtractError, extract_text_from_bytes
-from workplan_agent.llm.fixtures import PARSED_BRIEF_FIXTURE, RAID_FIXTURE, WBS_FIXTURE
+from workplan_agent.llm.fixtures import (
+    PARSED_BRIEF_FIXTURE,
+    RAID_FIXTURE,
+    STAKEHOLDER_MAP_FIXTURE,
+    STATUS_REPORT_FIXTURE,
+    WBS_FIXTURE,
+)
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.raid import RAIDLog
+from workplan_agent.models.stakeholder import StakeholderMap
+from workplan_agent.models.status_report import WeeklyStatusReport
 from workplan_agent.models.wbs import WBS
 
 BRIEF = """# Test Brief
@@ -82,6 +96,67 @@ def test_deloitte_wbs_docx_export() -> None:
     brief = ParsedBrief.model_validate(PARSED_BRIEF_FIXTURE)
     content = export_wbs_deloitte_docx(wbs, brief)
     assert content[:2] == b"PK"
+
+
+def test_deloitte_wbs_pdf_export() -> None:
+    from pypdf import PdfReader
+
+    wbs = WBS.model_validate(WBS_FIXTURE)
+    brief = ParsedBrief.model_validate(PARSED_BRIEF_FIXTURE)
+    md = render_wbs_markdown(wbs, brief)
+    content, name = export_artifact(md, "wbs", "pdf", wbs=wbs, parsed_brief=brief)
+    assert name == "wbs.pdf"
+    assert content.startswith(b"%PDF")
+    assert len(content) > 2_500
+    text = "\n".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(content)).pages)
+    assert "Discovery" in text
+    assert "Stakeholder interviews" in text
+    assert "1.0" in text
+
+
+def test_deloitte_raid_pdf_export() -> None:
+    from pypdf import PdfReader
+
+    raid = RAIDLog.model_validate(RAID_FIXTURE)
+    brief = ParsedBrief.model_validate(PARSED_BRIEF_FIXTURE)
+    md = render_raid_markdown(raid, brief)
+    content, name = export_artifact(md, "raid", "pdf", raid=raid, parsed_brief=brief)
+    assert name == "raid.pdf"
+    text = "\n".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(content)).pages)
+    assert "SME availability" in text
+    assert "|----|" not in text
+    assert "Risks" in text
+
+
+def test_deloitte_stakeholder_pdf_export() -> None:
+    from pypdf import PdfReader
+
+    stakeholders = StakeholderMap.model_validate(STAKEHOLDER_MAP_FIXTURE)
+    brief = ParsedBrief.model_validate(PARSED_BRIEF_FIXTURE)
+    md = render_stakeholder_markdown(stakeholders, brief)
+    content, name = export_artifact(
+        md, "stakeholder", "pdf", stakeholder_map=stakeholders, parsed_brief=brief
+    )
+    assert name == "stakeholder.pdf"
+    text = "\n".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(content)).pages)
+    assert "Elena Vasquez" in text
+    assert "|-------------|" not in text
+
+
+def test_deloitte_status_pdf_export() -> None:
+    from pypdf import PdfReader
+
+    status = WeeklyStatusReport.model_validate(STATUS_REPORT_FIXTURE)
+    brief = ParsedBrief.model_validate(PARSED_BRIEF_FIXTURE)
+    md = render_status_markdown(status, brief)
+    content, name = export_artifact(
+        md, "status", "pdf", status_report=status, parsed_brief=brief
+    )
+    assert name == "status.pdf"
+    text = "\n".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(content)).pages)
+    assert "Weekly Status Report" in text
+    assert "kickoff" in text.lower()
+    assert "Architecture approved" in text
 
 
 def test_deloitte_raid_xlsx_export() -> None:

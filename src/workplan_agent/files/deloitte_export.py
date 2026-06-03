@@ -10,8 +10,19 @@ from openpyxl import load_workbook
 from openpyxl.cell.cell import MergedCell
 from openpyxl.worksheet.worksheet import Worksheet
 
+from workplan_agent.files.pdf_render import (
+    add_landscape_table_section,
+    pdf_text,
+    render_table,
+    write_body_text,
+    write_brief_header,
+    write_bullet_list,
+    write_section_heading,
+)
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.raid import ActionEntry, DecisionEntry, IssueEntry, RAIDLog, RiskEntry
+from workplan_agent.models.stakeholder import StakeholderMap
+from workplan_agent.models.status_report import WeeklyStatusReport
 from workplan_agent.models.wbs import WBS, WorkPackage
 
 _PACKAGE_TEMPLATES = Path(__file__).resolve().parent.parent / "templates" / "deloitte"
@@ -89,6 +100,381 @@ def export_wbs_deloitte_docx(wbs: WBS, parsed_brief: ParsedBrief) -> bytes:
     buffer = io.BytesIO()
     document.save(buffer)
     return buffer.getvalue()
+
+
+_WBS_PDF_HEADERS = [
+    "Level",
+    "WBS Code",
+    "WBS Element Title",
+    "Description / Scope of Work",
+    "Key Deliverable",
+    "Owner",
+    "Owner Side",
+    "Duration",
+    "Dependencies",
+]
+
+# Landscape A4 effective width with 10 mm side margins (mm).
+_WBS_PDF_COL_WIDTHS = (14, 20, 32, 55, 38, 30, 24, 24, 40)
+
+_RISK_PDF_HEADERS = [
+    "ID",
+    "Title",
+    "Description",
+    "Status",
+    "Mitigation",
+    "Owner",
+    "Owner Side",
+    "WBS Links",
+    "Probability",
+    "Priority",
+]
+_RISK_PDF_COL_WIDTHS = (12, 28, 45, 18, 35, 25, 20, 22, 22, 18)
+
+_ACTION_PDF_HEADERS = [
+    "ID",
+    "Title",
+    "Description",
+    "Status update",
+    "Status",
+    "Owner",
+    "Owner Side",
+    "WBS Links",
+    "Priority",
+]
+_ACTION_PDF_COL_WIDTHS = (12, 28, 50, 28, 18, 25, 20, 22, 18)
+
+_ISSUE_PDF_HEADERS = [
+    "ID",
+    "Title",
+    "Description",
+    "Resolution",
+    "Owner",
+    "Owner Side",
+    "Priority",
+]
+_ISSUE_PDF_COL_WIDTHS = (12, 30, 55, 35, 25, 20, 18)
+
+_DECISION_PDF_HEADERS = [
+    "ID",
+    "Title",
+    "Description / Justification",
+    "Resolution",
+    "Owner",
+    "Owner Side",
+    "Priority",
+]
+_DECISION_PDF_COL_WIDTHS = (12, 30, 55, 35, 25, 20, 18)
+
+_STAKEHOLDER_PDF_HEADERS = [
+    "Stakeholder",
+    "Organization Side",
+    "Source",
+    "Rationale",
+    "Department",
+    "Role",
+    "Influence",
+    "Interest",
+    "Strategy",
+    "Concerns",
+    "Frequency",
+    "Engagement Approach",
+    "Communication Method",
+]
+_STAKEHOLDER_PDF_COL_WIDTHS = (22, 16, 12, 22, 18, 16, 14, 14, 18, 30, 14, 26, 28)
+
+_MILESTONE_PDF_HEADERS = [
+    "Milestone",
+    "Target Date",
+    "Actual Date",
+    "Owner Side",
+    "Status",
+]
+_MILESTONE_PDF_COL_WIDTHS = (40, 35, 35, 28, 30)
+
+
+def export_wbs_deloitte_pdf(wbs: WBS, parsed_brief: ParsedBrief) -> bytes:
+    """Build a landscape WBS PDF with a proper multi-column table."""
+    try:
+        from fpdf import FPDF
+    except ImportError as exc:
+        raise RuntimeError("PDF export is not installed.") from exc
+
+    pdf = FPDF(orientation="L", unit="mm", format="A4")
+    pdf.set_margins(10, 12, 10)
+    pdf.set_auto_page_break(auto=True, margin=12)
+    pdf.add_page()
+    write_brief_header(pdf, "Work Breakdown Structure", parsed_brief)
+
+    phases = [wp for wp in sorted(wbs.work_packages, key=_wbs_sort_key) if wp.level == 1]
+    if phases:
+        write_section_heading(pdf, "Phases (level 1)")
+        pdf.set_font("Helvetica", size=10)
+        for wp in phases:
+            pdf.cell(
+                0,
+                5,
+                pdf_text(f"  - {wp.wbs_code} - {wp.wbs_element_title}"),
+                new_x="LMARGIN",
+                new_y="NEXT",
+            )
+        pdf.ln(2)
+
+    write_section_heading(pdf, "Work packages (Deloitte template)")
+    render_table(
+        pdf,
+        _WBS_PDF_HEADERS,
+        [
+            [
+                str(wp.level),
+                wp.wbs_code,
+                wp.wbs_element_title,
+                wp.description_scope,
+                wp.key_deliverable,
+                wp.owner,
+                wp.owner_side,
+                wp.estimated_duration,
+                ", ".join(wp.dependencies),
+            ]
+            for wp in sorted(wbs.work_packages, key=_wbs_sort_key)
+        ],
+        col_widths=_WBS_PDF_COL_WIDTHS,
+    )
+
+    return bytes(pdf.output())
+
+
+def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
+    """Build a RAID PDF with landscape tables per section."""
+    try:
+        from fpdf import FPDF
+    except ImportError as exc:
+        raise RuntimeError("PDF export is not installed.") from exc
+
+    pdf = FPDF(unit="mm", format="A4")
+    pdf.set_margins(18, 18, 18)
+    pdf.set_auto_page_break(auto=True, margin=18)
+    pdf.add_page()
+    write_brief_header(pdf, "RAID Log", parsed_brief)
+
+    risk_rows = [
+        [
+            item.id,
+            item.title,
+            item.description,
+            item.status,
+            item.mitigation,
+            item.owner,
+            item.owner_side,
+            ", ".join(item.wbs_links),
+            item.probability,
+            item.priority,
+        ]
+        for item in raid.risks
+    ]
+    if risk_rows:
+        add_landscape_table_section(
+            pdf,
+            "Risks",
+            _RISK_PDF_HEADERS,
+            risk_rows,
+            col_widths=_RISK_PDF_COL_WIDTHS,
+        )
+
+    action_rows = [
+        [
+            item.id,
+            item.title,
+            item.description,
+            item.status_update,
+            item.status,
+            item.owner,
+            item.owner_side,
+            ", ".join(item.wbs_links),
+            item.priority,
+        ]
+        for item in raid.actions
+    ]
+    if action_rows:
+        add_landscape_table_section(
+            pdf,
+            "Actions",
+            _ACTION_PDF_HEADERS,
+            action_rows,
+            col_widths=_ACTION_PDF_COL_WIDTHS,
+        )
+
+    if raid.issues:
+        issue_rows = [
+            [
+                item.id,
+                item.title,
+                item.description,
+                item.resolution,
+                item.owner,
+                item.owner_side,
+                item.priority,
+            ]
+            for item in raid.issues
+        ]
+    else:
+        issue_rows = [["-", "No issues identified", "", "", "", "", ""]]
+    add_landscape_table_section(
+        pdf,
+        "Issues",
+        _ISSUE_PDF_HEADERS,
+        issue_rows,
+        col_widths=_ISSUE_PDF_COL_WIDTHS,
+    )
+
+    decision_rows = [
+        [
+            item.id,
+            item.title,
+            item.description_justification,
+            item.resolution,
+            item.owner,
+            item.owner_side,
+            item.priority,
+        ]
+        for item in raid.decisions
+    ]
+    if decision_rows:
+        add_landscape_table_section(
+            pdf,
+            "Decisions",
+            _DECISION_PDF_HEADERS,
+            decision_rows,
+            col_widths=_DECISION_PDF_COL_WIDTHS,
+        )
+
+    return bytes(pdf.output())
+
+
+def export_stakeholder_deloitte_pdf(
+    stakeholder_map: StakeholderMap,
+    parsed_brief: ParsedBrief,
+) -> bytes:
+    """Build a landscape stakeholder map PDF."""
+    try:
+        from fpdf import FPDF
+    except ImportError as exc:
+        raise RuntimeError("PDF export is not installed.") from exc
+
+    pdf = FPDF(unit="mm", format="A4")
+    pdf.set_margins(18, 18, 18)
+    pdf.set_auto_page_break(auto=True, margin=18)
+    pdf.add_page()
+    write_brief_header(pdf, "Stakeholder Map", parsed_brief)
+
+    rows = [
+        [
+            sh.name,
+            sh.organization_side.value,
+            sh.source.value,
+            sh.rationale or "",
+            sh.department,
+            sh.role_in_project,
+            sh.influence_level.value,
+            sh.interest_level.value,
+            sh.engagement_strategy,
+            sh.key_concerns,
+            sh.communication_frequency.value,
+            sh.engagement_approach,
+            sh.communication_method,
+        ]
+        for sh in stakeholder_map.stakeholders
+    ]
+    pdf.add_page(orientation="L")
+    pdf.set_margins(10, 12, 10)
+    render_table(
+        pdf,
+        _STAKEHOLDER_PDF_HEADERS,
+        rows,
+        col_widths=_STAKEHOLDER_PDF_COL_WIDTHS,
+    )
+    return bytes(pdf.output())
+
+
+def export_status_deloitte_pdf(
+    status_report: WeeklyStatusReport,
+    parsed_brief: ParsedBrief,
+) -> bytes:
+    """Build a weekly status report PDF."""
+    try:
+        from fpdf import FPDF
+    except ImportError as exc:
+        raise RuntimeError("PDF export is not installed.") from exc
+
+    pdf = FPDF(unit="mm", format="A4")
+    pdf.set_margins(18, 18, 18)
+    pdf.set_auto_page_break(auto=True, margin=18)
+    pdf.add_page()
+    width = pdf.epw
+
+    pdf.set_font("Helvetica", style="B", size=16)
+    pdf.cell(0, 9, pdf_text("Weekly Status Report"), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", size=11)
+    for line in (
+        f"Project: {status_report.project_name}",
+        f"Client: {parsed_brief.client_name}",
+        f"Date: {status_report.date}",
+        f"Project Manager: {status_report.project_manager}",
+    ):
+        pdf.cell(0, 6, pdf_text(line), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(3)
+
+    write_section_heading(pdf, "Summary")
+    write_body_text(pdf, status_report.summary, width=width)
+
+    write_section_heading(pdf, "New Initiatives")
+    if status_report.new_initiatives:
+        write_bullet_list(pdf, status_report.new_initiatives, width=width)
+    else:
+        write_body_text(pdf, "No new initiatives.", width=width)
+
+    write_section_heading(pdf, "Blockers")
+    if status_report.blockers:
+        write_bullet_list(pdf, status_report.blockers, width=width)
+    else:
+        write_body_text(pdf, "No blockers.", width=width)
+
+    write_section_heading(pdf, "Risks")
+    if status_report.risks:
+        write_bullet_list(pdf, status_report.risks, width=width)
+    else:
+        write_body_text(pdf, "No risks.", width=width)
+
+    write_section_heading(pdf, "Milestones")
+    milestone_rows = [
+        [
+            milestone.name,
+            milestone.target_date,
+            milestone.actual_date or "",
+            milestone.owner_side,
+            milestone.status,
+        ]
+        for milestone in status_report.milestones
+    ]
+    if milestone_rows:
+        render_table(
+            pdf,
+            _MILESTONE_PDF_HEADERS,
+            milestone_rows,
+            col_widths=_MILESTONE_PDF_COL_WIDTHS,
+            font_size=9,
+            line_height=5,
+        )
+    else:
+        write_body_text(pdf, "No milestones.", width=width)
+
+    write_section_heading(pdf, "Supporting Links")
+    if status_report.supporting_links:
+        write_bullet_list(pdf, status_report.supporting_links, width=width)
+    else:
+        write_body_text(pdf, "No supporting links.", width=width)
+
+    return bytes(pdf.output())
 
 
 def export_raid_deloitte_xlsx(
