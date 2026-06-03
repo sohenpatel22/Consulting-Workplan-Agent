@@ -489,10 +489,58 @@ function renderSummary(summary) {
     .join("");
 }
 
+function isPreviewExpandable(previewEl) {
+  return Boolean(previewEl && !previewEl.querySelector(".empty-preview"));
+}
+
+function getPreviewTitle() {
+  return ARTIFACT_LABELS[currentTab] || "Document preview";
+}
+
+function updatePreviewExpandable() {
+  const preview = $("artifactPreview");
+  if (!preview) return;
+  const expandable = isPreviewExpandable(preview);
+  preview.classList.toggle("artifact-preview--expandable", expandable);
+  if (expandable) {
+    preview.setAttribute("tabindex", "0");
+    preview.setAttribute("role", "button");
+    preview.setAttribute("aria-label", `Open ${getPreviewTitle()} in full screen`);
+  } else {
+    preview.removeAttribute("tabindex");
+    preview.removeAttribute("role");
+    preview.removeAttribute("aria-label");
+  }
+}
+
+function openPreviewFullscreen() {
+  const source = $("artifactPreview");
+  if (!isPreviewExpandable(source)) return;
+  const modal = $("previewFullscreen");
+  const body = $("previewFullscreenBody");
+  $("previewFullscreenTitle").textContent = getPreviewTitle();
+  body.innerHTML = source.innerHTML;
+  modal.classList.remove("hidden");
+  document.body.classList.add("preview-fullscreen-open");
+  $("closePreviewFullscreen")?.focus();
+}
+
+function closePreviewFullscreen() {
+  const modal = $("previewFullscreen");
+  if (!modal || modal.classList.contains("hidden")) return;
+  modal.classList.add("hidden");
+  $("previewFullscreenBody").innerHTML = "";
+  document.body.classList.remove("preview-fullscreen-open");
+}
+
 function renderTabContent(data) {
   const artifactView = $("artifactView");
   const briefView = $("briefTabContent");
   const qualityGatesView = $("qualityGatesTabContent");
+
+  if (currentTab === "brief" || currentTab === "quality_gates") {
+    closePreviewFullscreen();
+  }
 
   if (currentTab === "brief") {
     artifactView.classList.add("hidden");
@@ -533,6 +581,7 @@ function renderTabContent(data) {
 
   renderStaleNotice(data);
   updateFeedbackPane(data);
+  updatePreviewExpandable();
 }
 
 function renderQualityGatesList(qualityGates) {
@@ -1164,6 +1213,7 @@ function clearFeedback() {
 }
 
 function resetUi() {
+  closePreviewFullscreen();
   clearInterval(pollTimer);
   stopReviewPolling();
   currentSessionId = null;
@@ -1198,6 +1248,7 @@ function resetUi() {
 
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", async () => {
+    closePreviewFullscreen();
     saveFeedbackDraft();
     document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
     tab.classList.add("active");
@@ -1237,5 +1288,29 @@ $("clearFeedbackBtn").addEventListener("click", clearFeedback);
 $("feedbackText").addEventListener("input", saveFeedbackDraft);
 $("newSessionBtn").addEventListener("click", resetUi);
 $("mockMode")?.addEventListener("change", refreshModelBadge);
+
+$("artifactPreview")?.addEventListener("click", (e) => {
+  if (!isPreviewExpandable(e.currentTarget)) return;
+  if (e.target.closest("a, button, input, textarea, select, label")) return;
+  openPreviewFullscreen();
+});
+
+$("artifactPreview")?.addEventListener("keydown", (e) => {
+  if (!isPreviewExpandable(e.currentTarget)) return;
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    openPreviewFullscreen();
+  }
+});
+
+$("closePreviewFullscreen")?.addEventListener("click", closePreviewFullscreen);
+
+$("previewFullscreen")?.addEventListener("click", (e) => {
+  if (e.target.closest("[data-close-preview]")) closePreviewFullscreen();
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closePreviewFullscreen();
+});
 
 checkHealth();
