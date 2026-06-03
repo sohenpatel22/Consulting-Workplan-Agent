@@ -10,8 +10,8 @@
 
 ## Work packages (Deloitte template)
 
-| Level | WBS Code | WBS Element Title | Description / Scope of Work | Key Deliverable | Owner | Duration | Dependencies |
-|-------|----------|-------------------|------------------------------|-----------------|-------|----------|--------------|
+| Level | WBS Code | WBS Element Title | Description / Scope of Work | Key Deliverable | Owner | Owner Side | Duration | Dependencies |
+|-------|----------|-------------------|------------------------------|-----------------|-------|------------|----------|--------------|
 {% for wp in wbs.work_packages -%}
-| {{ wp.level }} | {{ wp.wbs_code }} | {{ wp.wbs_element_title }} | {{ wp.description_scope }} | {{ wp.key_deliverable }} | {{ wp.owner }} | {{ wp.estimated_duration }} | {{ wp.dependencies | join(', ') }} |
+| {{ wp.level }} | {{ wp.wbs_code }} | {{ wp.wbs_element_title }} | {{ wp.description_scope }} | {{ wp.key_deliverable }} | {{ wp.owner }} | {{ wp.owner_side }} | {{ wp.estimated_duration }} | {{ wp.dependencies | join(', ') }} |
 {% endfor %}

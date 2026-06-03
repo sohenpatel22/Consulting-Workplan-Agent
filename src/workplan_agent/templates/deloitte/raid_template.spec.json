@@ -1,6 +1,6 @@
 {
   "source_file": "raid_log_template.xlsx",
-  "summary": "RAID log follows the Deloitte Excel template: Risks, Actions, Issues, and Decisions are separate sections (not Assumptions/Dependencies). Use priority values High, Moderate, or Low.",
+  "summary": "RAID log follows the Deloitte Excel template: Risks, Actions, Issues, and Decisions are separate sections (not Assumptions/Dependencies). Use priority values High, Moderate, or Low. Each item labels whether the owner is on the Client, Consultant, or Joint side.",
   "sections": [
     {
       "key": "risks",
@@ -42,6 +42,12 @@
           "type": "string",
           "required": true,
           "description": ""
+        },
+        {
+          "name": "owner_side",
+          "type": "string",
+          "required": true,
+          "description": "Client, Consultant, or Joint"
         },
         {
           "name": "wbs_links",
@@ -116,6 +122,12 @@
           "description": ""
         },
         {
+          "name": "owner_side",
+          "type": "string",
+          "required": true,
+          "description": "Client, Consultant, or Joint"
+        },
+        {
           "name": "wbs_links",
           "type": "array",
           "required": true,
@@ -175,6 +187,12 @@
           "description": ""
         },
         {
+          "name": "owner_side",
+          "type": "string",
+          "required": true,
+          "description": "Client, Consultant, or Joint"
+        },
+        {
           "name": "priority",
           "type": "string",
           "required": true,
@@ -226,6 +244,12 @@
           "description": ""
         },
         {
+          "name": "owner_side",
+          "type": "string",
+          "required": true,
+          "description": "Client, Consultant, or Joint"
+        },
+        {
           "name": "priority",
           "type": "string",
           "required": true,
@@ -252,7 +276,8 @@
       "Impact",
       "Status",
       "Owner",
-      "Priority"
+      "Priority",
+      "Owner Side"
     ],
     "categories": [
       "Risk",

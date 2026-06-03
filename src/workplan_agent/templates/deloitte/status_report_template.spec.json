@@ -68,6 +68,11 @@
       "header": "Actual date",
       "field": "actual_date",
       "description": "Actual completion date when known"
+    },
+    {
+      "header": "Owner Side",
+      "field": "owner_side",
+      "description": "Client, Consultant, or Joint accountable side"
     }
   ],
   "milestone_status_values": [
@@ -79,7 +84,8 @@
   "generation_rules": [
     "Root JSON includes project_name, project_manager, date, summary, new_initiatives, blockers, risks, milestones, supporting_links.",
     "new_initiatives, blockers, risks, and supporting_links are arrays of strings.",
-    "Each milestone object: name, target_date, actual_date (optional), status.",
+    "Each milestone object: name, target_date, actual_date (optional), owner_side, status.",
+    "owner_side must be Client, Consultant, or Joint.",
     "Risks and blockers must trace to RAID; milestones must align with WBS."
   ],
   "example_milestones": []

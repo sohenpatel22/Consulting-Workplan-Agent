@@ -65,6 +65,6 @@ def test_stakeholder_markdown_render(parsed_brief: ParsedBrief) -> None:
     )
     md = render_stakeholder_markdown(st_map, parsed_brief)
     # The new template outputs only the table
-    assert "Stakeholder | Source" in md
+    assert "Stakeholder | Organization Side | Source" in md
     assert "Elena Vasquez" in md
     assert "CMO" in md

@@ -5,35 +5,35 @@
 
 ## Risks
 
-| ID | Title | Description | Status | Mitigation | Owner | WBS Links | Probability | Priority |
-|----|-------|-------------|--------|------------|-------|-----------|-------------|----------|
+| ID | Title | Description | Status | Mitigation | Owner | Owner Side | WBS Links | Probability | Priority |
+|----|-------|-------------|--------|------------|-------|------------|-----------|-------------|----------|
 {% for item in raid.risks -%}
-| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.status }} | {{ item.mitigation }} | {{ item.owner }} | {{ item.wbs_links | join(', ') }} | {{ item.probability }} | {{ item.priority }} |
+| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.status }} | {{ item.mitigation }} | {{ item.owner }} | {{ item.owner_side }} | {{ item.wbs_links | join(', ') }} | {{ item.probability }} | {{ item.priority }} |
 {% endfor %}
 
 ## Actions
 
-| ID | Title | Description | Status update | Status | Owner | WBS Links | Priority |
-|----|-------|-------------|---------------|--------|-------|-----------|----------|
+| ID | Title | Description | Status update | Status | Owner | Owner Side | WBS Links | Priority |
+|----|-------|-------------|---------------|--------|-------|------------|-----------|----------|
 {% for item in raid.actions -%}
-| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.status_update }} | {{ item.status }} | {{ item.owner }} | {{ item.wbs_links | join(', ') }} | {{ item.priority }} |
+| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.status_update }} | {{ item.status }} | {{ item.owner }} | {{ item.owner_side }} | {{ item.wbs_links | join(', ') }} | {{ item.priority }} |
 {% endfor %}
 
 ## Issues
 
-| ID | Title | Description | Resolution | Owner | Priority |
-|----|-------|-------------|------------|-------|----------|
+| ID | Title | Description | Resolution | Owner | Owner Side | Priority |
+|----|-------|-------------|------------|-------|------------|----------|
 {% for item in raid.issues -%}
-| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.resolution }} | {{ item.owner }} | {{ item.priority }} |
+| {{ item.id }} | {{ item.title }} | {{ item.description }} | {{ item.resolution }} | {{ item.owner }} | {{ item.owner_side }} | {{ item.priority }} |
 {% endfor %}
 {% if not raid.issues %}
-| — | _No issues identified_ | | | | |
+| — | _No issues identified_ | | | | | |
 {% endif %}
 
 ## Decisions
 
-| ID | Title | Description / Justification | Resolution | Owner | Priority |
-|----|-------|----------------------------|------------|-------|----------|
+| ID | Title | Description / Justification | Resolution | Owner | Owner Side | Priority |
+|----|-------|----------------------------|------------|-------|------------|----------|
 {% for item in raid.decisions -%}
-| {{ item.id }} | {{ item.title }} | {{ item.description_justification }} | {{ item.resolution }} | {{ item.owner }} | {{ item.priority }} |
+| {{ item.id }} | {{ item.title }} | {{ item.description_justification }} | {{ item.resolution }} | {{ item.owner }} | {{ item.owner_side }} | {{ item.priority }} |
 {% endfor %}

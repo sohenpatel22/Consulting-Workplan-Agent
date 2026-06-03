@@ -5,6 +5,10 @@ class WeeklyStatusMilestone(BaseModel):
     name: str
     target_date: str
     actual_date: str | None = Field(default=None, description="Actual date completed, if applicable")
+    owner_side: str = Field(
+        default="Joint",
+        description="Client, Consultant, or Joint side accountable for this milestone",
+    )
     status: str = Field(
         default="Not Started",
         description="Must be one of: Not Started, In Progress, Completed, Delayed",

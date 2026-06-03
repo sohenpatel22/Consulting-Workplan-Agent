@@ -87,6 +87,7 @@ def build_wbs_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "- Map work to objectives and in-scope items from the parsed brief.",
             "- Exclude out-of-scope work.",
             "- Use client terminology from the brief in titles and descriptions.",
+            "- Classify `owner_side` as Client, Consultant, or Joint for every work package.",
         ]
     )
     return "\n".join(lines).strip()
@@ -132,6 +133,7 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
         [
             "### Pre-submit checklist",
             "- Every risk and action includes `wbs_links` pointing to real `wbs_code` values from the WBS.",
+            "- Every RAID item includes `owner_side`: Client, Consultant, or Joint.",
             "- Risks include `mitigation` and `probability` (High, Moderate, or Low).",
             "- Use `priority` (and `probability` for risks): High, Moderate, or Low.",
             "- Derive actions from assumptions, client activities, and follow-ups in the brief.",
@@ -211,6 +213,7 @@ def build_stakeholder_generation_contract(spec: dict[str, Any] | None = None) ->
             "### Content alignment",
             "- Ground every stakeholder in the parsed brief, WBS, or RAID.",
             "- Infer at most 3–5 stakeholders; each inferred row needs a specific rationale.",
+            "- Classify `organization_side` as Client, Consultant, Joint, or Other.",
         ]
     )
     return "\n".join(lines).strip()
@@ -267,6 +270,7 @@ def build_status_report_generation_contract(spec: dict[str, Any] | None = None) 
             "### Content alignment",
             "- Do not invent progress not supported by WBS or RAID.",
             "- Pull risks from RAID; blockers from open RAID issues or WBS dependencies.",
+            "- Classify each milestone `owner_side` as Client, Consultant, or Joint.",
         ]
     )
     return "\n".join(lines).strip()

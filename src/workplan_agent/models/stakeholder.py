@@ -26,8 +26,19 @@ class CommunicationFrequency(str, Enum):
     AD_HOC = "Ad-hoc"
 
 
+class OrganizationSide(str, Enum):
+    CLIENT = "Client"
+    CONSULTANT = "Consultant"
+    JOINT = "Joint"
+    OTHER = "Other"
+
+
 class StakeholderMapEntry(BaseModel):
     name: str
+    organization_side: OrganizationSide = Field(
+        default=OrganizationSide.CLIENT,
+        description="Whether this stakeholder belongs to the client, consultant, both, or another group",
+    )
     source: StakeholderSource
     rationale: str | None = Field(
         default=None,

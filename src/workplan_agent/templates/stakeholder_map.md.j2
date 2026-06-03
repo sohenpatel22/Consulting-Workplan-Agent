@@ -1,5 +1,5 @@
-| Stakeholder | Source | Rationale | Department | Role | Influence | Interest | Strategy | Concerns | Frequency | Engagement Approach | Communication Method |
-|-------------|--------|-----------|------------|------|-----------|----------|----------|----------|-----------|---------------------|----------------------|
+| Stakeholder | Organization Side | Source | Rationale | Department | Role | Influence | Interest | Strategy | Concerns | Frequency | Engagement Approach | Communication Method |
+|-------------|-------------------|--------|-----------|------------|------|-----------|----------|----------|----------|-----------|---------------------|----------------------|
 {% for sh in stakeholder_map.stakeholders -%}
-| {{ sh.name }} | {{ sh.source.value }} | {{ sh.rationale or '' }} | {{ sh.department }} | {{ sh.role_in_project }} | {{ sh.influence_level.value }} | {{ sh.interest_level.value }} | {{ sh.engagement_strategy }} | {{ sh.key_concerns }} | {{ sh.communication_frequency.value }} | {{ sh.engagement_approach }} | {{ sh.communication_method }} |
+| {{ sh.name }} | {{ sh.organization_side.value }} | {{ sh.source.value }} | {{ sh.rationale or '' }} | {{ sh.department }} | {{ sh.role_in_project }} | {{ sh.influence_level.value }} | {{ sh.interest_level.value }} | {{ sh.engagement_strategy }} | {{ sh.key_concerns }} | {{ sh.communication_frequency.value }} | {{ sh.engagement_approach }} | {{ sh.communication_method }} |
 {% endfor %}

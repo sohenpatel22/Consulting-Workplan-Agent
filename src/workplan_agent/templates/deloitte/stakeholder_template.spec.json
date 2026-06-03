@@ -10,6 +10,12 @@
       "description": "Stakeholder name or group"
     },
     {
+      "header": "Organization Side",
+      "field": "organization_side",
+      "type": "string",
+      "description": "Client, Consultant, Joint, or Other"
+    },
+    {
       "header": "Source",
       "field": "source",
       "type": "string",
@@ -78,6 +84,7 @@
   ],
   "generation_rules": [
     "Root JSON: {\"stakeholders\": [ /* one object per table row */ ]}.",
+    "organization_side must be Client, Consultant, Joint, or Other.",
     "source must be explicit or inferred (lowercase in JSON).",
     "rationale is required and non-empty when source is inferred; null or empty when explicit.",
     "influence_level and interest_level: High, Medium, or Low.",
@@ -87,6 +94,7 @@
   "example_rows": [
     {
       "name": "Deloitte Client Representatives",
+      "organization_side": "Client",
       "source": "explicit",
       "rationale": null,
       "department": "Client / Consulting",
@@ -101,6 +109,7 @@
     },
     {
       "name": "Project Team Lead",
+      "organization_side": "Consultant",
       "source": "explicit",
       "rationale": null,
       "department": "Student Team",
@@ -115,6 +124,7 @@
     },
     {
       "name": "AI Developers",
+      "organization_side": "Consultant",
       "source": "inferred",
       "rationale": "AI agent development is required to build and implement the proposed solution",
       "department": "Technical Team",
@@ -129,6 +139,7 @@
     },
     {
       "name": "Stakeholder Management Analyst",
+      "organization_side": "Consultant",
       "source": "explicit",
       "rationale": null,
       "department": "Consulting / Operations",
@@ -143,6 +154,7 @@
     },
     {
       "name": "RAID Analyst",
+      "organization_side": "Consultant",
       "source": "inferred",
       "rationale": "Risk identification and management are required deliverables within the project scope",
       "department": "Consulting / Operations",
@@ -157,6 +169,7 @@
     },
     {
       "name": "QA / Testing Members",
+      "organization_side": "Consultant",
       "source": "explicit",
       "rationale": null,
       "department": "Quality Assurance",
@@ -171,6 +184,7 @@
     },
     {
       "name": "End Users / Evaluators",
+      "organization_side": "Client",
       "source": "explicit",
       "rationale": null,
       "department": "Academic / Client Reviewers",
@@ -185,6 +199,7 @@
     },
     {
       "name": "Course Instructors / TAs",
+      "organization_side": "Other",
       "source": "explicit",
       "rationale": null,
       "department": "Academic",
