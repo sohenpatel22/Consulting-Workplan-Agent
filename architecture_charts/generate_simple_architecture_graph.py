@@ -24,7 +24,7 @@ SIMPLE_OVERVIEW = r"""flowchart LR
         BRIEF["Client brief<br/>(background, objectives, scope,<br/>timeline, constraints)"]
         GUIDE["Optional guidance<br/>(focus areas, tone,<br/>assumptions, formatting needs)"]
         ANSWERS["Clarifying answers<br/>(used when the brief is incomplete)"]
-        FEEDBACK["Review feedback<br/>(change WBS, RAID, status,<br/>stakeholders, or all)"]
+        FEEDBACK["Review feedback<br/>(per artifact: WBS, RAID,<br/>stakeholder, status)"]
     end
 
     subgraph entry["How work enters the system"]

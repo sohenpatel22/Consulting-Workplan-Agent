@@ -24,7 +24,6 @@ def test_generate_workplan_artifacts_notifies_per_step(output_dir: Path) -> None
     orchestrator = OrchestratorAgent(
         provider=provider,
         output_dir=output_dir,
-        interactive=False,
         verbose=False,
     )
     session = WorkplanSession(session_id="t1", brief_path="test")
@@ -37,19 +36,18 @@ def test_generate_workplan_artifacts_notifies_per_step(output_dir: Path) -> None
     assert ready == ["wbs", "raid", "stakeholder", "status"]
 
 
-def test_orchestrator_pipeline_non_interactive(output_dir: Path) -> None:
+def test_orchestrator_pipeline(output_dir: Path) -> None:
     provider = MockLLMProvider()
     orchestrator = OrchestratorAgent(
         provider=provider,
         output_dir=output_dir,
-        interactive=False,
     )
     session = orchestrator.run_pipeline(SAMPLES)
 
     assert session.parsed_brief is not None
     assert session.wbs is not None
     assert session.raid is not None
-    assert session.status == SessionStatus.APPROVED
+    assert session.status == SessionStatus.UNDER_REVIEW
 
     assert (output_dir / "parsed_brief.json").exists()
     assert (output_dir / "wbs.json").exists()
@@ -72,13 +70,12 @@ def test_cli_run_mock(output_dir: Path) -> None:
             "--output",
             str(output_dir),
             "--mock",
-            "--non-interactive",
         ],
     )
     assert result.exit_code == 0, result.output
     assert (output_dir / "status.json").exists()
 
     status = json.loads((output_dir / "status.json").read_text())
-    assert status["status"] == "approved"
+    assert status["status"] == "under_review"
     assert status["summary"]["wbs_items"] > 0
     assert status["summary"]["raid_risks"] >= 3

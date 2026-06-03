@@ -27,8 +27,6 @@ class RevisionTarget(str, Enum):
     RAID = "raid"
     STAKEHOLDER = "stakeholder"
     STATUS = "status"
-    BOTH = "both"
-    ALL = "all"
 
 
 class RevisionResult(BaseModel):
@@ -59,7 +57,7 @@ class RevisionAgent:
         result = RevisionResult()
         brief_json = parsed_brief.model_dump_json(indent=2)
 
-        if target in (RevisionTarget.WBS, RevisionTarget.BOTH, RevisionTarget.ALL):
+        if target == RevisionTarget.WBS:
             result.wbs = self._wbs_agent.run(
                 parsed_brief_json=brief_json,
                 wbs=wbs,
@@ -69,36 +67,33 @@ class RevisionAgent:
                 status_report=status_report,
             )
 
-        if target in (RevisionTarget.RAID, RevisionTarget.BOTH, RevisionTarget.ALL):
-            current_wbs = result.wbs or wbs
+        elif target == RevisionTarget.RAID:
             result.raid = self._raid_agent.run(
                 parsed_brief_json=brief_json,
-                wbs=current_wbs,
+                wbs=wbs,
                 raid=raid,
                 feedback=feedback,
                 stakeholder_map=stakeholder_map,
                 status_report=status_report,
             )
 
-        if target in (RevisionTarget.STAKEHOLDER, RevisionTarget.ALL):
-            if stakeholder_map is not None:
-                result.stakeholder_map = self._stakeholder_agent.run(
-                    parsed_brief_json=brief_json,
-                    stakeholder_map=stakeholder_map,
-                    feedback=feedback,
-                )
-            elif target == RevisionTarget.STAKEHOLDER:
+        elif target == RevisionTarget.STAKEHOLDER:
+            if stakeholder_map is None:
                 raise ValueError("stakeholder_map is required for stakeholder map revision")
+            result.stakeholder_map = self._stakeholder_agent.run(
+                parsed_brief_json=brief_json,
+                stakeholder_map=stakeholder_map,
+                feedback=feedback,
+            )
 
-        if target in (RevisionTarget.STATUS, RevisionTarget.ALL):
-            if status_report is not None:
-                result.status_report = self._status_agent.run(
-                    parsed_brief_json=brief_json,
-                    status_report=status_report,
-                    feedback=feedback,
-                )
-            elif target == RevisionTarget.STATUS:
+        elif target == RevisionTarget.STATUS:
+            if status_report is None:
                 raise ValueError("status_report is required for status report revision")
+            result.status_report = self._status_agent.run(
+                parsed_brief_json=brief_json,
+                status_report=status_report,
+                feedback=feedback,
+            )
 
         return result
 

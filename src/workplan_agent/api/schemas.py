@@ -12,8 +12,6 @@ ReviewActionName = Literal[
     "raid",
     "stakeholder",
     "status",
-    "both",
-    "all",
 ]
 
 

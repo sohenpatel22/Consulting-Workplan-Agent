@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
 
     # Primary model for all agents (highest-accuracy defaults).
-    model: str = "claude-sonnet-4-6"
+    # model: str = "claude-sonnet-4-6"
+    model: str = "claude-haiku-4-5"
     # Used when `model` is Claude but only OPENAI_API_KEY is configured.
     fallback_model: str = "gpt-5.5-pro"
 

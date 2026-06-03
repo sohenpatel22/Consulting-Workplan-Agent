@@ -3,7 +3,6 @@ from collections.abc import Callable
 from pathlib import Path
 
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 
 from workplan_agent.agents.brief_parser import BriefParserAgent
@@ -23,7 +22,6 @@ from workplan_agent.render import (
     save_status,
     save_version_snapshot,
 )
-from workplan_agent.review import REVIEW_MENU, ReviewAction, parse_review_choice
 
 console = Console()
 
@@ -34,15 +32,11 @@ class OrchestratorAgent:
         provider: LLMProvider,
         output_dir: Path,
         max_revisions: int | None = None,
-        interactive: bool = True,
-        auto_approve: bool | None = None,
         verbose: bool = True,
     ) -> None:
         self.provider = provider
         self.output_dir = output_dir
         self.max_revisions = max_revisions or get_settings().max_revisions
-        self.interactive = interactive
-        self.auto_approve = not interactive if auto_approve is None else auto_approve
         self.verbose = verbose
 
         self.brief_parser = BriefParserAgent(provider)
@@ -81,16 +75,10 @@ class OrchestratorAgent:
             brief_path=brief_label,
         )
         self.generate_artifacts(session, brief_text, user_prompt=user_prompt)
-        self._log("[bold]Step 4:[/bold] Review generated artifacts...")
+        self._log("[bold]Done:[/bold] Artifacts ready for review in the web UI.")
         session.status = SessionStatus.UNDER_REVIEW
         self._display_summary(session)
-
-        if self.interactive:
-            self._revision_loop(session)
-        elif self.auto_approve:
-            session.status = SessionStatus.APPROVED
-            save_status(self.output_dir, session)
-
+        save_status(self.output_dir, session)
         return session
 
     def _warm_raid_build_cache(self, session: WorkplanSession) -> None:
@@ -138,43 +126,12 @@ class OrchestratorAgent:
             ResolvedQuestion(
                 question=question,
                 answer=(
-                    "Proceed using reasonable assumptions stated or implied in the brief "
-                    "(non-interactive run)."
+                    "Proceed using reasonable assumptions stated or implied in the brief."
                 ),
             )
             for question in session.parsed_brief.open_questions
         ]
         session.parsed_brief.apply_open_question_resolutions(resolutions)
-
-    def _collect_open_question_answers_cli(
-        self,
-        session: WorkplanSession,
-    ) -> list[ResolvedQuestion]:
-        assert session.parsed_brief is not None
-        resolutions: list[ResolvedQuestion] = []
-        console.print(
-            Panel(
-                "Resolve each open question before WBS and RAID are generated.",
-                title="Open questions",
-            )
-        )
-        from workplan_agent.confirmation import build_confirmation_questions
-
-        pending = build_confirmation_questions(session.parsed_brief)
-        session.parsed_brief.open_questions = [item.question for item in pending]
-        for item in pending:
-            console.print(f"[bold]{item.question}[/bold]")
-            if item.suggested_answers:
-                console.print("[dim]Suggested options:[/dim]")
-                for index, choice in enumerate(item.suggested_answers, start=1):
-                    console.print(f"  {index}. {choice}")
-            while True:
-                answer = console.input("Your answer (pick a suggestion or write your own): ").strip()
-                if answer:
-                    break
-                console.print("[red]An answer is required to continue.[/red]")
-            resolutions.append(ResolvedQuestion(question=item.question, answer=answer))
-        return resolutions
 
     def generate_workplan_artifacts(
         self,
@@ -246,11 +203,7 @@ class OrchestratorAgent:
 
             pending = build_confirmation_questions(session.parsed_brief)
             session.parsed_brief.open_questions = [item.question for item in pending]
-            if self.interactive:
-                resolutions = self._collect_open_question_answers_cli(session)
-                session.parsed_brief.apply_open_question_resolutions(resolutions)
-            else:
-                self._auto_resolve_open_questions(session)
+            self._auto_resolve_open_questions(session)
             save_artifacts(self.output_dir, session)
 
         self.generate_workplan_artifacts(session, user_prompt=user_prompt)
@@ -323,91 +276,3 @@ class OrchestratorAgent:
         if session.status_report is not None:
             table.add_row("Status report milestones", str(len(session.status_report.milestones)))
         console.print(table)
-
-    def _revision_loop(self, session: WorkplanSession) -> None:
-        assert session.parsed_brief is not None
-        assert session.wbs is not None
-        assert session.raid is not None
-
-        while self.max_revisions == 0 or session.revision_count < self.max_revisions:
-            console.print(Panel(REVIEW_MENU.strip(), title="Review"))
-            raw = console.input("[bold]Enter choice (1-8):[/bold] ").strip()
-            action = parse_review_choice(raw)
-            if action is None:
-                console.print(
-                    "[red]Invalid choice.[/red] Enter 1–8, or: "
-                    "approve, wbs, raid, stakeholder, status, both, all, quit"
-                )
-                continue
-
-            if action == ReviewAction.APPROVE:
-                session.status = SessionStatus.APPROVED
-                save_artifacts(self.output_dir, session)
-                save_status(self.output_dir, session)
-                console.print("[green]Workplan approved![/green]")
-                return
-
-            if action == ReviewAction.QUIT:
-                console.print("[yellow]Exiting without approval.[/yellow]")
-                save_status(self.output_dir, session)
-                return
-
-            target_map = {
-                ReviewAction.WBS: RevisionTarget.WBS,
-                ReviewAction.RAID: RevisionTarget.RAID,
-                ReviewAction.STAKEHOLDER: RevisionTarget.STAKEHOLDER,
-                ReviewAction.STATUS: RevisionTarget.STATUS,
-                ReviewAction.BOTH: RevisionTarget.BOTH,
-                ReviewAction.ALL: RevisionTarget.ALL,
-            }
-            target = target_map[action]
-
-            feedback = console.input("[bold]Enter feedback:[/bold] ").strip()
-            if not feedback:
-                console.print("[red]Feedback cannot be empty.[/red]")
-                continue
-
-            console.print("[bold]Applying revision...[/bold]")
-            result = self.revision_agent.run(
-                parsed_brief=session.parsed_brief,
-                wbs=session.wbs,
-                raid=session.raid,
-                stakeholder_map=session.stakeholder_map,
-                status_report=session.status_report,
-                feedback=feedback,
-                target=target,
-            )
-
-            if result.wbs is not None:
-                session.wbs = result.wbs
-            if result.raid is not None:
-                session.raid = result.raid
-            if result.stakeholder_map is not None:
-                session.stakeholder_map = result.stakeholder_map
-            if result.status_report is not None:
-                session.status_report = result.status_report
-
-            session.revision_count += 1
-            session.snapshot(f"revision_{session.revision_count}")
-            save_artifacts(self.output_dir, session)
-            save_version_snapshot(
-                self.output_dir,
-                session,
-                len(session.versions),
-            )
-            self._display_summary(session)
-            if self.max_revisions > 0:
-                remaining = self.max_revisions - session.revision_count
-                console.print(
-                    f"[green]Revision {session.revision_count} applied "
-                    f"({remaining} remaining).[/green]"
-                )
-            else:
-                console.print(
-                    f"[green]Revision {session.revision_count} applied.[/green]"
-                )
-
-        if self.max_revisions > 0:
-            console.print("[yellow]Max revisions reached. Saving current state.[/yellow]")
-            save_artifacts(self.output_dir, session)
-            save_status(self.output_dir, session)

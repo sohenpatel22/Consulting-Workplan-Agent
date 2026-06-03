@@ -33,7 +33,7 @@ ORCHESTRATION_DIAGRAM = r"""flowchart TB
         O["Orchestrator<br/>(orchestrator.py)"]
         PARSE["parse_brief_only"]
         GEN["generate_workplan_artifacts"]
-        REVLOOP["apply_revision /<br/>_revision_loop (CLI)"]
+        REVLOOP["apply_revision<br/>(web API)"]
     end
 
     subgraph state["Shared session state (orchestrator-owned)"]
@@ -142,11 +142,10 @@ PIPELINE_SEQUENCE = r"""sequenceDiagram
     Orch->>Session: save_artifacts, snapshot v1
 
     loop review / revision
-        User->>Entry: feedback + target (wbs|raid|both|all|...)
+        User->>Entry: feedback + target (wbs|raid|stakeholder|status)
         Entry->>Orch: apply_revision(session, target, feedback)
         Orch->>Agent: RevisionAgent.run(artifacts, feedback, target)
-        Note over Agent: BOTH/ALL: WBS helper then RAID uses updated WBS
-        Agent->>LLM: one or more structured revision calls
+        Agent->>LLM: structured revision call for selected artifact
         LLM-->>Agent: RevisionResult
         Orch->>Session: merge result, revision_count++, versions/
     end

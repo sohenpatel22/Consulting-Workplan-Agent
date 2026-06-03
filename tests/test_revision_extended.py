@@ -93,26 +93,3 @@ def test_revision_status_only(
     assert result.wbs is None
     assert result.raid is None
 
-
-def test_revision_all(
-    provider: MockLLMProvider,
-    parsed_brief: ParsedBrief,
-    wbs: WBS,
-    raid: RAIDLog,
-    stakeholder_map: StakeholderMap,
-    status_report: WeeklyStatusReport,
-) -> None:
-    agent = RevisionAgent(provider)
-    result = agent.run(
-        parsed_brief=parsed_brief,
-        wbs=wbs,
-        raid=raid,
-        stakeholder_map=stakeholder_map,
-        status_report=status_report,
-        feedback="Perform a full overhaul.",
-        target=RevisionTarget.ALL,
-    )
-    assert result.wbs is not None
-    assert result.raid is not None
-    assert result.stakeholder_map is not None
-    assert result.status_report is not None

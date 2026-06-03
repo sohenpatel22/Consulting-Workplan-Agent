@@ -17,7 +17,6 @@ from workplan_agent.api.schemas import (
 from workplan_agent.confirmation import build_confirmation_questions
 from workplan_agent.models.artifact_versions import (
     REVISION_ARTIFACTS,
-    after_multi_revision,
     after_quality_check,
     after_revision,
     compute_stale_artifacts,
@@ -296,8 +295,6 @@ def _make_orchestrator(record: SessionRecord) -> OrchestratorAgent:
     return OrchestratorAgent(
         provider=provider,
         output_dir=record.output_dir,
-        interactive=False,
-        auto_approve=False,
         verbose=False,
     )
 
@@ -454,13 +451,13 @@ def _compute_revision_diff(
     after_stakeholder_md = render_stakeholder_markdown(session.stakeholder_map, session.parsed_brief) if session.stakeholder_map else ""
     after_status_md = render_status_markdown(session.status_report, session.parsed_brief) if session.status_report else ""
 
-    if target in (RevisionTarget.WBS, RevisionTarget.BOTH, RevisionTarget.ALL):
+    if target == RevisionTarget.WBS:
         wbs_diff = unified_text_diff(before_wbs_md, after_wbs_md, "WBS") or None
-    if target in (RevisionTarget.RAID, RevisionTarget.BOTH, RevisionTarget.ALL):
+    elif target == RevisionTarget.RAID:
         raid_diff = unified_text_diff(before_raid_md, after_raid_md, "RAID") or None
-    if target in (RevisionTarget.STAKEHOLDER, RevisionTarget.ALL):
+    elif target == RevisionTarget.STAKEHOLDER:
         stakeholder_diff = unified_text_diff(before_stakeholder_md, after_stakeholder_md, "Stakeholder Map") or None
-    if target in (RevisionTarget.STATUS, RevisionTarget.ALL):
+    elif target == RevisionTarget.STATUS:
         status_diff = unified_text_diff(before_status_md, after_status_md, "Weekly Status Report") or None
 
     if not wbs_diff and not raid_diff and not stakeholder_diff and not status_diff:
@@ -503,15 +500,7 @@ def _validate_review(
             raise ValueError("Feedback is required for revisions.")
         return
 
-    if request.action in ("both", "all"):
-        if not allow_in_progress and record.revisions_in_progress:
-            raise ValueError("A revision action is already in progress.")
-        unlimited, _ = _revision_limits()
-        remaining = _revisions_remaining(record.session.revision_count)
-        if not unlimited and remaining == 0:
-            raise ValueError("Maximum revision count reached.")
-        if not request.feedback.strip():
-            raise ValueError("Feedback is required for revisions.")
+    raise ValueError(f"Unknown review action: {request.action}")
 
 
 def apply_review_work(session_id: str, request: ReviewRequest) -> ReviewResponse:
@@ -556,15 +545,7 @@ def apply_review_work(session_id: str, request: ReviewRequest) -> ReviewResponse
             message="Quality gates updated.",
         )
 
-    target_map = {
-        "wbs": RevisionTarget.WBS,
-        "raid": RevisionTarget.RAID,
-        "stakeholder": RevisionTarget.STAKEHOLDER,
-        "status": RevisionTarget.STATUS,
-        "both": RevisionTarget.BOTH,
-        "all": RevisionTarget.ALL,
-    }
-    target = target_map[request.action]
+    target = RevisionTarget(request.action)
 
     assert session.parsed_brief is not None and session.wbs is not None and session.raid is not None
     before_wbs_md = render_wbs_markdown(session.wbs, session.parsed_brief)
@@ -580,21 +561,10 @@ def apply_review_work(session_id: str, request: ReviewRequest) -> ReviewResponse
     orchestrator = OrchestratorAgent(
         provider=provider,
         output_dir=record.output_dir,
-        interactive=False,
-        auto_approve=False,
         verbose=False,
     )
     orchestrator.apply_revision(session, target, request.feedback)
-    if request.action in REVISION_ARTIFACTS:
-        after_revision(session, request.action, upstream_snapshot)
-    elif request.action == "both":
-        after_multi_revision(session, ["wbs", "raid"], upstream_snapshot)
-    elif request.action == "all":
-        after_multi_revision(
-            session,
-            list(REVISION_ARTIFACTS),
-            upstream_snapshot,
-        )
+    after_revision(session, request.action, upstream_snapshot)
     revision_diff = _compute_revision_diff(
         session,
         target,
@@ -623,13 +593,9 @@ def apply_review_work(session_id: str, request: ReviewRequest) -> ReviewResponse
 
 
 def _revision_artifact(request: ReviewRequest) -> str:
-    if request.action in REVISION_ARTIFACTS:
-        return request.action
-    if request.action == "both":
-        return "both"
-    if request.action == "all":
-        return "all"
-    raise ValueError(f"Not a revision action: {request.action}")
+    if request.action not in REVISION_ARTIFACTS:
+        raise ValueError(f"Not a revision action: {request.action}")
+    return request.action
 
 
 def start_revision(session_id: str, request: ReviewRequest) -> str:

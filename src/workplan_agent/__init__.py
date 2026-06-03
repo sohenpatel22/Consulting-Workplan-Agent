@@ -1,3 +1,3 @@
-"""Consulting workplan agent: brief → WBS + RAID with revision loop."""
+"""Consulting workplan agent: brief → WBS, RAID, stakeholder map, and status report."""
 
 __version__ = "0.1.0"

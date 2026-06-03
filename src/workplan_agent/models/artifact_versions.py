@@ -91,15 +91,6 @@ def after_revision(
         }
 
 
-def after_multi_revision(
-    session: WorkplanSession,
-    targets: list[str],
-    upstream_snapshot: dict[str, int],
-) -> None:
-    for target in targets:
-        after_revision(session, target, upstream_snapshot)
-
-
 def after_quality_check(session: WorkplanSession) -> None:
     _bump(session, "quality_gates")
     upstream = _current_upstream(session)
