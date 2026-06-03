@@ -1,5 +1,5 @@
 {
-  "source_file": "APS1049_Team 2-RAID Log-Template .xlsx",
+  "source_file": "raid_log_template.xlsx",
   "summary": "RAID log follows the Deloitte Excel template: Risks, Actions, Issues, and Decisions are separate sections (not Assumptions/Dependencies). Use priority values High, Moderate, or Low.",
   "sections": [
     {

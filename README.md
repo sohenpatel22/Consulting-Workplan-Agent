@@ -138,14 +138,16 @@ Source files in the project root are synced into machine-readable specs the LLM 
 uv run python scripts/sync_deloitte_templates.py
 ```
 
-This writes:
+This copies source templates into `templates/deloitte/` and writes:
 
 | File | Purpose |
 |------|---------|
 | `templates/deloitte/wbs_template.spec.json` | Column names, hierarchy rules, example rows from the WBS docx |
 | `templates/deloitte/raid_template.spec.json` | Risks / Actions / Issues / Decisions sections from the RAID xlsx |
+| `templates/deloitte/stakeholder_template.spec.json` | Stakeholder map columns and example rows from the stakeholder xlsx |
+| `templates/deloitte/status_report_template.spec.json` | Status report sections and milestone table from the status docx |
 
-`prompts.py` injects these specs into every WBS and RAID generation call (plus the Pydantic JSON schema). Generated data uses the same field names as the templates (`wbs_code`, `key_deliverable`, `wbs_links`, etc.).
+`prompts.py` injects these specs into every WBS, RAID, Stakeholder Map, and Weekly Status Report generation call (plus the Pydantic JSON schema). Generated data uses the same field names as the templates (`wbs_code`, `wbs_links`, `engagement_strategy`, `milestones`, etc.).
 
 **RAID categories:** Risks, **Actions**, Issues, **Decisions** (not Assumptions/Dependencies). Legacy `items` JSON is still accepted when loading old sessions.
 

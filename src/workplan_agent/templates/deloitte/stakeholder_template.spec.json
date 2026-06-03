@@ -1,0 +1,201 @@
+{
+  "source_file": "stakeholder_map_template.xlsx",
+  "sheet": "Stakeholder Map",
+  "summary": "Stakeholder map follows the Deloitte Excel template: one row per stakeholder with influence/interest analysis and engagement strategy. Ground every row in the brief, WBS, or RAID; limit inferred stakeholders to 3–5 with rationale.",
+  "columns": [
+    {
+      "header": "Stakeholder",
+      "field": "name",
+      "type": "string",
+      "description": "Stakeholder name or group"
+    },
+    {
+      "header": "Source",
+      "field": "source",
+      "type": "string",
+      "description": "explicit or inferred"
+    },
+    {
+      "header": "Rationale (if inferred)",
+      "field": "rationale",
+      "type": "string",
+      "description": "Required when source is inferred; empty when explicit"
+    },
+    {
+      "header": "Department/Group",
+      "field": "department",
+      "type": "string",
+      "description": "Organizational unit"
+    },
+    {
+      "header": "Role in Project",
+      "field": "role_in_project",
+      "type": "string",
+      "description": "Role relative to the engagement"
+    },
+    {
+      "header": "Influence Level",
+      "field": "influence_level",
+      "type": "string",
+      "description": "High, Medium, or Low"
+    },
+    {
+      "header": "Interest Level",
+      "field": "interest_level",
+      "type": "string",
+      "description": "High, Medium, or Low"
+    },
+    {
+      "header": "Engagement Strategy",
+      "field": "engagement_strategy",
+      "type": "string",
+      "description": "e.g. Manage Closely, Keep Informed, Keep Satisfied"
+    },
+    {
+      "header": "Key Concerns",
+      "field": "key_concerns",
+      "type": "string",
+      "description": "Primary concerns for this stakeholder"
+    },
+    {
+      "header": "Communication Frequency",
+      "field": "communication_frequency",
+      "type": "string",
+      "description": "Weekly, Bi-weekly, Monthly, or Ad-hoc"
+    },
+    {
+      "header": "Engagement Approach",
+      "field": "engagement_approach",
+      "type": "string",
+      "description": "How to engage this stakeholder"
+    },
+    {
+      "header": "Communication Method",
+      "field": "communication_method",
+      "type": "string",
+      "description": "Channels and forums for communication"
+    }
+  ],
+  "generation_rules": [
+    "Root JSON: {\"stakeholders\": [ /* one object per table row */ ]}.",
+    "source must be explicit or inferred (lowercase in JSON).",
+    "rationale is required and non-empty when source is inferred; null or empty when explicit.",
+    "influence_level and interest_level: High, Medium, or Low.",
+    "communication_frequency: Weekly, Bi-weekly, Monthly, or Ad-hoc.",
+    "Do not invent generic roles without WBS/RAID/brief justification."
+  ],
+  "example_rows": [
+    {
+      "name": "Deloitte Client Representatives",
+      "source": "explicit",
+      "rationale": null,
+      "department": "Client / Consulting",
+      "role_in_project": "Provide project expectations, evaluation criteria, and feedback",
+      "influence_level": "High",
+      "interest_level": "High",
+      "engagement_strategy": "Manage Closely",
+      "key_concerns": "Quality of outputs, professionalism, usefulness of agent",
+      "communication_frequency": "Weekly",
+      "engagement_approach": "Progress reviews, milestone sign-offs, feedback sessions",
+      "communication_method": "Meetings, presentations, email"
+    },
+    {
+      "name": "Project Team Lead",
+      "source": "explicit",
+      "rationale": null,
+      "department": "Student Team",
+      "role_in_project": "Oversees coordination, deadlines, and team integration",
+      "influence_level": "High",
+      "interest_level": "High",
+      "engagement_strategy": "Manage Closely",
+      "key_concerns": "Timeline management, team alignment, project completion",
+      "communication_frequency": "2–3 times per week",
+      "engagement_approach": "Team coordination, issue resolution, task tracking",
+      "communication_method": "Team meetings, chat"
+    },
+    {
+      "name": "AI Developers",
+      "source": "inferred",
+      "rationale": "AI agent development is required to build and implement the proposed solution",
+      "department": "Technical Team",
+      "role_in_project": "Build and implement the AI agent and revision loop",
+      "influence_level": "High",
+      "interest_level": "High",
+      "engagement_strategy": "Manage Closely",
+      "key_concerns": "Technical feasibility, integration, prompt reliability",
+      "communication_frequency": "2–3 times per week",
+      "engagement_approach": "Technical reviews, sprint planning, testing discussions",
+      "communication_method": "Team meetings, shared docs"
+    },
+    {
+      "name": "Stakeholder Management Analyst",
+      "source": "explicit",
+      "rationale": null,
+      "department": "Consulting / Operations",
+      "role_in_project": "Designs stakeholder mapping template and stakeholder logic",
+      "influence_level": "Medium",
+      "interest_level": "High",
+      "engagement_strategy": "Keep Informed",
+      "key_concerns": "Accuracy of stakeholder identification and communication structure",
+      "communication_frequency": "Weekly",
+      "engagement_approach": "Stakeholder review sessions and feedback incorporation",
+      "communication_method": "Shared docs, meetings"
+    },
+    {
+      "name": "RAID Analyst",
+      "source": "inferred",
+      "rationale": "Risk identification and management are required deliverables within the project scope",
+      "department": "Consulting / Operations",
+      "role_in_project": "Develops RAID framework and risk identification structure",
+      "influence_level": "Medium",
+      "interest_level": "High",
+      "engagement_strategy": "Keep Informed",
+      "key_concerns": "Completeness of risks, dependencies, and mitigation plans",
+      "communication_frequency": "Weekly",
+      "engagement_approach": "Risk review discussions and coordination with workstream leads",
+      "communication_method": "Meetings, collaborative docs"
+    },
+    {
+      "name": "QA / Testing Members",
+      "source": "explicit",
+      "rationale": null,
+      "department": "Quality Assurance",
+      "role_in_project": "Test outputs, identify errors, and validate deliverables",
+      "influence_level": "Medium",
+      "interest_level": "High",
+      "engagement_strategy": "Keep Informed",
+      "key_concerns": "Reliability, consistency, and usability of outputs",
+      "communication_frequency": "Weekly",
+      "engagement_approach": "Testing reviews, issue reporting, validation feedback",
+      "communication_method": "Shared trackers, meetings"
+    },
+    {
+      "name": "End Users / Evaluators",
+      "source": "explicit",
+      "rationale": null,
+      "department": "Academic / Client Reviewers",
+      "role_in_project": "Review and evaluate final project deliverables",
+      "influence_level": "High",
+      "interest_level": "Medium",
+      "engagement_strategy": "Keep Satisfied",
+      "key_concerns": "Clarity, usability, and professionalism",
+      "communication_frequency": "At major milestones",
+      "engagement_approach": "Demonstrations and feedback collection",
+      "communication_method": "Demo presentations"
+    },
+    {
+      "name": "Course Instructors / TAs",
+      "source": "explicit",
+      "rationale": null,
+      "department": "Academic",
+      "role_in_project": "Assess project quality and assignment requirements",
+      "influence_level": "High",
+      "interest_level": "Medium",
+      "engagement_strategy": "Keep Satisfied",
+      "key_concerns": "Assignment alignment and learning outcomes",
+      "communication_frequency": "As needed",
+      "engagement_approach": "Milestone reviews and clarification discussions",
+      "communication_method": "Email, office hours"
+    }
+  ]
+}
