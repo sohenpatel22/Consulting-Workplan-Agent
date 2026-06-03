@@ -80,6 +80,8 @@ def download_artifact(
             fmt,
             wbs=workplan.wbs,
             raid=workplan.raid,
+            stakeholder_map=workplan.stakeholder_map,
+            status_report=workplan.status_report,
             parsed_brief=parsed,
         )
     except ValueError as exc:

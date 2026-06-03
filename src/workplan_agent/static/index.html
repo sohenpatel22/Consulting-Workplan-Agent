@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Workplan Agent</title>
-    <link rel="stylesheet" href="/assets/style.css?v=14" />
+    <link rel="stylesheet" href="/assets/style.css?v=17" />
   </head>
   <body>
     <header class="header">
@@ -12,7 +12,12 @@
         <h1>Workplan Agent</h1>
         <p class="subtitle">Client brief → WBS + RAID + Stakeholder Map + Status Report + Quality Gates</p>
       </div>
-      <span id="healthBadge" class="badge">Checking API…</span>
+      <div class="header-meta">
+        <span id="modelBadge" class="badge" title="Backend LLM when not in mock mode"
+          >Loading model…</span
+        >
+        <span id="healthBadge" class="badge">Checking API…</span>
+      </div>
     </header>
 
     <main class="layout" id="appLayout">
@@ -81,13 +86,14 @@
       </section>
 
       <section class="panel hidden" id="confirmPanel">
-        <h2>Confirm open questions</h2>
+        <h2>Confirm before build</h2>
         <p class="session-meta">
           Session <code id="confirmSessionIdLabel"></code>
         </p>
         <p class="hint">
-          The brief was parsed. Resolve each item below before WBS and RAID are generated.
-          Your answers are treated as decided facts for the workplan.
+          The brief was parsed. Answer up to five sign-off questions (including overall risk
+          appetite) before WBS and RAID are generated. Use a suggested option or write your own
+          answer in the box — your responses are treated as decided facts for the workplan.
         </p>
         <div id="parsePreview" class="parse-preview hidden"></div>
         <form id="confirmQuestionsForm" class="confirm-form"></form>
@@ -103,6 +109,12 @@
         <div class="results-header">
           <h2>Artifacts</h2>
           <span id="statusBadge" class="badge"></span>
+        </div>
+        <div id="generationBanner" class="generation-banner hidden" role="status">
+          <div class="progress generation-progress">
+            <div class="progress-bar" id="generationProgressBar"></div>
+          </div>
+          <p id="generationPhaseLabel" class="phase"></p>
         </div>
         <div id="summaryCards" class="cards"></div>
         <div id="openQuestions" class="notice hidden"></div>
@@ -130,7 +142,7 @@
           <div class="artifact-split">
             <div class="artifact-pane artifact-pane-preview">
               <span class="pane-label">Document preview</span>
-              <p class="pane-hint">Formatted view — same as downloaded HTML.</p>
+              <p class="pane-hint">Formatted view — same as downloaded HTML. Click the preview to open full screen.</p>
               <div id="staleNotice" class="stale-notice hidden" role="status"></div>
               <div id="artifactPreview" class="artifact-preview"></div>
             </div>
@@ -202,6 +214,30 @@
       </section>
     </main>
 
-    <script src="/assets/app.js?v=14"></script>
+    <div
+      id="previewFullscreen"
+      class="preview-fullscreen hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="previewFullscreenTitle"
+    >
+      <div class="preview-fullscreen-backdrop" data-close-preview></div>
+      <div class="preview-fullscreen-panel">
+        <header class="preview-fullscreen-header">
+          <h2 id="previewFullscreenTitle" class="preview-fullscreen-title">Document preview</h2>
+          <button
+            type="button"
+            id="closePreviewFullscreen"
+            class="btn secondary btn-sm preview-fullscreen-close"
+            aria-label="Close full screen preview"
+          >
+            Close
+          </button>
+        </header>
+        <div id="previewFullscreenBody" class="preview-fullscreen-body artifact-preview"></div>
+      </div>
+    </div>
+
+    <script src="/assets/app.js?v=17"></script>
   </body>
 </html>

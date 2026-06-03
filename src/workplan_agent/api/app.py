@@ -14,6 +14,7 @@ from workplan_agent.api.schemas import (
 )
 from workplan_agent.api.files import router as files_router
 from workplan_agent.api.store import get_store
+from workplan_agent.config import get_settings
 from workplan_agent.api.service import (
     STATIC_DIR,
     apply_approve,
@@ -61,8 +62,8 @@ def index() -> FileResponse:
 
 
 @app.get("/api/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def health() -> dict[str, str | bool]:
+    return {"status": "ok", **get_settings().llm_status()}
 
 
 @app.post("/api/sessions", response_model=CreateSessionResponse, status_code=202)

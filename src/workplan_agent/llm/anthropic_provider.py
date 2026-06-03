@@ -109,11 +109,14 @@ class AnthropicProvider:
         system, user_messages = self._prepare_messages(messages, response_model)
         last_error: Exception | None = None
 
+        max_output_tokens = self._settings.llm_max_output_tokens
+
         for attempt in range(self._settings.max_repair_attempts + 1):
+            truncated = False
             try:
                 kwargs: dict[str, Any] = {
                     "model": model,
-                    "max_tokens": 8192,
+                    "max_tokens": max_output_tokens,
                     "system": system,
                     "messages": user_messages,
                 }
@@ -122,6 +125,7 @@ class AnthropicProvider:
                 # Block-level cache_control is set in prompts; top-level cache_control
                 # would add another breakpoint and can exceed the limit of 4.
                 response = self._client.messages.create(**kwargs)
+                truncated = response.stop_reason == "max_tokens"
                 content = response.content[0].text
                 text = content.strip()
                 if text.startswith("```"):
@@ -132,13 +136,26 @@ class AnthropicProvider:
                 data = json.loads(text)
                 return response_model.model_validate(data)
             except (json.JSONDecodeError, ValidationError) as exc:
+                if truncated:
+                    exc = ValueError(
+                        "Model output was truncated at the token limit "
+                        f"({max_output_tokens}), so JSON was incomplete "
+                        f"(often reported as: {exc})."
+                    )
                 last_error = exc
                 if attempt < self._settings.max_repair_attempts:
+                    repair_hint = (
+                        "Return valid complete JSON only. The previous reply was cut off "
+                        "mid-response — shorten long description fields and finish all "
+                        "arrays/objects."
+                        if truncated
+                        else f"Your previous response failed validation: {exc}."
+                    )
                     user_messages = user_messages + [
                         {
                             "role": "user",
                             "content": (
-                                f"Your previous response failed validation: {exc}. "
+                                f"{repair_hint} "
                                 f"{schema_instruction(response_model)}"
                             ),
                         }

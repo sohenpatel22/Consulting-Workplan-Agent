@@ -136,4 +136,5 @@ def test_wbs_markdown_render(parsed_brief: ParsedBrief) -> None:
     md = render_wbs_markdown(wbs, parsed_brief)
     assert "Work Breakdown Structure" in md
     assert "Northwind Retail Group" in md
+    assert "Owner Side" in md
     assert "1.0" in md

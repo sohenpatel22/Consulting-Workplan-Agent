@@ -1,4 +1,4 @@
-"""Load Deloitte WBS/RAID template specs and build LLM generation contracts from them."""
+"""Load Deloitte template specs and build LLM generation contracts from them."""
 
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ from typing import Any
 _SPECS_DIR = Path(__file__).resolve().parent / "deloitte"
 WBS_SPEC_PATH = _SPECS_DIR / "wbs_template.spec.json"
 RAID_SPEC_PATH = _SPECS_DIR / "raid_template.spec.json"
+STAKEHOLDER_SPEC_PATH = _SPECS_DIR / "stakeholder_template.spec.json"
+STATUS_SPEC_PATH = _SPECS_DIR / "status_report_template.spec.json"
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -25,6 +27,18 @@ def load_raid_spec() -> dict[str, Any]:
     if not RAID_SPEC_PATH.is_file():
         raise FileNotFoundError(f"RAID template spec missing: {RAID_SPEC_PATH}")
     return _read_json(RAID_SPEC_PATH)
+
+
+def load_stakeholder_spec() -> dict[str, Any]:
+    if not STAKEHOLDER_SPEC_PATH.is_file():
+        raise FileNotFoundError(f"Stakeholder template spec missing: {STAKEHOLDER_SPEC_PATH}")
+    return _read_json(STAKEHOLDER_SPEC_PATH)
+
+
+def load_status_report_spec() -> dict[str, Any]:
+    if not STATUS_SPEC_PATH.is_file():
+        raise FileNotFoundError(f"Status report template spec missing: {STATUS_SPEC_PATH}")
+    return _read_json(STATUS_SPEC_PATH)
 
 
 def build_wbs_generation_contract(spec: dict[str, Any] | None = None) -> str:
@@ -73,6 +87,7 @@ def build_wbs_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "- Map work to objectives and in-scope items from the parsed brief.",
             "- Exclude out-of-scope work.",
             "- Use client terminology from the brief in titles and descriptions.",
+            "- Classify `owner_side` as Client, Consultant, or Joint for every work package.",
         ]
     )
     return "\n".join(lines).strip()
@@ -118,6 +133,7 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
         [
             "### Pre-submit checklist",
             "- Every risk and action includes `wbs_links` pointing to real `wbs_code` values from the WBS.",
+            "- Every RAID item includes `owner_side`: Client, Consultant, or Joint.",
             "- Risks include `mitigation` and `probability` (High, Moderate, or Low).",
             "- Use `priority` (and `probability` for risks): High, Moderate, or Low.",
             "- Derive actions from assumptions, client activities, and follow-ups in the brief.",
@@ -155,3 +171,134 @@ def format_wbs_spec_for_prompt(spec: dict[str, Any] | None = None) -> str:
 def format_raid_spec_for_prompt(spec: dict[str, Any] | None = None) -> str:
     """Alias for the RAID generation contract (used in tests and docs)."""
     return build_raid_generation_contract(spec)
+
+
+def build_stakeholder_generation_contract(spec: dict[str, Any] | None = None) -> str:
+    """Full Deloitte Stakeholder Map contract from stakeholder_template.spec.json."""
+    spec = spec or load_stakeholder_spec()
+    lines = [
+        "## Deloitte Stakeholder Map generation contract (authoritative — follow while generating)",
+        "",
+        spec.get("summary", ""),
+        "",
+        "Generate the complete stakeholder map in one response. Each table row is one object "
+        "in `stakeholders`.",
+        "",
+        "### Required JSON envelope",
+        '{"stakeholders": [ /* one object per stakeholder row */ ]}',
+        "",
+        "### Table columns (use these JSON field names on every row)",
+    ]
+    for col in spec.get("columns", []):
+        lines.append(
+            f"- `{col['field']}` — **{col['header']}**: {col.get('description', '').strip()}"
+        )
+
+    lines.extend(["", "### Generation rules"])
+    for rule in spec.get("generation_rules", []):
+        lines.append(f"- {rule}")
+
+    lines.extend(
+        [
+            "",
+            "### Example rows from the Deloitte template (mirror depth and engagement style)",
+        ]
+    )
+    for row in spec.get("example_rows", []):
+        lines.append(f"- {json.dumps(row, ensure_ascii=False)}")
+
+    lines.extend(
+        [
+            "",
+            "### Content alignment",
+            "- Ground every stakeholder in the parsed brief, WBS, or RAID.",
+            "- Infer at most 3–5 stakeholders; each inferred row needs a specific rationale.",
+            "- Classify `organization_side` as Client, Consultant, Joint, or Other.",
+        ]
+    )
+    return "\n".join(lines).strip()
+
+
+def build_status_report_generation_contract(spec: dict[str, Any] | None = None) -> str:
+    """Full Deloitte Weekly Status Report contract from status_report_template.spec.json."""
+    spec = spec or load_status_report_spec()
+    lines = [
+        "## Deloitte Weekly Status Report generation contract (authoritative — follow while generating)",
+        "",
+        spec.get("summary", ""),
+        "",
+        "### Required JSON envelope",
+        '{"project_name": "...", "project_manager": "...", "date": "...", '
+        '"summary": "...", "new_initiatives": [], "blockers": [], "risks": [], '
+        '"milestones": [], "supporting_links": []}',
+        "",
+        "### Header fields",
+    ]
+    for field in spec.get("header_fields", []):
+        lines.append(
+            f"- `{field['field']}` — **{field['label']}**: {field.get('description', '').strip()}"
+        )
+
+    lines.extend(["", "### Report sections"])
+    for section in spec.get("sections", []):
+        lines.append(
+            f"- `{section['field']}` ({section['label']}): {section.get('description', '').strip()}"
+        )
+
+    lines.extend(["", "### Milestone table columns"])
+    for col in spec.get("milestone_columns", []):
+        lines.append(
+            f"- `{col['field']}` — **{col['header']}**: {col.get('description', '').strip()}"
+        )
+    status_values = spec.get("milestone_status_values", [])
+    if status_values:
+        lines.append(f"- `status` must be one of: {', '.join(status_values)}.")
+
+    lines.extend(["", "### Generation rules"])
+    for rule in spec.get("generation_rules", []):
+        lines.append(f"- {rule}")
+
+    example_milestones = spec.get("example_milestones", [])
+    if example_milestones:
+        lines.extend(["", "### Example milestone rows"])
+        for row in example_milestones:
+            lines.append(f"- {json.dumps(row, ensure_ascii=False)}")
+
+    lines.extend(
+        [
+            "",
+            "### Content alignment",
+            "- Do not invent progress not supported by WBS or RAID.",
+            "- Pull risks from RAID; blockers from open RAID issues or WBS dependencies.",
+            "- Classify each milestone `owner_side` as Client, Consultant, or Joint.",
+        ]
+    )
+    return "\n".join(lines).strip()
+
+
+def stakeholder_json_output_instruction() -> str:
+    return (
+        "Respond with **valid JSON only** (no markdown fences or commentary). "
+        "The Deloitte Stakeholder Map generation contract above defines the required shape "
+        "and fields — follow it exactly.\n"
+        'Root object: `{"stakeholders": [ ... ]}`'
+    )
+
+
+def status_json_output_instruction() -> str:
+    return (
+        "Respond with **valid JSON only** (no markdown fences or commentary). "
+        "The Deloitte Weekly Status Report generation contract above defines the required "
+        "sections and fields — follow it exactly.\n"
+        'Root object: `{"project_name": "...", "project_manager": "...", "date": "...", '
+        '"summary": "...", "new_initiatives": [], "blockers": [], "risks": [], '
+        '"milestones": [], "supporting_links": []}`'
+    )
+
+
+def format_stakeholder_spec_for_prompt(spec: dict[str, Any] | None = None) -> str:
+    return build_stakeholder_generation_contract(spec)
+
+
+def format_status_report_spec_for_prompt(spec: dict[str, Any] | None = None) -> str:
+    return build_status_report_generation_contract(spec)

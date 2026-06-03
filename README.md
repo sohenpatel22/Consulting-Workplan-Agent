@@ -25,7 +25,7 @@ Specialist agents are stateless; the orchestrator owns session state, versioning
 uv sync --dev
 
 # Offline demo (no API keys required)
-uv run workplan run --brief samples/client_brief.md --output ./demo_out/ --mock --non-interactive
+uv run workplan run --brief samples/client_brief.md --output ./demo_out/ --mock
 
 # Live run (requires API keys)
 cp .env.example .env
@@ -35,33 +35,19 @@ uv run workplan run --brief samples/client_brief.md --output ./demo_out/
 
 ## CLI Usage
 
+The CLI is a thin entry point for one-shot generation. Review and revision run in the web UI.
+
 ```bash
 uv run workplan run --brief <path> --output <dir> [options]
 
 Options:
   --mock              Use mock LLM (offline demo)
-  --max-revisions N   Max revision iterations (0 = unlimited, default from env)
-  --non-interactive   Skip review loop
+  --prompt, -p        Optional planner guidance during generation
 ```
 
-### Interactive Review
-
-After generation, the CLI shows a numbered menu:
-
+```bash
+uv run workplan serve   # Web UI + REST API (recommended for review)
 ```
-  [1] Approve — finalize and save status.json
-  [2] WBS feedback — revise work breakdown
-  [3] RAID feedback — revise RAID log
-  [4] Stakeholder feedback — revise stakeholder map
-  [5] Status report feedback — revise weekly status report
-  [6] Both — revise WBS and RAID
-  [7] All — revise WBS, RAID, Stakeholder, and Status
-  [8] Quit — exit without approving
-```
-
-Enter **1–8** when prompted (words like `approve`, `all`, `quit` also work).
-
-Each revision is saved under `versions/vN/`.
 
 ## Output Artifacts
 
@@ -138,14 +124,16 @@ Source files in the project root are synced into machine-readable specs the LLM 
 uv run python scripts/sync_deloitte_templates.py
 ```
 
-This writes:
+This copies source templates into `templates/deloitte/` and writes:
 
 | File | Purpose |
 |------|---------|
 | `templates/deloitte/wbs_template.spec.json` | Column names, hierarchy rules, example rows from the WBS docx |
 | `templates/deloitte/raid_template.spec.json` | Risks / Actions / Issues / Decisions sections from the RAID xlsx |
+| `templates/deloitte/stakeholder_template.spec.json` | Stakeholder map columns and example rows from the stakeholder xlsx |
+| `templates/deloitte/status_report_template.spec.json` | Status report sections and milestone table from the status docx |
 
-`prompts.py` injects these specs into every WBS and RAID generation call (plus the Pydantic JSON schema). Generated data uses the same field names as the templates (`wbs_code`, `key_deliverable`, `wbs_links`, etc.).
+`prompts.py` injects these specs into every WBS, RAID, Stakeholder Map, and Weekly Status Report generation call (plus the Pydantic JSON schema). Generated data uses the same field names as the templates (`wbs_code`, `wbs_links`, `engagement_strategy`, `milestones`, etc.).
 
 **RAID categories:** Risks, **Actions**, Issues, **Decisions** (not Assumptions/Dependencies). Legacy `items` JSON is still accepted when loading old sessions.
 

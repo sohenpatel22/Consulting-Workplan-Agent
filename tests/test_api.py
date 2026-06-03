@@ -27,7 +27,12 @@ def client() -> TestClient:
 def test_health(client: TestClient) -> None:
     response = client.get("/api/health")
     assert response.status_code == 200
-    assert response.json()["status"] == "ok"
+    data = response.json()
+    assert data["status"] == "ok"
+    assert "configured_model" in data
+    assert "model" in data
+    assert "provider" in data
+    assert "ready" in data
 
 
 def test_index_page(client: TestClient) -> None:
@@ -36,12 +41,18 @@ def test_index_page(client: TestClient) -> None:
     assert "text/html" in response.headers["content-type"]
 
 
+def _question_text(item: str | dict) -> str:
+    if isinstance(item, str):
+        return item
+    return str(item.get("question", ""))
+
+
 def _confirm_open_questions(client: TestClient, session_id: str, data: dict) -> None:
     questions = data.get("confirmation_questions") or []
     if not questions:
         return
     answers = [
-        {"question": question, "answer": f"Confirmed for planning: {question}"}
+        {"question": _question_text(question), "answer": f"Confirmed for planning: {_question_text(question)}"}
         for question in questions
     ]
     response = client.post(
@@ -117,7 +128,16 @@ def test_open_questions_pause_before_build(client: TestClient) -> None:
 
     assert paused is not None
     assert paused["awaiting_confirmation"] is True
-    assert len(paused["confirmation_questions"]) >= 1
+    assert 1 <= len(paused["confirmation_questions"]) <= 5
+    risk_items = [
+        q
+        for q in paused["confirmation_questions"]
+        if "risk appetite" in _question_text(q).lower()
+    ]
+    assert len(risk_items) == 1
+    vendor = paused["confirmation_questions"][0]
+    assert isinstance(vendor, dict)
+    assert len(vendor.get("suggested_answers") or []) >= 2
     assert paused["parse_preview"] is not None
     assert paused["wbs"] is None
     assert paused["raid"] is None
@@ -126,6 +146,41 @@ def test_open_questions_pause_before_build(client: TestClient) -> None:
     final = _wait_for_complete(client, session_id)
     assert final["job_status"] == "complete"
     assert final["wbs"] is not None
+
+
+def test_session_response_exposes_partial_artifacts(client: TestClient) -> None:
+    from workplan_agent.api.schemas import CreateSessionRequest
+    from workplan_agent.api.service import create_session, get_store, session_to_response
+    from workplan_agent.llm.fixtures import PARSED_BRIEF_FIXTURE, RAID_FIXTURE, WBS_FIXTURE
+    from workplan_agent.models.brief import ParsedBrief
+    from workplan_agent.models.raid import RAIDLog
+    from workplan_agent.models.wbs import WBS
+
+    record = create_session(CreateSessionRequest(brief_text=BRIEF, mock=True))
+    record.session.parsed_brief = ParsedBrief.model_validate(PARSED_BRIEF_FIXTURE)
+    record.session.wbs = WBS.model_validate(WBS_FIXTURE)
+    record.job_status = "running"
+    record.phase = "generating_raid"
+    get_store().update(
+        record.session.session_id,
+        session=record.session,
+        job_status="running",
+        phase="generating_raid",
+    )
+
+    data = session_to_response(record)
+    assert data.wbs_html
+    assert data.raid_html is None
+    assert data.stakeholder_html is None
+    assert data.summary is not None
+    assert data.summary.wbs_items > 0
+    assert data.summary.raid_risks == 0
+
+    record.session.raid = RAIDLog.model_validate(RAID_FIXTURE)
+    record.phase = "generating_stakeholder"
+    data = session_to_response(record)
+    assert data.raid_html
+    assert data.stakeholder_html is None
 
 
 def test_create_session_mock(client: TestClient) -> None:

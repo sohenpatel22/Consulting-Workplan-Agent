@@ -68,4 +68,5 @@ def test_status_markdown_render(parsed_brief: ParsedBrief) -> None:
     assert "## Blockers" in md
     assert "## Risks" in md
     assert "## Milestones" in md
+    assert "Owner Side" in md
     assert "Kickoff" in md

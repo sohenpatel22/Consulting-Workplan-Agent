@@ -55,14 +55,60 @@ function parseApiError(body) {
   return String(body.detail);
 }
 
+let backendLlm = null;
+
+function formatModelBadge({ model, provider, ready, configured_model }) {
+  if (!ready || !model) {
+    return {
+      text: configured_model
+        ? `No API keys (MODEL=${configured_model})`
+        : "No API keys configured",
+      title: "Set OPENAI_API_KEY or ANTHROPIC_API_KEY for live generation",
+      warn: true,
+    };
+  }
+  const vendor = provider === "anthropic" ? "Anthropic" : "OpenAI";
+  const title =
+    model !== configured_model
+      ? `Configured MODEL=${configured_model}; using ${model} based on available API keys`
+      : `Backend LLM (${vendor})`;
+  return { text: `${vendor} · ${model}`, title, warn: false };
+}
+
+function refreshModelBadge() {
+  const el = $("modelBadge");
+  if (!el || !backendLlm) return;
+  const { text, title, warn } = formatModelBadge(backendLlm);
+  const mock = $("mockMode")?.checked;
+  el.textContent = mock ? `Mock mode · ${text}` : text;
+  el.title = mock
+    ? "Mock mode is on — revisions are simulated; this is the configured backend model for live runs"
+    : title;
+  el.classList.toggle("warn", warn);
+  el.classList.toggle("ok", !warn);
+}
+
 async function checkHealth() {
   const badge = $("healthBadge");
+  const modelBadge = $("modelBadge");
   try {
     const res = await fetch(`${API}/api/health`);
     if (!res.ok) throw new Error("unhealthy");
+    const data = await res.json();
+    backendLlm = {
+      model: data.model,
+      provider: data.provider,
+      ready: data.ready,
+      configured_model: data.configured_model,
+    };
+    refreshModelBadge();
     badge.textContent = "API online";
     badge.classList.add("ok");
   } catch {
+    if (modelBadge) {
+      modelBadge.textContent = "Model unknown";
+      modelBadge.classList.add("warn");
+    }
     badge.textContent = "API offline";
     badge.classList.add("warn");
   }
@@ -114,7 +160,11 @@ function updateDownloadBar() {
   const bar = $("downloadBar");
   const artifact = DOWNLOAD_ARTIFACTS[currentTab];
   const xlsxBtn = $("downloadXlsxBtn");
-  if (!currentSessionId || !artifact) {
+  if (
+    !currentSessionId ||
+    !artifact ||
+    (lastSessionData && isArtifactGenerationRunning(lastSessionData))
+  ) {
     bar.classList.add("hidden");
     return;
   }
@@ -307,6 +357,9 @@ function phaseLabel(phase, jobStatus, revisionsInProgress) {
     parsing: "Parsing client brief…",
     awaiting_confirmation: "Awaiting your answers…",
     generating_wbs: "Generating WBS…",
+    generating_raid: "Generating RAID log…",
+    generating_stakeholder: "Generating Stakeholder Map…",
+    generating_status: "Generating Status Report…",
     ready_for_review: "Ready for review",
     failed: "Generation failed",
   };
@@ -319,12 +372,93 @@ function progressPercent(phase, jobStatus) {
   if (jobStatus === "failed") return 100;
   const map = {
     queued: 10,
-    parsing: 35,
-    awaiting_confirmation: 50,
-    generating_wbs: 70,
+    parsing: 25,
+    awaiting_confirmation: 40,
+    generating_wbs: 55,
+    generating_raid: 70,
+    generating_stakeholder: 85,
+    generating_status: 95,
     ready_for_review: 100,
   };
   return map[phase] ?? 20;
+}
+
+function hasViewableArtifacts(data) {
+  return Boolean(
+    data?.wbs_html ||
+      data?.raid_html ||
+      data?.stakeholder_html ||
+      data?.status_html
+  );
+}
+
+function isArtifactGenerationRunning(data) {
+  return (
+    data?.job_status === "running" &&
+    !data?.awaiting_confirmation &&
+    data?.phase !== "awaiting_confirmation" &&
+    data?.phase !== "parsing" &&
+    data?.phase !== "queued"
+  );
+}
+
+function updateGenerationBanner(data) {
+  const banner = $("generationBanner");
+  if (!banner) return;
+  const inProgress = isArtifactGenerationRunning(data);
+  banner.classList.toggle("hidden", !inProgress);
+  if (!inProgress) return;
+  const label = phaseLabel(data.phase, data.job_status, data.revisions_in_progress);
+  $("generationPhaseLabel").textContent = `${label} — completed reports are shown below as they finish.`;
+  $("generationProgressBar").style.width = `${progressPercent(data.phase, data.job_status)}%`;
+}
+
+function updateProgressPanel(data) {
+  $("phaseLabel").textContent = phaseLabel(
+    data.phase,
+    data.job_status,
+    data.revisions_in_progress
+  );
+  $("progressBar").style.width = `${progressPercent(data.phase, data.job_status)}%`;
+}
+
+function handleGenerationPoll(data) {
+  updateProgressPanel(data);
+
+  if (data.awaiting_confirmation || data.phase === "awaiting_confirmation") {
+    clearInterval(pollTimer);
+    showConfirmationPanel(data);
+    return true;
+  }
+
+  if (hasViewableArtifacts(data) && isArtifactGenerationRunning(data)) {
+    showPanel("results");
+    updateResults(data);
+    updateGenerationBanner(data);
+  }
+
+  if (data.job_status === "complete" && !data.review_in_progress) {
+    clearInterval(pollTimer);
+    showPanel("results");
+    updateResults(data);
+    updateGenerationBanner(data);
+    return true;
+  }
+
+  if (data.job_status === "failed") {
+    clearInterval(pollTimer);
+    if (hasViewableArtifacts(data)) {
+      showPanel("results");
+      updateResults(data);
+      updateGenerationBanner(data);
+      setError($("reviewError"), data.error || "Generation failed before completion.");
+    } else {
+      setError($("progressError"), data.error || "Unknown error");
+    }
+    return true;
+  }
+
+  return false;
 }
 
 async function pollSession(sessionId) {
@@ -355,10 +489,58 @@ function renderSummary(summary) {
     .join("");
 }
 
+function isPreviewExpandable(previewEl) {
+  return Boolean(previewEl && !previewEl.querySelector(".empty-preview"));
+}
+
+function getPreviewTitle() {
+  return ARTIFACT_LABELS[currentTab] || "Document preview";
+}
+
+function updatePreviewExpandable() {
+  const preview = $("artifactPreview");
+  if (!preview) return;
+  const expandable = isPreviewExpandable(preview);
+  preview.classList.toggle("artifact-preview--expandable", expandable);
+  if (expandable) {
+    preview.setAttribute("tabindex", "0");
+    preview.setAttribute("role", "button");
+    preview.setAttribute("aria-label", `Open ${getPreviewTitle()} in full screen`);
+  } else {
+    preview.removeAttribute("tabindex");
+    preview.removeAttribute("role");
+    preview.removeAttribute("aria-label");
+  }
+}
+
+function openPreviewFullscreen() {
+  const source = $("artifactPreview");
+  if (!isPreviewExpandable(source)) return;
+  const modal = $("previewFullscreen");
+  const body = $("previewFullscreenBody");
+  $("previewFullscreenTitle").textContent = getPreviewTitle();
+  body.innerHTML = source.innerHTML;
+  modal.classList.remove("hidden");
+  document.body.classList.add("preview-fullscreen-open");
+  $("closePreviewFullscreen")?.focus();
+}
+
+function closePreviewFullscreen() {
+  const modal = $("previewFullscreen");
+  if (!modal || modal.classList.contains("hidden")) return;
+  modal.classList.add("hidden");
+  $("previewFullscreenBody").innerHTML = "";
+  document.body.classList.remove("preview-fullscreen-open");
+}
+
 function renderTabContent(data) {
   const artifactView = $("artifactView");
   const briefView = $("briefTabContent");
   const qualityGatesView = $("qualityGatesTabContent");
+
+  if (currentTab === "brief" || currentTab === "quality_gates") {
+    closePreviewFullscreen();
+  }
 
   if (currentTab === "brief") {
     artifactView.classList.add("hidden");
@@ -399,6 +581,7 @@ function renderTabContent(data) {
 
   renderStaleNotice(data);
   updateFeedbackPane(data);
+  updatePreviewExpandable();
 }
 
 function renderQualityGatesList(qualityGates) {
@@ -535,15 +718,16 @@ function setReviewStatus(message = "") {
 
 function updateReviewControls(data) {
   const approved = data.status === "approved";
+  const generating = isArtifactGenerationRunning(data);
   const limitedOut = !data.unlimited_revisions && data.revisions_remaining === 0;
   const qualityBusy = false;
 
   document.querySelectorAll(".review-actions .btn").forEach((btn) => {
     const action = btn.dataset.action;
     if (action === "approve") {
-      btn.disabled = approved;
+      btn.disabled = approved || generating;
     } else if (action === "quality_check") {
-      btn.disabled = approved || qualityBusy;
+      btn.disabled = approved || qualityBusy || generating;
     }
   });
 
@@ -615,8 +799,10 @@ function updateResults(data) {
   updateTabIndicators(data);
 
   const approved = data.status === "approved";
+  const generating = isArtifactGenerationRunning(data);
   const limitedOut = !data.unlimited_revisions && data.revisions_remaining === 0;
-  $("reviewSection").classList.toggle("hidden", approved);
+  $("reviewSection").classList.toggle("hidden", approved || generating);
+  updateGenerationBanner(data);
 
   if (limitedOut && !approved) {
     setError(
@@ -694,23 +880,76 @@ function renderParsePreview(preview) {
     </div>`;
 }
 
+function normalizeConfirmationQuestion(item) {
+  if (typeof item === "string") {
+    return { question: item, suggested_answers: [] };
+  }
+  return {
+    question: item?.question || "",
+    suggested_answers: Array.isArray(item?.suggested_answers)
+      ? item.suggested_answers
+      : [],
+  };
+}
+
 function renderConfirmationForm(questions) {
   const form = $("confirmQuestionsForm");
   form.innerHTML = questions
-    .map(
-      (question, index) => `
-    <label class="field confirm-question">
-      <span class="confirm-q-label">${index + 1}. ${escapeHtml(question)}</span>
+    .map((item, index) => {
+      const { question, suggested_answers: choices } = normalizeConfirmationQuestion(item);
+      const choicesHtml =
+        choices.length > 0
+          ? `<div class="confirm-choices" role="group" aria-label="Suggested answers">
+          <span class="confirm-choices-label">Tentative options (click to prefill — edit as needed)</span>
+          <div class="confirm-choice-list">
+            ${choices
+              .map(
+                (choice, choiceIndex) => `
+            <button
+              type="button"
+              class="confirm-choice-chip"
+              data-question-index="${index}"
+              data-choice-index="${choiceIndex}"
+            >${escapeHtml(choice)}</button>`
+              )
+              .join("")}
+          </div>
+        </div>`
+          : "";
+      return `
+    <div class="field confirm-question">
+      <label class="confirm-q-label" for="confirm-answer-${index}">
+        ${index + 1}. ${escapeHtml(question)}
+      </label>
+      ${choicesHtml}
       <textarea
+        id="confirm-answer-${index}"
         class="confirm-answer"
         data-question-index="${index}"
         rows="3"
         required
         placeholder="Your decision or assumption for the workplan…"
       ></textarea>
-    </label>`
-    )
+    </div>`;
+    })
     .join("");
+
+  form.querySelectorAll(".confirm-choice-chip").forEach((button) => {
+    button.addEventListener("click", () => {
+      const index = button.dataset.questionIndex;
+      const choiceIndex = Number(button.dataset.choiceIndex);
+      const normalized = normalizeConfirmationQuestion(questions[index]);
+      const choice = normalized.suggested_answers[choiceIndex];
+      const textarea = form.querySelector(`.confirm-answer[data-question-index="${index}"]`);
+      if (textarea && choice) {
+        textarea.value = choice;
+        textarea.focus();
+      }
+      form.querySelectorAll(`.confirm-choice-chip[data-question-index="${index}"]`).forEach((chip) => {
+        chip.classList.toggle("selected", chip === button);
+      });
+    });
+  });
 }
 
 function warmBuildPromptCache(sessionId) {
@@ -734,31 +973,12 @@ function resumePollingAfterConfirm(sessionId) {
   showPanel("progress");
   $("sessionIdLabel").textContent = sessionId;
   setError($("progressError"), "");
+  setError($("reviewError"), "");
 
   const tick = async () => {
     try {
       const data = await pollSession(sessionId);
-      $("phaseLabel").textContent = phaseLabel(
-        data.phase,
-        data.job_status,
-        data.review_in_progress
-      );
-      $("progressBar").style.width = `${progressPercent(data.phase, data.job_status)}%`;
-
-      if (data.awaiting_confirmation) {
-        return;
-      }
-      if (data.job_status === "complete" && !data.review_in_progress) {
-        clearInterval(pollTimer);
-        showPanel("results");
-        updateResults(data);
-        return;
-      }
-      if (data.job_status === "failed") {
-        clearInterval(pollTimer);
-        setError($("progressError"), data.error || "Unknown error");
-        return;
-      }
+      if (handleGenerationPoll(data)) return;
     } catch (err) {
       clearInterval(pollTimer);
       setError($("progressError"), err.message);
@@ -766,7 +986,7 @@ function resumePollingAfterConfirm(sessionId) {
   };
 
   tick();
-  pollTimer = setInterval(tick, 1200);
+  pollTimer = setInterval(tick, 800);
 }
 
 async function submitConfirmation() {
@@ -776,7 +996,8 @@ async function submitConfirmation() {
   const answers = [];
   for (const field of fields) {
     const index = Number(field.dataset.questionIndex);
-    const question = pendingConfirmationQuestions[index] || "";
+    const question =
+      normalizeConfirmationQuestion(pendingConfirmationQuestions[index]).question || "";
     const answer = field.value.trim();
     if (!answer) {
       setError($("confirmError"), "Please answer every open question before continuing.");
@@ -816,29 +1037,10 @@ function startPolling(sessionId) {
   const tick = async () => {
     try {
       const data = await pollSession(sessionId);
-      $("phaseLabel").textContent = phaseLabel(
-        data.phase,
-        data.job_status,
-        data.review_in_progress
-      );
-      $("progressBar").style.width = `${progressPercent(data.phase, data.job_status)}%`;
-
-      if (data.awaiting_confirmation || data.phase === "awaiting_confirmation") {
-        clearInterval(pollTimer);
-        showConfirmationPanel(data);
-        return;
+      if (data.phase === "parsing" || data.phase === "queued" || !hasViewableArtifacts(data)) {
+        showPanel("progress");
       }
-      if (data.job_status === "complete" && !data.review_in_progress) {
-        clearInterval(pollTimer);
-        showPanel("results");
-        updateResults(data);
-        return;
-      }
-      if (data.job_status === "failed") {
-        clearInterval(pollTimer);
-        setError($("progressError"), data.error || "Unknown error");
-        return;
-      }
+      if (handleGenerationPoll(data)) return;
     } catch (err) {
       clearInterval(pollTimer);
       setError($("progressError"), err.message);
@@ -846,7 +1048,7 @@ function startPolling(sessionId) {
   };
 
   tick();
-  pollTimer = setInterval(tick, 1200);
+  pollTimer = setInterval(tick, 800);
 }
 
 async function createSession() {
@@ -1011,6 +1213,7 @@ function clearFeedback() {
 }
 
 function resetUi() {
+  closePreviewFullscreen();
   clearInterval(pollTimer);
   stopReviewPolling();
   currentSessionId = null;
@@ -1045,6 +1248,7 @@ function resetUi() {
 
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", async () => {
+    closePreviewFullscreen();
     saveFeedbackDraft();
     document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
     tab.classList.add("active");
@@ -1083,5 +1287,30 @@ $("submitRevisionBtn").addEventListener("click", submitRevision);
 $("clearFeedbackBtn").addEventListener("click", clearFeedback);
 $("feedbackText").addEventListener("input", saveFeedbackDraft);
 $("newSessionBtn").addEventListener("click", resetUi);
+$("mockMode")?.addEventListener("change", refreshModelBadge);
+
+$("artifactPreview")?.addEventListener("click", (e) => {
+  if (!isPreviewExpandable(e.currentTarget)) return;
+  if (e.target.closest("a, button, input, textarea, select, label")) return;
+  openPreviewFullscreen();
+});
+
+$("artifactPreview")?.addEventListener("keydown", (e) => {
+  if (!isPreviewExpandable(e.currentTarget)) return;
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    openPreviewFullscreen();
+  }
+});
+
+$("closePreviewFullscreen")?.addEventListener("click", closePreviewFullscreen);
+
+$("previewFullscreen")?.addEventListener("click", (e) => {
+  if (e.target.closest("[data-close-preview]")) closePreviewFullscreen();
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closePreviewFullscreen();
+});
 
 checkHealth();

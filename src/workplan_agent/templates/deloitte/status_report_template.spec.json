@@ -1,0 +1,92 @@
+{
+  "source_file": "status_report_template.docx",
+  "summary": "Weekly status report follows the Deloitte Word template: header fields, narrative summary, bullet sections (initiatives, blockers, risks), milestone table, and supporting links. Derive content only from brief, WBS, and RAID.",
+  "header_fields": [
+    {
+      "field": "project_name",
+      "label": "Project Name:",
+      "type": "string",
+      "description": "Engagement or project title from the brief"
+    },
+    {
+      "field": "project_manager",
+      "label": "Project Manager:",
+      "type": "string",
+      "description": "Named PM or lead from the brief when stated"
+    },
+    {
+      "field": "date",
+      "label": "Date:",
+      "type": "string",
+      "description": "Week ending or report date (ISO or brief format)"
+    }
+  ],
+  "sections": [
+    {
+      "label": "Summary:",
+      "field": "summary",
+      "description": "High-level status; reference RAID decisions and progress"
+    },
+    {
+      "label": "New Initiatives:",
+      "field": "new_initiatives",
+      "description": "New actions from RAID; list of strings"
+    },
+    {
+      "label": "Blockers:",
+      "field": "blockers",
+      "description": "Items needing management help; from RAID issues or WBS dependencies"
+    },
+    {
+      "label": "Risks:",
+      "field": "risks",
+      "description": "High-probability/high-impact risks from RAID; list of strings"
+    },
+    {
+      "label": "Milestones:",
+      "field": "milestones",
+      "description": "Milestone table aligned to WBS timeline"
+    },
+    {
+      "label": "Details:",
+      "field": "supporting_links",
+      "description": "Links to supporting documentation; list of strings"
+    }
+  ],
+  "milestone_columns": [
+    {
+      "header": "Milestone",
+      "field": "name",
+      "description": "Milestone name aligned to WBS"
+    },
+    {
+      "header": "Target date",
+      "field": "target_date",
+      "description": "Planned completion date"
+    },
+    {
+      "header": "Actual date",
+      "field": "actual_date",
+      "description": "Actual completion date when known"
+    },
+    {
+      "header": "Owner Side",
+      "field": "owner_side",
+      "description": "Client, Consultant, or Joint accountable side"
+    }
+  ],
+  "milestone_status_values": [
+    "Not Started",
+    "In Progress",
+    "Completed",
+    "Delayed"
+  ],
+  "generation_rules": [
+    "Root JSON includes project_name, project_manager, date, summary, new_initiatives, blockers, risks, milestones, supporting_links.",
+    "new_initiatives, blockers, risks, and supporting_links are arrays of strings.",
+    "Each milestone object: name, target_date, actual_date (optional), owner_side, status.",
+    "owner_side must be Client, Consultant, or Joint.",
+    "Risks and blockers must trace to RAID; milestones must align with WBS."
+  ],
+  "example_milestones": []
+}

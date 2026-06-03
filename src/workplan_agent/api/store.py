@@ -3,6 +3,7 @@ from pathlib import Path
 from threading import Lock
 
 from workplan_agent.api.schemas import JobStatus, ReviewResponse
+from workplan_agent.models.brief import ConfirmationQuestion
 from workplan_agent.models.session import WorkplanSession
 
 
@@ -20,6 +21,7 @@ class SessionRecord:
     quality_gates_stale: bool = False
     review_error: str | None = None
     last_review_result: ReviewResponse | None = None
+    pending_confirmation: list[ConfirmationQuestion] = field(default_factory=list)
 
     @property
     def review_in_progress(self) -> bool:

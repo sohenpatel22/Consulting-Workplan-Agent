@@ -38,25 +38,43 @@ class OpenAIProvider:
         api_messages = self._to_openai_messages(messages, response_model)
         last_error: Exception | None = None
 
+        max_output_tokens = self._settings.llm_max_output_tokens
+
         for attempt in range(self._settings.max_repair_attempts + 1):
+            truncated = False
             try:
                 response = self._client.chat.completions.create(
                     model=model,
                     messages=api_messages,
                     response_format={"type": "json_object"},
                     temperature=0.2,
+                    max_completion_tokens=max_output_tokens,
                 )
+                truncated = response.choices[0].finish_reason == "length"
                 content = response.choices[0].message.content or "{}"
                 data = json.loads(content)
                 return response_model.model_validate(data)
             except (json.JSONDecodeError, ValidationError) as exc:
+                if truncated:
+                    exc = ValueError(
+                        "Model output was truncated at the token limit "
+                        f"({max_output_tokens}), so JSON was incomplete "
+                        f"(often reported as: {exc})."
+                    )
                 last_error = exc
                 if attempt < self._settings.max_repair_attempts:
+                    repair_hint = (
+                        "Return valid complete JSON only. The previous reply was cut off "
+                        "mid-response — shorten long description fields and finish all "
+                        "arrays/objects."
+                        if truncated
+                        else f"Your previous response failed validation: {exc}."
+                    )
                     api_messages = api_messages + [
                         {
                             "role": "user",
                             "content": (
-                                f"Your previous response failed validation: {exc}. "
+                                f"{repair_hint} "
                                 f"{schema_instruction(response_model)}"
                             ),
                         }

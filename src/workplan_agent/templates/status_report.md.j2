@@ -31,10 +31,10 @@ _No risks._
 
 ## Milestones
 
-| Milestone | Target Date | Actual Date | Status |
-|-----------|-------------|-------------|--------|
+| Milestone | Target Date | Actual Date | Owner Side | Status |
+|-----------|-------------|-------------|------------|--------|
 {% for m in status_report.milestones -%}
-| {{ m.name }} | {{ m.target_date }} | {{ m.actual_date or '' }} | {{ m.status }} |
+| {{ m.name | cell }} | {{ m.target_date | cell }} | {{ m.actual_date | cell('not yet reached') }} | {{ m.owner_side | cell }} | {{ m.status | cell }} |
 {% endfor %}
 
 ## Supporting Links

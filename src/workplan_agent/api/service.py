@@ -4,6 +4,7 @@ from pathlib import Path
 
 from workplan_agent.agents.revision import RevisionTarget
 from workplan_agent.api.schemas import (
+    ConfirmationQuestionItem,
     ConfirmQuestionsRequest,
     CreateSessionRequest,
     ParsePreview,
@@ -13,9 +14,9 @@ from workplan_agent.api.schemas import (
     SessionResponse,
     SessionSummary,
 )
+from workplan_agent.confirmation import build_confirmation_questions
 from workplan_agent.models.artifact_versions import (
     REVISION_ARTIFACTS,
-    after_multi_revision,
     after_quality_check,
     after_revision,
     compute_stale_artifacts,
@@ -76,7 +77,13 @@ def _parse_preview(session: WorkplanSession) -> ParsePreview | None:
 
 def _build_summary(session: WorkplanSession) -> SessionSummary:
     parsed = session.parsed_brief
-    if session.quality_gates is None and (session.wbs is not None or session.raid is not None):
+    if (
+        session.quality_gates is None
+        and session.wbs is not None
+        and session.raid is not None
+        and session.stakeholder_map is not None
+        and session.status_report is not None
+    ):
         session.quality_gates = generate_quality_gates(session)
     return SessionSummary(
         client=parsed.client_name if parsed else "",
@@ -120,8 +127,9 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
     quality_gates_html = None
     summary = None
 
-    if session.parsed_brief is not None:
-        parsed_brief = session.parsed_brief.model_dump(mode="json")
+    parsed = session.parsed_brief
+    if parsed is not None:
+        parsed_brief = parsed.model_dump(mode="json")
     if session.wbs is not None:
         wbs = session.wbs.model_dump(mode="json")
     if session.raid is not None:
@@ -130,37 +138,57 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
         stakeholder_map = session.stakeholder_map.model_dump(mode="json")
     if session.status_report is not None:
         status_report = session.status_report.model_dump(mode="json")
-    if session.wbs is not None and session.quality_gates is None:
-        session.quality_gates = generate_quality_gates(session)
-    if session.quality_gates is not None:
-        quality_gates = session.quality_gates.model_dump(mode="json")
+
     if (
-        session.parsed_brief is not None
-        and session.wbs is not None
+        session.wbs is not None
         and session.raid is not None
+        and session.stakeholder_map is not None
+        and session.status_report is not None
+        and session.quality_gates is None
     ):
+        session.quality_gates = generate_quality_gates(session)
+
+    if session.quality_gates is not None and parsed is not None:
+        quality_gates = session.quality_gates.model_dump(mode="json")
+        quality_gates_markdown = render_quality_gates_markdown(session.quality_gates, parsed)
+        quality_gates_html = markdown_to_html_body(quality_gates_markdown)
+
+    has_artifacts = any(
+        (
+            session.wbs is not None,
+            session.raid is not None,
+            session.stakeholder_map is not None,
+            session.status_report is not None,
+        )
+    )
+    if parsed is not None and has_artifacts:
         summary = _build_summary(session)
-        wbs_markdown = render_wbs_markdown(session.wbs, session.parsed_brief)
-        raid_markdown = render_raid_markdown(session.raid, session.parsed_brief)
-        wbs_html = markdown_to_html_body(wbs_markdown)
-        raid_html = markdown_to_html_body(raid_markdown)
+        if session.wbs is not None:
+            wbs_markdown = render_wbs_markdown(session.wbs, parsed)
+            wbs_html = markdown_to_html_body(wbs_markdown)
+        if session.raid is not None:
+            raid_markdown = render_raid_markdown(session.raid, parsed)
+            raid_html = markdown_to_html_body(raid_markdown)
         if session.stakeholder_map is not None:
-            stakeholder_markdown = render_stakeholder_markdown(session.stakeholder_map, session.parsed_brief)
+            stakeholder_markdown = render_stakeholder_markdown(session.stakeholder_map, parsed)
             stakeholder_html = markdown_to_html_body(stakeholder_markdown)
         if session.status_report is not None:
-            status_markdown = render_status_markdown(session.status_report, session.parsed_brief)
+            status_markdown = render_status_markdown(session.status_report, parsed)
             status_html = markdown_to_html_body(status_markdown)
-        if session.quality_gates is not None:
-            quality_gates_markdown = render_quality_gates_markdown(session.quality_gates, session.parsed_brief)
-            quality_gates_html = markdown_to_html_body(quality_gates_markdown)
 
     awaiting_confirmation = record.phase == "awaiting_confirmation"
-    confirmation_questions: list[str] = []
+    confirmation_questions: list[ConfirmationQuestionItem] = []
     parse_preview = None
     if session.parsed_brief is not None:
         parse_preview = _parse_preview(session)
-        if awaiting_confirmation:
-            confirmation_questions = list(session.parsed_brief.open_questions)
+        if awaiting_confirmation and record.pending_confirmation:
+            confirmation_questions = [
+                ConfirmationQuestionItem(
+                    question=item.question,
+                    suggested_answers=list(item.suggested_answers),
+                )
+                for item in record.pending_confirmation
+            ]
 
     last_review = record.last_review_result
     stale = compute_stale_artifacts(session)
@@ -267,9 +295,29 @@ def _make_orchestrator(record: SessionRecord) -> OrchestratorAgent:
     return OrchestratorAgent(
         provider=provider,
         output_dir=record.output_dir,
-        interactive=False,
-        auto_approve=False,
         verbose=False,
+    )
+
+
+_BUILD_PHASE_AFTER_ARTIFACT = {
+    "wbs": "generating_raid",
+    "raid": "generating_stakeholder",
+    "stakeholder": "generating_status",
+    "status": "ready_for_review",
+}
+
+
+def _publish_build_progress(
+    session_id: str,
+    record: SessionRecord,
+    *,
+    artifact: str,
+) -> None:
+    save_artifacts(record.output_dir, record.session, refresh_quality_gates=False)
+    get_store().update(
+        session_id,
+        phase=_BUILD_PHASE_AFTER_ARTIFACT[artifact],
+        session=record.session,
     )
 
 
@@ -283,11 +331,17 @@ def run_build_artifacts(session_id: str) -> None:
     try:
         warm_build_prompt_cache_for_record(record)
         orchestrator = _make_orchestrator(record)
+
+        def on_artifact_ready(artifact: str) -> None:
+            _publish_build_progress(session_id, record, artifact=artifact)
+
         orchestrator.generate_workplan_artifacts(
             record.session,
             user_prompt=record.user_prompt,
+            on_artifact_ready=on_artifact_ready,
         )
         record.session.status = SessionStatus.UNDER_REVIEW
+        save_artifacts(record.output_dir, record.session)
         save_status(record.output_dir, record.session)
         store.update(
             session_id,
@@ -319,21 +373,22 @@ def run_generation(record: SessionRecord) -> None:
         )
         store.update(session_id, session=record.session)
 
-        open_questions = record.session.parsed_brief.open_questions if record.session.parsed_brief else []
-        if open_questions:
-            record.session.status = SessionStatus.AWAITING_CONFIRMATION
-            save_status(record.output_dir, record.session)
-            store.update(
-                session_id,
-                job_status="running",
-                phase="awaiting_confirmation",
-                session=record.session,
-                error=None,
-            )
-            warm_build_prompt_cache_for_record(record)
-            return
-
-        run_build_artifacts(session_id)
+        parsed = record.session.parsed_brief
+        assert parsed is not None
+        pending = build_confirmation_questions(parsed)
+        parsed.open_questions = [item.question for item in pending]
+        record.session.status = SessionStatus.AWAITING_CONFIRMATION
+        save_status(record.output_dir, record.session)
+        store.update(
+            session_id,
+            job_status="running",
+            phase="awaiting_confirmation",
+            session=record.session,
+            pending_confirmation=pending,
+            error=None,
+        )
+        warm_build_prompt_cache_for_record(record)
+        return
     except Exception as exc:
         store.update(
             session_id,
@@ -360,7 +415,11 @@ def confirm_open_questions(session_id: str, request: ConfirmQuestionsRequest) ->
     record.session.parsed_brief.apply_open_question_resolutions(resolutions)
     record.session.status = SessionStatus.PARSED
     save_artifacts(record.output_dir, record.session)
-    store.update(session_id, session=record.session)
+    store.update(
+        session_id,
+        session=record.session,
+        pending_confirmation=[],
+    )
 
 
 def get_session(session_id: str) -> SessionResponse | None:
@@ -392,13 +451,13 @@ def _compute_revision_diff(
     after_stakeholder_md = render_stakeholder_markdown(session.stakeholder_map, session.parsed_brief) if session.stakeholder_map else ""
     after_status_md = render_status_markdown(session.status_report, session.parsed_brief) if session.status_report else ""
 
-    if target in (RevisionTarget.WBS, RevisionTarget.BOTH, RevisionTarget.ALL):
+    if target == RevisionTarget.WBS:
         wbs_diff = unified_text_diff(before_wbs_md, after_wbs_md, "WBS") or None
-    if target in (RevisionTarget.RAID, RevisionTarget.BOTH, RevisionTarget.ALL):
+    elif target == RevisionTarget.RAID:
         raid_diff = unified_text_diff(before_raid_md, after_raid_md, "RAID") or None
-    if target in (RevisionTarget.STAKEHOLDER, RevisionTarget.ALL):
+    elif target == RevisionTarget.STAKEHOLDER:
         stakeholder_diff = unified_text_diff(before_stakeholder_md, after_stakeholder_md, "Stakeholder Map") or None
-    if target in (RevisionTarget.STATUS, RevisionTarget.ALL):
+    elif target == RevisionTarget.STATUS:
         status_diff = unified_text_diff(before_status_md, after_status_md, "Weekly Status Report") or None
 
     if not wbs_diff and not raid_diff and not stakeholder_diff and not status_diff:
@@ -441,15 +500,7 @@ def _validate_review(
             raise ValueError("Feedback is required for revisions.")
         return
 
-    if request.action in ("both", "all"):
-        if not allow_in_progress and record.revisions_in_progress:
-            raise ValueError("A revision action is already in progress.")
-        unlimited, _ = _revision_limits()
-        remaining = _revisions_remaining(record.session.revision_count)
-        if not unlimited and remaining == 0:
-            raise ValueError("Maximum revision count reached.")
-        if not request.feedback.strip():
-            raise ValueError("Feedback is required for revisions.")
+    raise ValueError(f"Unknown review action: {request.action}")
 
 
 def apply_review_work(session_id: str, request: ReviewRequest) -> ReviewResponse:
@@ -494,15 +545,7 @@ def apply_review_work(session_id: str, request: ReviewRequest) -> ReviewResponse
             message="Quality gates updated.",
         )
 
-    target_map = {
-        "wbs": RevisionTarget.WBS,
-        "raid": RevisionTarget.RAID,
-        "stakeholder": RevisionTarget.STAKEHOLDER,
-        "status": RevisionTarget.STATUS,
-        "both": RevisionTarget.BOTH,
-        "all": RevisionTarget.ALL,
-    }
-    target = target_map[request.action]
+    target = RevisionTarget(request.action)
 
     assert session.parsed_brief is not None and session.wbs is not None and session.raid is not None
     before_wbs_md = render_wbs_markdown(session.wbs, session.parsed_brief)
@@ -518,21 +561,10 @@ def apply_review_work(session_id: str, request: ReviewRequest) -> ReviewResponse
     orchestrator = OrchestratorAgent(
         provider=provider,
         output_dir=record.output_dir,
-        interactive=False,
-        auto_approve=False,
         verbose=False,
     )
     orchestrator.apply_revision(session, target, request.feedback)
-    if request.action in REVISION_ARTIFACTS:
-        after_revision(session, request.action, upstream_snapshot)
-    elif request.action == "both":
-        after_multi_revision(session, ["wbs", "raid"], upstream_snapshot)
-    elif request.action == "all":
-        after_multi_revision(
-            session,
-            list(REVISION_ARTIFACTS),
-            upstream_snapshot,
-        )
+    after_revision(session, request.action, upstream_snapshot)
     revision_diff = _compute_revision_diff(
         session,
         target,
@@ -561,13 +593,9 @@ def apply_review_work(session_id: str, request: ReviewRequest) -> ReviewResponse
 
 
 def _revision_artifact(request: ReviewRequest) -> str:
-    if request.action in REVISION_ARTIFACTS:
-        return request.action
-    if request.action == "both":
-        return "both"
-    if request.action == "all":
-        return "all"
-    raise ValueError(f"Not a revision action: {request.action}")
+    if request.action not in REVISION_ARTIFACTS:
+        raise ValueError(f"Not a revision action: {request.action}")
+    return request.action
 
 
 def start_revision(session_id: str, request: ReviewRequest) -> str:

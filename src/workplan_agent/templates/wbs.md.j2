@@ -8,10 +8,10 @@
 {% for wp in wbs.work_packages if wp.level == 1 %}- {{ wp.wbs_code }} — {{ wp.wbs_element_title }}
 {% endfor %}
 
-## Work packages (Deloitte template)
+## Work packages
 
-| Level | WBS Code | WBS Element Title | Description / Scope of Work | Key Deliverable | Owner | Duration | Dependencies |
-|-------|----------|-------------------|------------------------------|-----------------|-------|----------|--------------|
+| Level | WBS Code | WBS Element Title | Description / Scope of Work | Key Deliverable | Owner | Owner Side | Duration | Dependencies |
+|-------|----------|-------------------|------------------------------|-----------------|-------|------------|----------|--------------|
 {% for wp in wbs.work_packages -%}
-| {{ wp.level }} | {{ wp.wbs_code }} | {{ wp.wbs_element_title }} | {{ wp.description_scope }} | {{ wp.key_deliverable }} | {{ wp.owner }} | {{ wp.estimated_duration }} | {{ wp.dependencies | join(', ') }} |
+| {{ wp.level | cell }} | {{ wp.wbs_code | cell }} | {{ wp.wbs_element_title | cell }} | {{ wp.description_scope | cell('not detailed at sign-off') }} | {{ wp.key_deliverable | cell('not confirmed at sign-off') }} | {{ wp.owner | cell('not assigned at sign-off') }} | {{ wp.owner_side | cell }} | {{ wp.estimated_duration | cell('not estimated at sign-off') }} | {{ wp.dependencies | cell('none identified') }} |
 {% endfor %}

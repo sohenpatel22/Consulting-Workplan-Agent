@@ -1,6 +1,4 @@
 from pathlib import Path
-from typing import Optional
-
 import typer
 from rich.console import Console
 
@@ -10,7 +8,7 @@ from workplan_agent.orchestrator import OrchestratorAgent
 
 app = typer.Typer(
     name="workplan",
-    help="Consulting workplan agent: brief → WBS + RAID with revision loop.",
+    help="Consulting workplan agent: generate workplan artifacts from a client brief.",
     no_args_is_help=True,
 )
 console = Console()
@@ -45,16 +43,6 @@ def run_pipeline(
         "--mock",
         help="Use mock LLM provider (offline demo, no API keys)",
     ),
-    max_revisions: Optional[int] = typer.Option(
-        None,
-        "--max-revisions",
-        help="Maximum revision iterations (default from env/config)",
-    ),
-    non_interactive: bool = typer.Option(
-        False,
-        "--non-interactive",
-        help="Skip review loop and save artifacts immediately",
-    ),
     prompt: str = typer.Option(
         "",
         "--prompt",
@@ -62,7 +50,7 @@ def run_pipeline(
         help="Optional planner guidance applied alongside the brief during generation",
     ),
 ) -> None:
-    """Run the full workplan pipeline: parse brief → WBS → RAID → review."""
+    """Run generation: parse brief → WBS → RAID → stakeholder map → status report."""
     try:
         provider = get_provider(use_mock=mock)
     except ValueError as exc:
@@ -73,8 +61,6 @@ def run_pipeline(
     orchestrator = OrchestratorAgent(
         provider=provider,
         output_dir=output,
-        max_revisions=max_revisions,
-        interactive=not non_interactive,
     )
 
     console.print(f"[bold]Workplan Agent[/bold] — session starting")

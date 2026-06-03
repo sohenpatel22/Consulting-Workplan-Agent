@@ -1,4 +1,12 @@
-from workplan_agent.models.brief import Objective, Constraint, Stakeholder, Timeline, ResolvedQuestion, ParsedBrief
+from workplan_agent.models.brief import (
+    Objective,
+    Constraint,
+    Stakeholder,
+    Timeline,
+    ResolvedQuestion,
+    ConfirmationQuestion,
+    ParsedBrief,
+)
 from workplan_agent.models.wbs import WorkPackage, WBS
 from workplan_agent.models.raid import RiskEntry, ActionEntry, IssueEntry, DecisionEntry, RAIDLog
 from workplan_agent.models.session import WorkplanSession, SessionStatus, ArtifactVersion
@@ -12,6 +20,7 @@ __all__ = [
     "Stakeholder",
     "Timeline",
     "ResolvedQuestion",
+    "ConfirmationQuestion",
     "ParsedBrief",
     "WorkPackage",
     "WBS",

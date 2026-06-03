@@ -8,16 +8,22 @@ from workplan_agent.llm.base import schema_instruction
 from workplan_agent.llm.caching import ContentBlock, cached_block, plain_block
 from workplan_agent.templates.deloitte_specs import (
     build_raid_generation_contract,
+    build_stakeholder_generation_contract,
+    build_status_report_generation_contract,
     build_wbs_generation_contract,
     raid_json_output_instruction,
+    stakeholder_json_output_instruction,
+    status_json_output_instruction,
     wbs_json_output_instruction,
 )
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 
-# Deloitte template contracts (from wbs_template.spec.json / raid_template.spec.json)
+# Deloitte template contracts (from templates/deloitte/*_template.spec.json)
 WBS_REQUIREMENTS = build_wbs_generation_contract()
 RAID_REQUIREMENTS = build_raid_generation_contract()
+STAKEHOLDER_REQUIREMENTS = build_stakeholder_generation_contract()
+STATUS_REQUIREMENTS = build_status_report_generation_contract()
 
 # --- Brief parser ---
 
@@ -26,6 +32,11 @@ BRIEF_PARSER_SYSTEM = """You are a consulting engagement analyst. Extract struct
 Rules:
 - Do not invent scope, objectives, or constraints not implied by the brief.
 - Put ambiguities, missing information, and unclear items in open_questions.
+- For each open question (at most four), add a matching planner_confirmations entry with
+  the same question text and 2–5 tentative suggested_answers the planner might choose
+  before build (concrete options implied by the brief where possible).
+- Do not include overall engagement risk appetite in open_questions or
+  planner_confirmations (the application adds that separately).
 - Preserve client naming and terminology from the brief.
 - Extract all objectives with clear success criteria where stated.
 - Separate in-scope and out-of-scope items explicitly.
@@ -146,31 +157,12 @@ RAID_GENERATOR_USER = """Generate a RAID log from this parsed brief and WBS.
 
 STAKEHOLDER_GENERATOR_ROLE = (
     "You are a consulting stakeholder manager. Produce a Stakeholder Map that "
-    "defines and analyzes project stakeholders and engagement strategies."
+    "implements the Deloitte Stakeholder Map generation contract below."
 )
-
-def stakeholder_json_output_instruction() -> str:
-    return (
-        "Respond with **valid JSON only** (no markdown fences or commentary). "
-        "Follow the schema instructions and rules provided.\n"
-        'Root object: `{"stakeholders": [ ... ]}`'
-    )
 
 STAKEHOLDER_GENERATOR_SYSTEM = f"""{STAKEHOLDER_GENERATOR_ROLE}
 
-Rules:
-- Grounding Rule: All stakeholders MUST be derived from the Client brief, WBS tasks, RAID items, or explicit project constraints. Do NOT create generic or fictional entities.
-- Extract all stakeholders explicitly mentioned in the brief.
-- Inference Rule: Infer additional stakeholders ONLY if required for execution of WBS, mitigation of RAID risks, or compliance with constraints.
-- Inferred Limit: Limit inferred stakeholders to max 3–5 total.
-- Inferred Rationale: Each inferred stakeholder MUST include a specific rationale linking them to WBS/RAID/constraints. Rationale must be a non-empty string.
-- Explicit Rationale: Explicitly mentioned stakeholders must have rationale set to null/None or empty string.
-- Categorical Enums: 
-  * source: explicit | inferred
-  * influence_level: High | Medium | Low
-  * interest_level: High | Medium | Low
-  * communication_frequency: Weekly | Bi-weekly | Monthly | Ad-hoc
-- Do NOT generate generic roles unless explicitly justified.
+{STAKEHOLDER_REQUIREMENTS}
 
 {stakeholder_json_output_instruction()}"""
 
@@ -189,24 +181,12 @@ STAKEHOLDER_GENERATOR_USER = """Generate a Stakeholder Map from this parsed brie
 
 STATUS_GENERATOR_ROLE = (
     "You are an engagement manager. Produce a Weekly Status Report that "
-    "summarizes project health, achievements, next steps, and milestone progress."
+    "implements the Deloitte Weekly Status Report generation contract below."
 )
-
-def status_json_output_instruction() -> str:
-    return (
-        "Respond with **valid JSON only** (no markdown fences or commentary). "
-        "Follow the schema instructions and rules provided.\n"
-        'Root object: `{"project_name": "...", "project_manager": "...", "date": "...", "summary": "...", "new_initiatives": [...], "blockers": [...], "risks": [...], "milestones": [...], "supporting_links": [...]}`'
-    )
 
 STATUS_GENERATOR_SYSTEM = f"""{STATUS_GENERATOR_ROLE}
 
-Rules:
-- The status report MUST be derived ONLY from the WBS, RAID, and constraints. Do NOT invent progress or status not supported by inputs.
-- Risks MUST come from RAID.
-- Blockers MUST come from unresolved RAID issues or WBS dependencies.
-- Milestones MUST match the WBS timeline.
-- milestone status must be one of: Not Started, In Progress, Completed, Delayed.
+{STATUS_REQUIREMENTS}
 
 {status_json_output_instruction()}"""
 
@@ -243,28 +223,17 @@ When revising the RAID log, follow this contract:
 
 REVISION_STAKEHOLDER_SYSTEM = f"""{REVISION_RULES}
 
-When revising the Stakeholder Map, follow these rules:
-- Grounding Rule: All stakeholders MUST be derived from the Client brief, WBS tasks, RAID items, or explicit project constraints.
-- Extract all stakeholders explicitly mentioned in the brief.
-- Infer additional stakeholders ONLY if required for execution of WBS, mitigation of RAID risks, or compliance with constraints (max 3-5 total).
-- Each inferred stakeholder MUST include a specific rationale linking them to WBS/RAID/constraints.
-- Explicitly mentioned stakeholders must have rationale set to null/None or empty string.
-- Categorical Enums:
-  * source: explicit | inferred
-  * influence_level: High | Medium | Low
-  * interest_level: High | Medium | Low
-  * communication_frequency: Weekly | Bi-weekly | Monthly | Ad-hoc
+When revising the Stakeholder Map, follow this contract:
+
+{STAKEHOLDER_REQUIREMENTS}
 
 {stakeholder_json_output_instruction()}"""
 
 REVISION_STATUS_SYSTEM = f"""{REVISION_RULES}
 
-When revising the Weekly Status Report, follow these rules:
-- The status report MUST be derived ONLY from the WBS, RAID, and constraints. Do NOT invent progress or status not supported by inputs.
-- Risks MUST come from RAID.
-- Blockers MUST come from unresolved RAID issues or WBS dependencies.
-- Milestones MUST match the WBS timeline.
-- milestone status must be one of: Not Started, In Progress, Completed, Delayed.
+When revising the Weekly Status Report, follow this contract:
+
+{STATUS_REQUIREMENTS}
 
 {status_json_output_instruction()}"""
 
@@ -348,6 +317,14 @@ def _raid_output_block() -> ContentBlock:
     return cached_block(raid_json_output_instruction())
 
 
+def _stakeholder_output_block() -> ContentBlock:
+    return cached_block(stakeholder_json_output_instruction())
+
+
+def _status_output_block() -> ContentBlock:
+    return cached_block(status_json_output_instruction())
+
+
 def parsed_brief_block(brief_json: str) -> ContentBlock:
     return cached_block(f"## Parsed Brief\n{brief_json}")
 
@@ -369,6 +346,24 @@ def raid_generator_system_blocks(_response_model: type[BaseModel]) -> list[Conte
         plain_block(RAID_GENERATOR_ROLE),
         cached_block(RAID_REQUIREMENTS),
         _raid_output_block(),
+    ]
+
+
+def stakeholder_generator_system_blocks(
+    _response_model: type[BaseModel],
+) -> list[ContentBlock]:
+    return [
+        plain_block(STAKEHOLDER_GENERATOR_ROLE),
+        cached_block(STAKEHOLDER_REQUIREMENTS),
+        _stakeholder_output_block(),
+    ]
+
+
+def status_generator_system_blocks(_response_model: type[BaseModel]) -> list[ContentBlock]:
+    return [
+        plain_block(STATUS_GENERATOR_ROLE),
+        cached_block(STATUS_REQUIREMENTS),
+        _status_output_block(),
     ]
 
 
@@ -411,6 +406,38 @@ def raid_generator_user_blocks(
     return [
         parsed_brief_block(brief_json),
         plain_block(f"## WBS\n{wbs_json}\n\n{task}"),
+    ]
+
+
+def stakeholder_generator_user_blocks(
+    brief_json: str,
+    wbs_json: str,
+    raid_json: str,
+    user_prompt: str | None = None,
+) -> list[ContentBlock]:
+    task = append_generation_context(
+        "Generate a Stakeholder Map from the parsed brief, WBS, and RAID log above.",
+        user_prompt,
+    )
+    return [
+        parsed_brief_block(brief_json),
+        plain_block(f"## WBS\n{wbs_json}\n\n## RAID Log\n{raid_json}\n\n{task}"),
+    ]
+
+
+def status_generator_user_blocks(
+    brief_json: str,
+    wbs_json: str,
+    raid_json: str,
+    user_prompt: str | None = None,
+) -> list[ContentBlock]:
+    task = append_generation_context(
+        "Generate a Weekly Status Report from the parsed brief, WBS, and RAID log above.",
+        user_prompt,
+    )
+    return [
+        parsed_brief_block(brief_json),
+        plain_block(f"## WBS\n{wbs_json}\n\n## RAID Log\n{raid_json}\n\n{task}"),
     ]
 
 

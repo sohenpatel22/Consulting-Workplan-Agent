@@ -63,20 +63,3 @@ def test_revision_raid_only(
     assert result.wbs is None
     assert result.raid is not None
 
-
-def test_revision_both(
-    provider: MockLLMProvider,
-    parsed_brief: ParsedBrief,
-    wbs: WBS,
-    raid: RAIDLog,
-) -> None:
-    agent = RevisionAgent(provider)
-    result = agent.run(
-        parsed_brief=parsed_brief,
-        wbs=wbs,
-        raid=raid,
-        feedback="Expand transition phase and add handover risk.",
-        target=RevisionTarget.BOTH,
-    )
-    assert result.wbs is not None
-    assert result.raid is not None

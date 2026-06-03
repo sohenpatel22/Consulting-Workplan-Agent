@@ -29,6 +29,11 @@ class ResolvedQuestion(BaseModel):
     answer: str
 
 
+class ConfirmationQuestion(BaseModel):
+    question: str = Field(min_length=1)
+    suggested_answers: list[str] = Field(min_length=2, max_length=6)
+
+
 class ParsedBrief(BaseModel):
     client_name: str
     project_title: str
@@ -41,6 +46,7 @@ class ParsedBrief(BaseModel):
     stakeholders: list[Stakeholder] = Field(default_factory=list)
     assumptions_from_brief: list[str] = Field(default_factory=list)
     open_questions: list[str] = Field(default_factory=list)
+    planner_confirmations: list[ConfirmationQuestion] = Field(default_factory=list)
     resolved_open_questions: list[ResolvedQuestion] = Field(default_factory=list)
 
     def apply_open_question_resolutions(self, answers: list[ResolvedQuestion]) -> None:
