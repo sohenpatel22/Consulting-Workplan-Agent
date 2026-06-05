@@ -134,8 +134,10 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "### Pre-submit checklist",
             "- Every risk and action includes `wbs_links` pointing to real `wbs_code` values from the WBS.",
             "- Every RAID item includes `owner_side`: Client, Consultant, or Joint.",
-            "- Risks include `mitigation` and `probability` (High, Moderate, or Low).",
-            "- Use `priority` (and `probability` for risks): High, Moderate, or Low.",
+            "- Risks include `mitigation`, `probability`, `impact`, `risk_rating`, "
+            "`risk_appetite`, and response `priority` (Monitor closely, Monitor, "
+            "Stay informed, or Respond as required).",
+            "- Actions, issues, and decisions use `priority`: High, Moderate, or Low.",
             "- Derive actions from assumptions, client activities, and follow-ups in the brief.",
             "",
             "### Content alignment",
@@ -148,7 +150,7 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
 def wbs_json_output_instruction() -> str:
     return (
         "Respond with **valid JSON only** (no markdown fences or commentary). "
-        "The Deloitte WBS generation contract above defines the required shape, fields, "
+        "The WBS generation contract above defines the required shape, fields, "
         "and hierarchy — follow it exactly.\n"
         'Root object: `{"work_packages": [ ... ]}`'
     )
@@ -157,7 +159,7 @@ def wbs_json_output_instruction() -> str:
 def raid_json_output_instruction() -> str:
     return (
         "Respond with **valid JSON only** (no markdown fences or commentary). "
-        "The Deloitte RAID generation contract above defines the required sections, fields, "
+        "The RAID generation contract above defines the required sections, fields, "
         "and minimums — follow it exactly.\n"
         'Root object: `{"risks": [], "actions": [], "issues": [], "decisions": []}`'
     )

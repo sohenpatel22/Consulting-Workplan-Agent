@@ -1,4 +1,4 @@
-"""LLM prompts for workplan agents. Edit here to tune agent behavior."""
+"""LLM prompts for workplan agents."""
 
 from pathlib import Path
 
@@ -121,7 +121,7 @@ def build_generation_guidance(
 
 WBS_GENERATOR_ROLE = (
     "You are a consulting project planner. Produce a Work Breakdown Structure that "
-    "implements the Deloitte WBS generation contract below."
+    "implements the WBS generation contract below."
 )
 
 WBS_GENERATOR_SYSTEM = f"""{WBS_GENERATOR_ROLE}
@@ -136,7 +136,7 @@ WBS_GENERATOR_USER = "Generate a WBS from this parsed brief:\n\n{brief_json}"
 
 RAID_GENERATOR_ROLE = (
     "You are a consulting engagement lead. Produce a RAID log that implements the "
-    "Deloitte RAID generation contract below."
+    "RAID generation contract below."
 )
 
 RAID_GENERATOR_SYSTEM = f"""{RAID_GENERATOR_ROLE}
@@ -157,7 +157,7 @@ RAID_GENERATOR_USER = """Generate a RAID log from this parsed brief and WBS.
 
 STAKEHOLDER_GENERATOR_ROLE = (
     "You are a consulting stakeholder manager. Produce a Stakeholder Map that "
-    "implements the Deloitte Stakeholder Map generation contract below."
+    "implements the Stakeholder Map generation contract below."
 )
 
 STAKEHOLDER_GENERATOR_SYSTEM = f"""{STAKEHOLDER_GENERATOR_ROLE}
@@ -181,7 +181,7 @@ STAKEHOLDER_GENERATOR_USER = """Generate a Stakeholder Map from this parsed brie
 
 STATUS_GENERATOR_ROLE = (
     "You are an engagement manager. Produce a Weekly Status Report that "
-    "implements the Deloitte Weekly Status Report generation contract below."
+    "implements the Weekly Status Report generation contract below."
 )
 
 STATUS_GENERATOR_SYSTEM = f"""{STATUS_GENERATOR_ROLE}

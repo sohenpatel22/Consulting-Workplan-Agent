@@ -85,8 +85,9 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
     from openpyxl import load_workbook
 
     workbook = load_workbook(xlsx_path, data_only=True)
+    if "RAID Log - Detail" not in workbook.sheetnames:
+        raise ValueError(f"RAID Log - Detail sheet not found in {xlsx_path}")
     detail = workbook["RAID Log - Detail"]
-    simple = workbook["RAID Log - simple"]
 
     sections = [
         {
@@ -121,16 +122,34 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
                     "name": "probability",
                     "type": "string",
                     "required": True,
+                    "description": "High, Moderate, Low, or Very Low",
+                },
+                {
+                    "name": "impact",
+                    "type": "string",
+                    "required": True,
                     "description": "High, Moderate, or Low",
+                },
+                {
+                    "name": "risk_rating",
+                    "type": "string",
+                    "required": True,
+                    "description": "Derived overall rating: High, Moderate, or Low",
+                },
+                {
+                    "name": "risk_appetite",
+                    "type": "string",
+                    "required": True,
+                    "description": "Engagement risk appetite (e.g. Moderate)",
                 },
                 {
                     "name": "priority",
                     "type": "string",
                     "required": True,
-                    "description": "Priority/Impact: High, Moderate, or Low",
+                    "description": "Response level: Monitor closely, Monitor, Stay informed, or Respond as required",
                 },
             ],
-            "template_headers": _row_headers(detail, 6, 1, 9),
+            "template_headers": _row_headers(detail, 6, 1, 12),
         },
         {
             "key": "actions",
@@ -167,7 +186,7 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
                     "description": "High, Moderate, or Low",
                 },
             ],
-            "template_headers": _row_headers(detail, 6, 11, 18),
+            "template_headers": _row_headers(detail, 6, 14, 20),
         },
         {
             "key": "issues",
@@ -197,7 +216,7 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
                     "description": "High, Moderate, or Low",
                 },
             ],
-            "template_headers": _row_headers(detail, 6, 20, 25),
+            "template_headers": _row_headers(detail, 6, 22, 27),
         },
         {
             "key": "decisions",
@@ -232,25 +251,21 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
                     "description": "High, Moderate, or Low",
                 },
             ],
-            "template_headers": _row_headers(detail, 6, 27, 32),
+            "template_headers": _row_headers(detail, 6, 29, 34),
         },
     ]
 
-    simple_columns = _row_headers(simple, 5, 1, 8)
     return {
         "source_file": xlsx_path.name,
         "summary": (
-            "RAID log follows the Deloitte Excel template: Risks, Actions, Issues, and "
-            "Decisions are separate sections (not Assumptions/Dependencies). "
-            "Use priority values High, Moderate, or Low. Each item labels whether the "
-            "owner is on the Client, Consultant, or Joint side."
+            "RAID log follows the Deloitte Excel template on a single detail sheet: "
+            "Risks, Actions, Issues, and Decisions are side-by-side sections. "
+            "Risks include probability, impact, risk rating, risk appetite, and a "
+            "response priority. Actions, issues, and decisions use High, Moderate, "
+            "or Low priority. Each item labels whether the owner is on the Client, "
+            "Consultant, or Joint side."
         ),
         "sections": sections,
-        "simple_view": {
-            "sheet": "RAID Log - simple",
-            "columns": [*simple_columns, "Owner Side"],
-            "categories": ["Risk", "Action", "Issue", "Decision"],
-        },
     }
 
 

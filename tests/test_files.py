@@ -170,6 +170,14 @@ def test_deloitte_raid_xlsx_export() -> None:
     assert content[:2] == b"PK"
     workbook = load_workbook(BytesIO(content))
     assert workbook.sheetnames == ["RAID Log - Detail"]
+    ws = workbook["RAID Log - Detail"]
+    assert ws.cell(row=7, column=1).value == "R1"
+    assert ws.cell(row=7, column=9).value == "Moderate"
+    assert ws.cell(row=7, column=10).value == "High"
+    assert ws.cell(row=7, column=12).value == "Monitor closely"
+    assert ws.cell(row=7, column=14).value == "A1"
+    assert ws.cell(row=7, column=22).value is None
+    assert ws.cell(row=7, column=29).value == "D1"
 
 
 def test_deloitte_raid_xlsx_export_many_rows() -> None:

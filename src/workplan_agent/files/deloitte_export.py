@@ -126,22 +126,24 @@ _RISK_PDF_HEADERS = [
     "Owner Side",
     "WBS Links",
     "Probability",
+    "Impact",
+    "Risk Rating",
+    "Risk Appetite",
     "Priority",
 ]
-_RISK_PDF_COL_WIDTHS = (12, 28, 45, 18, 35, 25, 20, 22, 22, 18)
+_RISK_PDF_COL_WIDTHS = (12, 24, 38, 16, 30, 22, 18, 20, 18, 16, 18, 20, 20)
 
 _ACTION_PDF_HEADERS = [
     "ID",
     "Title",
     "Description",
-    "Status update",
     "Status",
     "Owner",
     "Owner Side",
     "WBS Links",
     "Priority",
 ]
-_ACTION_PDF_COL_WIDTHS = (12, 28, 50, 28, 18, 25, 20, 22, 18)
+_ACTION_PDF_COL_WIDTHS = (12, 28, 55, 18, 25, 20, 22, 18)
 
 _ISSUE_PDF_HEADERS = [
     "ID",
@@ -267,6 +269,9 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
             display_cell(item.owner_side),
             display_cell(item.wbs_links, note=Notes.NOT_LINKED_WBS),
             display_cell(item.probability),
+            display_cell(item.impact),
+            display_cell(item.risk_rating),
+            display_cell(item.risk_appetite),
             display_cell(item.priority),
         ]
         for item in raid.risks
@@ -285,7 +290,6 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
             display_cell(item.id),
             display_cell(item.title),
             display_cell(item.description, note=Notes.SIGNOFF_DETAIL),
-            display_cell(item.status_update, note=Notes.NO_UPDATE),
             display_cell(item.status),
             display_cell(item.owner, note=Notes.SIGNOFF_ASSIGNED),
             display_cell(item.owner_side),
@@ -585,7 +589,7 @@ def _fill_raid_detail_sheet(
         1,
     )
     end_row = _DETAIL_DATA_START_ROW + max(max_items, 6) + 5
-    _clear_row_range(ws, _DETAIL_DATA_START_ROW, end_row, 32)
+    _clear_row_range(ws, _DETAIL_DATA_START_ROW, end_row, 34)
 
     for index in range(max_items):
         row = _DETAIL_DATA_START_ROW + index
@@ -608,34 +612,36 @@ def _write_detail_risk(ws: Worksheet, row: int, item: RiskEntry) -> None:
     _set_cell(ws, row, 6, item.owner, note=Notes.SIGNOFF_ASSIGNED)
     _set_cell(ws, row, 7, item.wbs_links, note=Notes.NOT_LINKED_WBS)
     _set_cell(ws, row, 8, item.probability)
-    _set_cell(ws, row, 9, item.priority)
+    _set_cell(ws, row, 9, item.impact)
+    _set_cell(ws, row, 10, item.risk_rating)
+    _set_cell(ws, row, 11, item.risk_appetite)
+    _set_cell(ws, row, 12, item.priority)
 
 
 def _write_detail_action(ws: Worksheet, row: int, item: ActionEntry) -> None:
-    _set_cell(ws, row, 11, item.id)
-    _set_cell(ws, row, 12, item.title)
-    _set_cell(ws, row, 13, item.description, note=Notes.SIGNOFF_DETAIL)
-    _set_cell(ws, row, 14, item.status_update, note=Notes.NO_UPDATE)
-    _set_cell(ws, row, 15, item.status)
-    _set_cell(ws, row, 16, item.owner, note=Notes.SIGNOFF_ASSIGNED)
-    _set_cell(ws, row, 17, item.wbs_links, note=Notes.NOT_LINKED_WBS)
-    _set_cell(ws, row, 18, item.priority)
+    _set_cell(ws, row, 14, item.id)
+    _set_cell(ws, row, 15, item.title)
+    _set_cell(ws, row, 16, item.description, note=Notes.SIGNOFF_DETAIL)
+    _set_cell(ws, row, 17, item.status)
+    _set_cell(ws, row, 18, item.owner, note=Notes.SIGNOFF_ASSIGNED)
+    _set_cell(ws, row, 19, item.wbs_links, note=Notes.NOT_LINKED_WBS)
+    _set_cell(ws, row, 20, item.priority)
 
 
 def _write_detail_issue(ws: Worksheet, row: int, item: IssueEntry) -> None:
-    _set_cell(ws, row, 20, item.id)
-    _set_cell(ws, row, 21, item.title)
-    _set_cell(ws, row, 22, item.description, note=Notes.SIGNOFF_DETAIL)
-    _set_cell(ws, row, 23, item.resolution, note=Notes.PENDING_RESOLUTION)
-    _set_cell(ws, row, 24, item.owner, note=Notes.SIGNOFF_ASSIGNED)
-    _set_cell(ws, row, 25, item.priority)
+    _set_cell(ws, row, 22, item.id)
+    _set_cell(ws, row, 23, item.title)
+    _set_cell(ws, row, 24, item.description, note=Notes.SIGNOFF_DETAIL)
+    _set_cell(ws, row, 25, item.resolution, note=Notes.PENDING_RESOLUTION)
+    _set_cell(ws, row, 26, item.owner, note=Notes.SIGNOFF_ASSIGNED)
+    _set_cell(ws, row, 27, item.priority)
 
 
 def _write_detail_decision(ws: Worksheet, row: int, item: DecisionEntry) -> None:
-    _set_cell(ws, row, 27, item.id)
-    _set_cell(ws, row, 28, item.title)
-    _set_cell(ws, row, 29, item.description_justification, note=Notes.SIGNOFF_DETAIL)
-    _set_cell(ws, row, 30, item.resolution, note=Notes.PENDING_RESOLUTION)
-    _set_cell(ws, row, 31, item.owner, note=Notes.SIGNOFF_ASSIGNED)
-    _set_cell(ws, row, 32, item.priority)
+    _set_cell(ws, row, 29, item.id)
+    _set_cell(ws, row, 30, item.title)
+    _set_cell(ws, row, 31, item.description_justification, note=Notes.SIGNOFF_DETAIL)
+    _set_cell(ws, row, 32, item.resolution, note=Notes.PENDING_RESOLUTION)
+    _set_cell(ws, row, 33, item.owner, note=Notes.SIGNOFF_ASSIGNED)
+    _set_cell(ws, row, 34, item.priority)
 

@@ -54,6 +54,31 @@ def test_raid_items_link_to_wbs(wbs: WBS) -> None:
             assert ref in wbs_codes
 
 
+def test_raid_legacy_priority_migrates_to_impact_fields() -> None:
+    risk = RAIDLog.model_validate(
+        {
+            "risks": [
+                {
+                    "id": "R1",
+                    "title": "Legacy risk",
+                    "priority": "High",
+                    "probability": "High",
+                    "wbs_links": ["1.0"],
+                },
+                {"id": "R2", "title": "Risk 2", "wbs_links": ["1.0"]},
+                {"id": "R3", "title": "Risk 3", "wbs_links": ["1.0"]},
+            ],
+            "actions": [
+                {"id": "A1", "title": "Action 1", "wbs_links": ["1.0"]},
+                {"id": "A2", "title": "Action 2", "wbs_links": ["2.0"]},
+            ],
+        }
+    ).risks[0]
+    assert risk.impact == "High"
+    assert risk.risk_rating == "High"
+    assert risk.priority == "Monitor closely"
+
+
 def test_raid_legacy_items_migrate() -> None:
     raid = RAIDLog.model_validate(
         {

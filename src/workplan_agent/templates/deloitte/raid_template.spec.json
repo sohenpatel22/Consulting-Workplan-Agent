@@ -1,6 +1,6 @@
 {
   "source_file": "raid_log_template.xlsx",
-  "summary": "RAID log follows the Deloitte Excel template: Risks, Actions, Issues, and Decisions are separate sections (not Assumptions/Dependencies). Use priority values High, Moderate, or Low. Each item labels whether the owner is on the Client, Consultant, or Joint side.",
+  "summary": "RAID log follows the Deloitte Excel template on a single detail sheet: Risks, Actions, Issues, and Decisions are side-by-side sections. Risks include probability, impact, risk rating, risk appetite, and a response priority. Actions, issues, and decisions use High, Moderate, or Low priority. Each item labels whether the owner is on the Client, Consultant, or Joint side.",
   "sections": [
     {
       "key": "risks",
@@ -59,13 +59,31 @@
           "name": "probability",
           "type": "string",
           "required": true,
+          "description": "High, Moderate, Low, or Very Low"
+        },
+        {
+          "name": "impact",
+          "type": "string",
+          "required": true,
           "description": "High, Moderate, or Low"
+        },
+        {
+          "name": "risk_rating",
+          "type": "string",
+          "required": true,
+          "description": "Derived overall rating: High, Moderate, or Low"
+        },
+        {
+          "name": "risk_appetite",
+          "type": "string",
+          "required": true,
+          "description": "Engagement risk appetite (e.g. Moderate)"
         },
         {
           "name": "priority",
           "type": "string",
           "required": true,
-          "description": "Priority/Impact: High, Moderate, or Low"
+          "description": "Response level: Monitor closely, Monitor, Stay informed, or Respond as required"
         }
       ],
       "template_headers": [
@@ -77,7 +95,10 @@
         "Owner",
         "WBS Links",
         "Probability",
-        "Priority/Impact"
+        "Impact",
+        "Risk Rating",
+        "Risk Appetite",
+        "Priority"
       ]
     },
     {
@@ -144,7 +165,6 @@
         "ID No.",
         "Title",
         "Description",
-        "Status Update (MM-DD-YYYY: Update)",
         "Status",
         "Owner",
         "WBS Links",
@@ -265,25 +285,5 @@
         "Priority"
       ]
     }
-  ],
-  "simple_view": {
-    "sheet": "RAID Log - simple",
-    "columns": [
-      "ID No.",
-      "RAID Category",
-      "Title",
-      "Description",
-      "Impact",
-      "Status",
-      "Owner",
-      "Priority",
-      "Owner Side"
-    ],
-    "categories": [
-      "Risk",
-      "Action",
-      "Issue",
-      "Decision"
-    ]
-  }
+  ]
 }

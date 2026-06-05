@@ -1,6 +1,29 @@
-from typing import Any
+from typing import Any, Self
 
 from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
+
+_RATING_LEVELS = frozenset({"High", "Moderate", "Low"})
+_LEVEL_SCORE = {"very low": 1, "low": 2, "moderate": 3, "high": 4}
+_RESPONSE_BY_RATING = {
+    "High": "Monitor closely",
+    "Moderate": "Monitor",
+    "Low": "Respond as required",
+}
+
+
+def derive_risk_rating(probability: str, impact: str) -> str:
+    prob_score = _LEVEL_SCORE.get(probability.strip().lower(), 2)
+    impact_score = _LEVEL_SCORE.get(impact.strip().lower(), 2)
+    combined = (prob_score + impact_score) / 2
+    if combined >= 3.5:
+        return "High"
+    if combined >= 2.5:
+        return "Moderate"
+    return "Low"
+
+
+def response_priority_for_rating(rating: str) -> str:
+    return _RESPONSE_BY_RATING.get(rating, "Monitor")
 
 
 class RiskEntry(BaseModel):
@@ -20,12 +43,50 @@ class RiskEntry(BaseModel):
         validation_alias=AliasChoices("wbs_links", "related_wbs_ids"),
     )
     probability: str = "Moderate"
-    priority: str = Field(
+    impact: str = Field(
         default="Moderate",
-        validation_alias=AliasChoices("priority", "severity"),
+        validation_alias=AliasChoices("impact", "severity"),
+    )
+    risk_rating: str = ""
+    risk_appetite: str = "Moderate"
+    priority: str = Field(
+        default="Monitor",
+        description="Response level: Monitor closely, Monitor, Stay informed, or Respond as required",
     )
 
     model_config = {"populate_by_name": True}
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_priority(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        priority = data.get("priority")
+        if isinstance(priority, str) and priority in _RATING_LEVELS and "impact" not in data:
+            migrated = dict(data)
+            migrated["impact"] = priority
+            probability = str(migrated.get("probability", "Moderate"))
+            migrated.setdefault("risk_rating", derive_risk_rating(probability, priority))
+            migrated.setdefault("risk_appetite", "Moderate")
+            migrated["priority"] = response_priority_for_rating(str(migrated["risk_rating"]))
+            return migrated
+        return data
+
+    @model_validator(mode="after")
+    def _fill_derived_risk_fields(self) -> Self:
+        if not self.risk_rating:
+            object.__setattr__(
+                self,
+                "risk_rating",
+                derive_risk_rating(self.probability, self.impact),
+            )
+        if self.priority in _RATING_LEVELS:
+            object.__setattr__(
+                self,
+                "priority",
+                response_priority_for_rating(self.risk_rating),
+            )
+        return self
 
 
 class ActionEntry(BaseModel):
