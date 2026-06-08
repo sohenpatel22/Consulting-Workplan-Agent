@@ -120,6 +120,12 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
         lines.append(f"### {section['title']} (`{section['key']}`)")
         if minimum:
             lines.append(f"- Include **at least {minimum}** item(s) when the brief supports it.")
+        elif section.get("key") == "actions":
+            lines.append(
+                "- Include actions **only** for discrete follow-up work from the brief "
+                "(client prerequisites, assumption validation). **Never** create one action "
+                "per risk mitigation — mitigation stays on the risk row."
+            )
         lines.append("- Fields per item:")
         for field in section.get("fields", []):
             req = "required" if field.get("required") else "optional"
@@ -153,6 +159,7 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "`priority` (Monitor closely, Monitor, Stay informed, or Respond as required).",
             "- Actions, issues, and decisions use `priority`: High, Moderate, or Low.",
             "- Do not duplicate risk mitigations as separate actions — keep mitigation on the risk row.",
+            "- `len(actions)` must not equal `len(risks)` by default; actions are not a mirror of the risks list.",
             "- Derive actions from assumptions, client activities, and follow-ups in the brief.",
             "",
             "### Content alignment",
@@ -177,7 +184,9 @@ def raid_json_output_instruction() -> str:
         "Respond with **valid JSON only** (no markdown fences or commentary). "
         "The RAID generation contract above defines the required sections, fields, "
         "and minimums — follow it exactly.\n"
-        'Root object: `{"risks": [], "actions": [], "issues": [], "decisions": []}`'
+        'Root object: `{"risks": [], "actions": [], "issues": [], "decisions": []}`\n'
+        "Put every mitigation plan on the matching risk row. Do not add parallel actions "
+        "that restate those mitigations."
     )
 
 

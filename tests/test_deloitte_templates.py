@@ -60,6 +60,8 @@ def test_generation_contracts_include_template_structure() -> None:
     assert "owner_side" in raid_prompt
     assert "mitigation" in raid_prompt.lower()
     assert "duplicate" in raid_prompt.lower()
+    assert "WRONG" in raid_prompt
+    assert "one action per risk mitigation" in raid_prompt.lower()
     assert "roles" in raci_prompt
     assert "Deliverable / Activity" in raci_prompt
     assert "holds the pen" in raci_prompt.lower()

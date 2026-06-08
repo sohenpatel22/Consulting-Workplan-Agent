@@ -170,7 +170,7 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
         {
             "key": "actions",
             "title": "Actions",
-            "minimum": 2,
+            "minimum": 0,
             "fields": [
                 {"name": "id", "type": "string", "required": True, "description": "A1, A2, …"},
                 {"name": "title", "type": "string", "required": True, "description": ""},
@@ -288,6 +288,9 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
             "Actions are discrete follow-up work items (client activities, assumptions to validate, deliverables to produce) — not risk-mitigation duplicates.",
             "Minimize overlap between `risks` and `actions`: an action should not mirror a risk title or description unless it is genuinely separate work beyond mitigation.",
             "Derive actions from assumptions, client activities, and follow-ups in the brief — not by copying each risk into the actions list.",
+            "The number of actions does not need to match the number of risks. Zero actions is valid when the brief has no separate follow-up work beyond risk mitigations.",
+            'WRONG: R1 mitigation "Pre-book workshops on Tue/Thu" plus A1 "Pre-book SME workshops" — duplicate.',
+            'CORRECT: R1 mitigation "Pre-book workshops on Tue/Thu" on the risk row; A1 "Client procures Azure licenses" — unrelated prerequisite from the brief.',
         ],
         "sections": sections,
     }

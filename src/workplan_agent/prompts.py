@@ -149,6 +149,10 @@ RAID_GENERATOR_SYSTEM = f"""{RAID_GENERATOR_ROLE}
 
 RAID_GENERATOR_USER = """Generate a RAID log from this parsed brief and WBS.
 
+Critical: every risk must have a `mitigation` on the risk row. Do **not** create a separate
+action for each risk mitigation — actions are only for unrelated follow-up work from the brief
+(client prerequisites, assumptions to validate, etc.). An empty `actions` array is valid.
+
 ## Parsed Brief
 {brief_json}
 
@@ -270,6 +274,8 @@ REVISION_WBS_USER = """Revise the WBS based on reviewer feedback.
 {feedback}"""
 
 REVISION_RAID_USER = """Revise the RAID log based on reviewer feedback.
+
+Keep mitigation plans on risk rows only — do not add or keep actions that restate risk mitigations.
 
 ## Parsed Brief
 {parsed_brief_json}
@@ -403,7 +409,8 @@ def raid_generator_user_blocks(
     user_prompt: str | None = None,
 ) -> list[ContentBlock]:
     task = append_generation_context(
-        "Generate a RAID log from the parsed brief and WBS above.",
+        "Generate a RAID log from the parsed brief and WBS above. "
+        "Put mitigation plans on risk rows only — do not mirror them as actions.",
         user_prompt,
     )
     return [

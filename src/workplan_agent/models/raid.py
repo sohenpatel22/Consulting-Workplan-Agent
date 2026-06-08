@@ -2,6 +2,8 @@ from typing import Any, Self
 
 from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 
+from workplan_agent.raid_sanitize import strip_mitigation_duplicate_actions
+
 _RATING_LEVELS = frozenset({"High", "Moderate", "Low"})
 _LEVEL_SCORE = {"very low": 1, "low": 2, "moderate": 3, "high": 4}
 _RESPONSE_BY_RATING = {
@@ -205,6 +207,13 @@ class RAIDLog(BaseModel):
             "issues": buckets["issues"],
             "decisions": buckets["decisions"],
         }
+
+    @model_validator(mode="after")
+    def _remove_mitigation_duplicate_actions(self) -> Self:
+        cleaned = strip_mitigation_duplicate_actions(self.actions, self.risks)
+        if cleaned != self.actions:
+            object.__setattr__(self, "actions", cleaned)
+        return self
 
     @property
     def items(self) -> list[RiskEntry | ActionEntry | IssueEntry | DecisionEntry]:
