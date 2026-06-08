@@ -32,7 +32,7 @@ from workplan_agent.files.export import markdown_to_html_body
 from workplan_agent.render import (
     render_raid_markdown,
     render_wbs_markdown,
-    render_stakeholder_markdown,
+    render_raci_markdown,
     render_status_markdown,
     render_quality_gates_markdown,
     generate_quality_gates,
@@ -81,7 +81,7 @@ def _build_summary(session: WorkplanSession) -> SessionSummary:
         session.quality_gates is None
         and session.wbs is not None
         and session.raid is not None
-        and session.stakeholder_map is not None
+        and session.raci_matrix is not None
         and session.status_report is not None
     ):
         session.quality_gates = generate_quality_gates(session)
@@ -94,7 +94,7 @@ def _build_summary(session: WorkplanSession) -> SessionSummary:
         raid_actions=len(session.raid.actions) if session.raid else 0,
         raid_issues=len(session.raid.issues) if session.raid else 0,
         raid_decisions=len(session.raid.decisions) if session.raid else 0,
-        stakeholders_count=len(session.stakeholder_map.stakeholders) if session.stakeholder_map else 0,
+        raci_activities_count=len(session.raci_matrix.rows) if session.raci_matrix else 0,
         status_milestones_count=len(session.status_report.milestones) if session.status_report else 0,
         quality_gates_passed=sum(1 for i in session.quality_gates.items if i.passed) if session.quality_gates else 0,
         quality_gates_total=len(session.quality_gates.items) if session.quality_gates else 0,
@@ -112,17 +112,17 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
     parsed_brief = None
     wbs = None
     raid = None
-    stakeholder_map = None
+    raci_matrix = None
     status_report = None
     quality_gates = None
     wbs_markdown = None
     raid_markdown = None
-    stakeholder_markdown = None
+    raci_markdown = None
     status_markdown = None
     quality_gates_markdown = None
     wbs_html = None
     raid_html = None
-    stakeholder_html = None
+    raci_html = None
     status_html = None
     quality_gates_html = None
     summary = None
@@ -134,15 +134,15 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
         wbs = session.wbs.model_dump(mode="json")
     if session.raid is not None:
         raid = session.raid.model_dump(mode="json")
-    if session.stakeholder_map is not None:
-        stakeholder_map = session.stakeholder_map.model_dump(mode="json")
+    if session.raci_matrix is not None:
+        raci_matrix = session.raci_matrix.model_dump(mode="json")
     if session.status_report is not None:
         status_report = session.status_report.model_dump(mode="json")
 
     if (
         session.wbs is not None
         and session.raid is not None
-        and session.stakeholder_map is not None
+        and session.raci_matrix is not None
         and session.status_report is not None
         and session.quality_gates is None
     ):
@@ -157,7 +157,7 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
         (
             session.wbs is not None,
             session.raid is not None,
-            session.stakeholder_map is not None,
+            session.raci_matrix is not None,
             session.status_report is not None,
         )
     )
@@ -169,9 +169,9 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
         if session.raid is not None:
             raid_markdown = render_raid_markdown(session.raid, parsed)
             raid_html = markdown_to_html_body(raid_markdown)
-        if session.stakeholder_map is not None:
-            stakeholder_markdown = render_stakeholder_markdown(session.stakeholder_map, parsed)
-            stakeholder_html = markdown_to_html_body(stakeholder_markdown)
+        if session.raci_matrix is not None:
+            raci_markdown = render_raci_markdown(session.raci_matrix, parsed)
+            raci_html = markdown_to_html_body(raci_markdown)
         if session.status_report is not None:
             status_markdown = render_status_markdown(session.status_report, parsed)
             status_html = markdown_to_html_body(status_markdown)
@@ -217,17 +217,17 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
         parsed_brief=parsed_brief,
         wbs=wbs,
         raid=raid,
-        stakeholder_map=stakeholder_map,
+        raci_matrix=raci_matrix,
         status_report=status_report,
         quality_gates=quality_gates,
         wbs_markdown=wbs_markdown,
         raid_markdown=raid_markdown,
-        stakeholder_markdown=stakeholder_markdown,
+        raci_markdown=raci_markdown,
         status_markdown=status_markdown,
         quality_gates_markdown=quality_gates_markdown,
         wbs_html=wbs_html,
         raid_html=raid_html,
-        stakeholder_html=stakeholder_html,
+        raci_html=raci_html,
         status_html=status_html,
         quality_gates_html=quality_gates_html,
     )
@@ -301,8 +301,8 @@ def _make_orchestrator(record: SessionRecord) -> OrchestratorAgent:
 
 _BUILD_PHASE_AFTER_ARTIFACT = {
     "wbs": "generating_raid",
-    "raid": "generating_stakeholder",
-    "stakeholder": "generating_status",
+    "raid": "generating_raci",
+    "raci": "generating_status",
     "status": "ready_for_review",
 }
 
@@ -434,7 +434,7 @@ def _compute_revision_diff(
     target: RevisionTarget,
     before_wbs_md: str,
     before_raid_md: str,
-    before_stakeholder_md: str,
+    before_raci_md: str,
     before_status_md: str,
 ) -> RevisionDiff | None:
     assert session.parsed_brief is not None
@@ -443,29 +443,29 @@ def _compute_revision_diff(
 
     wbs_diff: str | None = None
     raid_diff: str | None = None
-    stakeholder_diff: str | None = None
+    raci_diff: str | None = None
     status_diff: str | None = None
 
     after_wbs_md = render_wbs_markdown(session.wbs, session.parsed_brief)
     after_raid_md = render_raid_markdown(session.raid, session.parsed_brief)
-    after_stakeholder_md = render_stakeholder_markdown(session.stakeholder_map, session.parsed_brief) if session.stakeholder_map else ""
+    after_raci_md = render_raci_markdown(session.raci_matrix, session.parsed_brief) if session.raci_matrix else ""
     after_status_md = render_status_markdown(session.status_report, session.parsed_brief) if session.status_report else ""
 
     if target == RevisionTarget.WBS:
         wbs_diff = unified_text_diff(before_wbs_md, after_wbs_md, "WBS") or None
     elif target == RevisionTarget.RAID:
         raid_diff = unified_text_diff(before_raid_md, after_raid_md, "RAID") or None
-    elif target == RevisionTarget.STAKEHOLDER:
-        stakeholder_diff = unified_text_diff(before_stakeholder_md, after_stakeholder_md, "Stakeholder Map") or None
+    elif target == RevisionTarget.RACI:
+        raci_diff = unified_text_diff(before_raci_md, after_raci_md, "RACI") or None
     elif target == RevisionTarget.STATUS:
         status_diff = unified_text_diff(before_status_md, after_status_md, "Weekly Status Report") or None
 
-    if not wbs_diff and not raid_diff and not stakeholder_diff and not status_diff:
+    if not wbs_diff and not raid_diff and not raci_diff and not status_diff:
         return None
     return RevisionDiff(
         wbs=wbs_diff,
         raid=raid_diff,
-        stakeholder_map=stakeholder_diff,
+        raci_matrix=raci_diff,
         status_report=status_diff,
     )
 
@@ -550,7 +550,7 @@ def apply_review_work(session_id: str, request: ReviewRequest) -> ReviewResponse
     assert session.parsed_brief is not None and session.wbs is not None and session.raid is not None
     before_wbs_md = render_wbs_markdown(session.wbs, session.parsed_brief)
     before_raid_md = render_raid_markdown(session.raid, session.parsed_brief)
-    before_stakeholder_md = render_stakeholder_markdown(session.stakeholder_map, session.parsed_brief) if session.stakeholder_map else ""
+    before_raci_md = render_raci_markdown(session.raci_matrix, session.parsed_brief) if session.raci_matrix else ""
     before_status_md = render_status_markdown(session.status_report, session.parsed_brief) if session.status_report else ""
 
     upstream_snapshot = {
@@ -570,7 +570,7 @@ def apply_review_work(session_id: str, request: ReviewRequest) -> ReviewResponse
         target,
         before_wbs_md,
         before_raid_md,
-        before_stakeholder_md,
+        before_raci_md,
         before_status_md,
     )
     result = ReviewResponse(

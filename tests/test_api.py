@@ -171,16 +171,16 @@ def test_session_response_exposes_partial_artifacts(client: TestClient) -> None:
     data = session_to_response(record)
     assert data.wbs_html
     assert data.raid_html is None
-    assert data.stakeholder_html is None
+    assert data.raci_html is None
     assert data.summary is not None
     assert data.summary.wbs_items > 0
     assert data.summary.raid_risks == 0
 
     record.session.raid = RAIDLog.model_validate(RAID_FIXTURE)
-    record.phase = "generating_stakeholder"
+    record.phase = "generating_raci"
     data = session_to_response(record)
     assert data.raid_html
-    assert data.stakeholder_html is None
+    assert data.raci_html is None
 
 
 def test_create_session_mock(client: TestClient) -> None:
@@ -292,7 +292,7 @@ def test_concurrent_revision_different_artifacts(client: TestClient) -> None:
     get_store().add_revision_in_progress(session_id, "wbs")
     review = client.post(
         f"/api/sessions/{session_id}/review",
-        json={"action": "stakeholder", "feedback": "Add a steering committee row."},
+        json={"action": "raci", "feedback": "Add a change management row."},
     )
     assert review.status_code == 202
 

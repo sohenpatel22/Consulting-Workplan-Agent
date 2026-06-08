@@ -50,7 +50,7 @@ def run_pipeline(
         help="Optional planner guidance applied alongside the brief during generation",
     ),
 ) -> None:
-    """Run generation: parse brief → WBS → RAID → stakeholder map → status report."""
+    """Run generation: parse brief → WBS → RAID → RACI matrix → status report."""
     try:
         provider = get_provider(use_mock=mock)
     except ValueError as exc:

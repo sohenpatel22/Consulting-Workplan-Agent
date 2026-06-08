@@ -4,23 +4,23 @@ from workplan_agent.llm.caching import ContentBlock
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.wbs import WBS
 from workplan_agent.models.raid import RAIDLog
-from workplan_agent.models.stakeholder import StakeholderMap
+from workplan_agent.models.raci import RaciMatrix
 from workplan_agent.prompts import (
-    STAKEHOLDER_GENERATOR_SYSTEM,
-    STAKEHOLDER_GENERATOR_USER,
+    RACI_GENERATOR_SYSTEM,
+    RACI_GENERATOR_USER,
     append_generation_context,
     normalize_user_prompt,
-    stakeholder_generator_system_blocks,
-    stakeholder_generator_user_blocks,
+    raci_generator_system_blocks,
+    raci_generator_user_blocks,
 )
 
 
-class StakeholderMapGeneratorAgent(BaseAgent[StakeholderMap]):
-    system_prompt = STAKEHOLDER_GENERATOR_SYSTEM
+class RaciMatrixGeneratorAgent(BaseAgent[RaciMatrix]):
+    system_prompt = RACI_GENERATOR_SYSTEM
 
     @property
-    def response_model(self) -> type[StakeholderMap]:
-        return StakeholderMap
+    def response_model(self) -> type[RaciMatrix]:
+        return RaciMatrix
 
     def build_user_prompt(self, **kwargs: object) -> str:
         parsed_brief = kwargs.get("parsed_brief")
@@ -34,7 +34,7 @@ class StakeholderMapGeneratorAgent(BaseAgent[StakeholderMap]):
             raise TypeError("raid must be a RAIDLog")
 
         user_prompt = normalize_user_prompt(kwargs.get("user_prompt"))
-        body = STAKEHOLDER_GENERATOR_USER.format(
+        body = RACI_GENERATOR_USER.format(
             brief_json=parsed_brief.model_dump_json(indent=2),
             wbs_json=wbs.model_dump_json(indent=2),
             raid_json=raid.model_dump_json(indent=2),
@@ -42,7 +42,7 @@ class StakeholderMapGeneratorAgent(BaseAgent[StakeholderMap]):
         return append_generation_context(body, user_prompt or None)
 
     def build_system_blocks(self) -> list[ContentBlock]:
-        return stakeholder_generator_system_blocks(self.response_model)
+        return raci_generator_system_blocks(self.response_model)
 
     def build_user_blocks(self, **kwargs: object) -> list[ContentBlock]:
         parsed_brief = kwargs.get("parsed_brief")
@@ -55,7 +55,7 @@ class StakeholderMapGeneratorAgent(BaseAgent[StakeholderMap]):
         if not isinstance(raid, RAIDLog):
             raise TypeError("raid must be a RAIDLog")
         user_prompt = normalize_user_prompt(kwargs.get("user_prompt"))
-        return stakeholder_generator_user_blocks(
+        return raci_generator_user_blocks(
             parsed_brief.model_dump_json(indent=2),
             wbs.model_dump_json(indent=2),
             raid.model_dump_json(indent=2),

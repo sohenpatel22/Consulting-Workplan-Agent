@@ -10,7 +10,7 @@ from workplan_agent.models.brief import ResolvedQuestion
 from workplan_agent.prompts import build_generation_guidance
 from workplan_agent.agents.raid_generator import RAIDGeneratorAgent
 from workplan_agent.agents.wbs_generator import WBSGeneratorAgent
-from workplan_agent.agents.stakeholder_generator import StakeholderMapGeneratorAgent
+from workplan_agent.agents.raci_generator import RaciMatrixGeneratorAgent
 from workplan_agent.agents.status_generator import StatusReportGeneratorAgent
 from workplan_agent.agents.revision import RevisionAgent, RevisionTarget
 from workplan_agent.config import get_settings
@@ -42,7 +42,7 @@ class OrchestratorAgent:
         self.brief_parser = BriefParserAgent(provider)
         self.wbs_generator = WBSGeneratorAgent(provider)
         self.raid_generator = RAIDGeneratorAgent(provider)
-        self.stakeholder_generator = StakeholderMapGeneratorAgent(provider)
+        self.raci_generator = RaciMatrixGeneratorAgent(provider)
         self.status_generator = StatusReportGeneratorAgent(provider)
         self.revision_agent = RevisionAgent(provider)
 
@@ -165,14 +165,14 @@ class OrchestratorAgent:
         )
         _notify("raid")
 
-        self._log("[bold]Step 4:[/bold] Generating Stakeholder Map...")
-        session.stakeholder_map = self.stakeholder_generator.run(
+        self._log("[bold]Step 4:[/bold] Generating RACI matrix...")
+        session.raci_matrix = self.raci_generator.run(
             parsed_brief=session.parsed_brief,
             wbs=session.wbs,
             raid=session.raid,
             user_prompt=guidance,
         )
-        _notify("stakeholder")
+        _notify("raci")
 
         self._log("[bold]Step 5:[/bold] Generating Weekly Status Report...")
         session.status_report = self.status_generator.run(
@@ -231,7 +231,7 @@ class OrchestratorAgent:
             parsed_brief=session.parsed_brief,
             wbs=session.wbs,
             raid=session.raid,
-            stakeholder_map=session.stakeholder_map,
+            raci_matrix=session.raci_matrix,
             status_report=session.status_report,
             feedback=feedback.strip(),
             target=target,
@@ -240,8 +240,8 @@ class OrchestratorAgent:
             session.wbs = result.wbs
         if result.raid is not None:
             session.raid = result.raid
-        if result.stakeholder_map is not None:
-            session.stakeholder_map = result.stakeholder_map
+        if result.raci_matrix is not None:
+            session.raci_matrix = result.raci_matrix
         if result.status_report is not None:
             session.status_report = result.status_report
 
@@ -271,8 +271,8 @@ class OrchestratorAgent:
         table.add_row("Actions", str(len(session.raid.actions)))
         table.add_row("Issues", str(len(session.raid.issues)))
         table.add_row("Decisions", str(len(session.raid.decisions)))
-        if session.stakeholder_map is not None:
-            table.add_row("Stakeholders mapped", str(len(session.stakeholder_map.stakeholders)))
+        if session.raci_matrix is not None:
+            table.add_row("RACI activities", str(len(session.raci_matrix.rows)))
         if session.status_report is not None:
             table.add_row("Status report milestones", str(len(session.status_report.milestones)))
         console.print(table)

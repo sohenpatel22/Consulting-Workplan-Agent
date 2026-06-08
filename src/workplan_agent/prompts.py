@@ -7,12 +7,12 @@ from pydantic import BaseModel
 from workplan_agent.llm.base import schema_instruction
 from workplan_agent.llm.caching import ContentBlock, cached_block, plain_block
 from workplan_agent.templates.deloitte_specs import (
+    build_raci_generation_contract,
     build_raid_generation_contract,
-    build_stakeholder_generation_contract,
     build_status_report_generation_contract,
     build_wbs_generation_contract,
+    raci_json_output_instruction,
     raid_json_output_instruction,
-    stakeholder_json_output_instruction,
     status_json_output_instruction,
     wbs_json_output_instruction,
 )
@@ -22,7 +22,7 @@ _TEMPLATES_DIR = Path(__file__).parent / "templates"
 # Deloitte template contracts (from templates/deloitte/*_template.spec.json)
 WBS_REQUIREMENTS = build_wbs_generation_contract()
 RAID_REQUIREMENTS = build_raid_generation_contract()
-STAKEHOLDER_REQUIREMENTS = build_stakeholder_generation_contract()
+RACI_REQUIREMENTS = build_raci_generation_contract()
 STATUS_REQUIREMENTS = build_status_report_generation_contract()
 
 # --- Brief parser ---
@@ -153,20 +153,20 @@ RAID_GENERATOR_USER = """Generate a RAID log from this parsed brief and WBS.
 ## WBS
 {wbs_json}"""
 
-# --- Stakeholder Map generator ---
+# --- RACI generator ---
 
-STAKEHOLDER_GENERATOR_ROLE = (
-    "You are a consulting stakeholder manager. Produce a Stakeholder Map that "
-    "implements the Stakeholder Map generation contract below."
+RACI_GENERATOR_ROLE = (
+    "You are a consulting engagement manager. Produce a RACI matrix that "
+    "implements the RACI generation contract below."
 )
 
-STAKEHOLDER_GENERATOR_SYSTEM = f"""{STAKEHOLDER_GENERATOR_ROLE}
+RACI_GENERATOR_SYSTEM = f"""{RACI_GENERATOR_ROLE}
 
-{STAKEHOLDER_REQUIREMENTS}
+{RACI_REQUIREMENTS}
 
-{stakeholder_json_output_instruction()}"""
+{raci_json_output_instruction()}"""
 
-STAKEHOLDER_GENERATOR_USER = """Generate a Stakeholder Map from this parsed brief, WBS, and RAID log.
+RACI_GENERATOR_USER = """Generate a RACI matrix from this parsed brief, WBS, and RAID log.
 
 ## Parsed Brief
 {brief_json}
@@ -203,7 +203,7 @@ STATUS_GENERATOR_USER = """Generate a Weekly Status Report from this parsed brie
 
 # --- Revision ---
 
-REVISION_RULES = """You are a consulting workplan reviewer. Apply reviewer feedback to WBS, RAID, Stakeholder Map, and/or Weekly Status Report artifacts.
+REVISION_RULES = """You are a consulting workplan reviewer. Apply reviewer feedback to WBS, RAID, RACI matrix, and/or Weekly Status Report artifacts.
 
 Rules:
 - Apply ONLY the requested changes from the feedback.
@@ -221,13 +221,13 @@ When revising the RAID log, follow this contract:
 
 {RAID_REQUIREMENTS}"""
 
-REVISION_STAKEHOLDER_SYSTEM = f"""{REVISION_RULES}
+REVISION_RACI_SYSTEM = f"""{REVISION_RULES}
 
-When revising the Stakeholder Map, follow this contract:
+When revising the RACI matrix, follow this contract:
 
-{STAKEHOLDER_REQUIREMENTS}
+{RACI_REQUIREMENTS}
 
-{stakeholder_json_output_instruction()}"""
+{raci_json_output_instruction()}"""
 
 REVISION_STATUS_SYSTEM = f"""{REVISION_RULES}
 
@@ -246,8 +246,8 @@ REVISION_CONTEXT = """## Parsed Brief
 ## Current RAID
 {raid_json}
 
-## Current Stakeholder Map
-{stakeholder_map_json}
+## Current RACI Matrix
+{raci_matrix_json}
 
 ## Current Weekly Status Report
 {status_report_json}"""
@@ -280,13 +280,13 @@ REVISION_RAID_USER = """Revise the RAID log based on reviewer feedback.
 ## Reviewer Feedback
 {feedback}"""
 
-REVISION_STAKEHOLDER_USER = """Revise the Stakeholder Map based on reviewer feedback.
+REVISION_RACI_USER = """Revise the RACI matrix based on reviewer feedback.
 
 ## Parsed Brief
 {parsed_brief_json}
 
-## Current Stakeholder Map
-{stakeholder_map_json}
+## Current RACI Matrix
+{raci_matrix_json}
 
 ## Reviewer Feedback
 {feedback}"""
@@ -317,8 +317,8 @@ def _raid_output_block() -> ContentBlock:
     return cached_block(raid_json_output_instruction())
 
 
-def _stakeholder_output_block() -> ContentBlock:
-    return cached_block(stakeholder_json_output_instruction())
+def _raci_output_block() -> ContentBlock:
+    return cached_block(raci_json_output_instruction())
 
 
 def _status_output_block() -> ContentBlock:
@@ -349,13 +349,13 @@ def raid_generator_system_blocks(_response_model: type[BaseModel]) -> list[Conte
     ]
 
 
-def stakeholder_generator_system_blocks(
+def raci_generator_system_blocks(
     _response_model: type[BaseModel],
 ) -> list[ContentBlock]:
     return [
-        plain_block(STAKEHOLDER_GENERATOR_ROLE),
-        cached_block(STAKEHOLDER_REQUIREMENTS),
-        _stakeholder_output_block(),
+        plain_block(RACI_GENERATOR_ROLE),
+        cached_block(RACI_REQUIREMENTS),
+        _raci_output_block(),
     ]
 
 
@@ -409,14 +409,14 @@ def raid_generator_user_blocks(
     ]
 
 
-def stakeholder_generator_user_blocks(
+def raci_generator_user_blocks(
     brief_json: str,
     wbs_json: str,
     raid_json: str,
     user_prompt: str | None = None,
 ) -> list[ContentBlock]:
     task = append_generation_context(
-        "Generate a Stakeholder Map from the parsed brief, WBS, and RAID log above.",
+        "Generate a RACI matrix from the parsed brief, WBS, and RAID log above.",
         user_prompt,
     )
     return [
@@ -447,14 +447,14 @@ def revision_user_blocks(
     wbs_json: str,
     raid_json: str,
     feedback: str,
-    stakeholder_map_json: str = "{}",
+    raci_matrix_json: str = "{}",
     status_report_json: str = "{}",
 ) -> list[ContentBlock]:
     context = REVISION_CONTEXT.format(
         parsed_brief_json=parsed_brief_json,
         wbs_json=wbs_json,
         raid_json=raid_json,
-        stakeholder_map_json=stakeholder_map_json,
+        raci_matrix_json=raci_matrix_json,
         status_report_json=status_report_json,
     )
     return [

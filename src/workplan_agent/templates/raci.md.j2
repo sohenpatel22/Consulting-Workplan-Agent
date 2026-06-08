@@ -1,0 +1,5 @@
+| Deliverable / Activity |{% for role in raci_matrix.roles %} {{ role | cell }} |{% endfor %}
+|------------------------|{% for role in raci_matrix.roles %}---|{% endfor %}
+{% for row in raci_matrix.rows -%}
+| {{ row.activity | cell }} |{% for role in raci_matrix.roles %} {{ row.assignments.get(role, '') | cell }} |{% endfor %}
+{% endfor %}

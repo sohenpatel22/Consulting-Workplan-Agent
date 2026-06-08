@@ -1,0 +1,100 @@
+{
+  "source_file": "raci_template.xlsx",
+  "sheet": "RACI Table Sample",
+  "summary": "RACI matrix follows the Deloitte Excel template: rows are deliverables or activities from the WBS; columns are engagement roles; each cell is R, A, C, or I. Derive roles from the brief and WBS owners; align activities to level-2 or level-3 WBS elements.",
+  "activity_column": "Deliverable / Activity",
+  "roles": [
+    "Deloitte Sponsor",
+    "Instructor / Reviewer",
+    "Student Team",
+    "AI Agent System",
+    "QA / Quality Gate"
+  ],
+  "assignment_values": [
+    "R",
+    "A",
+    "C",
+    "I"
+  ],
+  "generation_rules": [
+    "Root JSON: {\"roles\": [ /* column headers */ ], \"rows\": [ /* one object per activity row */ ]}.",
+    "Each row object: activity (string) and assignments (object mapping role name to R, A, C, or I).",
+    "Every role in roles must appear as a key in each row's assignments.",
+    "Each activity row should have exactly one Accountable (A) assignment.",
+    "Use R for Responsible, A for Accountable, C for Consulted, I for Informed.",
+    "Ground roles in named stakeholders and WBS owners from the brief; do not invent generic columns.",
+    "Include at least one row per major WBS deliverable or work stream."
+  ],
+  "example_rows": [
+    {
+      "activity": "Interpret client brief",
+      "assignments": {
+        "Deloitte Sponsor": "A",
+        "Instructor / Reviewer": "C",
+        "Student Team": "R",
+        "AI Agent System": "R",
+        "QA / Quality Gate": "C"
+      }
+    },
+    {
+      "activity": "Build Work Breakdown Structure (WBS)",
+      "assignments": {
+        "Deloitte Sponsor": "C",
+        "Instructor / Reviewer": "C",
+        "Student Team": "R",
+        "AI Agent System": "R",
+        "QA / Quality Gate": "C"
+      }
+    },
+    {
+      "activity": "Generate RAID log",
+      "assignments": {
+        "Deloitte Sponsor": "C",
+        "Instructor / Reviewer": "C",
+        "Student Team": "R",
+        "AI Agent System": "R",
+        "QA / Quality Gate": "C"
+      }
+    },
+    {
+      "activity": "Create Stakeholder Map",
+      "assignments": {
+        "Deloitte Sponsor": "C",
+        "Instructor / Reviewer": "C",
+        "Student Team": "R",
+        "AI Agent System": "R",
+        "QA / Quality Gate": "C"
+      }
+    },
+    {
+      "activity": "Generate Weekly Status Template",
+      "assignments": {
+        "Deloitte Sponsor": "C",
+        "Instructor / Reviewer": "C",
+        "Student Team": "R",
+        "AI Agent System": "R",
+        "QA / Quality Gate": "C"
+      }
+    },
+    {
+      "activity": "Apply Quality Gate Checklist",
+      "assignments": {
+        "Deloitte Sponsor": "C",
+        "Instructor / Reviewer": "I",
+        "Student Team": "R",
+        "AI Agent System": "C",
+        "QA / Quality Gate": "R"
+      }
+    },
+    {
+      "activity": "Iterate based on feedback",
+      "assignments": {
+        "Deloitte Sponsor": "A",
+        "Instructor / Reviewer": "I",
+        "Student Team": "R",
+        "AI Agent System": "R",
+        "QA / Quality Gate": "C"
+      }
+    }
+  ]
+}

@@ -281,120 +281,60 @@ def _row_headers(ws: object, row: int, start_col: int, end_col: int) -> list[str
     return headers
 
 
-_STAKEHOLDER_FIELD_MAP: dict[str, tuple[str, str, str]] = {
-    "Stakeholder": ("name", "string", "Stakeholder name or group"),
-    "Organization Side": (
-        "organization_side",
-        "string",
-        "Client, Consultant, Joint, or Other",
-    ),
-    "Source": ("source", "string", "explicit or inferred"),
-    "Rationale (if inferred)": (
-        "rationale",
-        "string",
-        "Required when source is inferred; empty when explicit",
-    ),
-    "Department/Group": ("department", "string", "Organizational unit"),
-    "Role in Project": ("role_in_project", "string", "Role relative to the engagement"),
-    "Influence Level": (
-        "influence_level",
-        "string",
-        "High, Medium, or Low",
-    ),
-    "Interest Level": (
-        "interest_level",
-        "string",
-        "High, Medium, or Low",
-    ),
-    "Engagement Strategy": (
-        "engagement_strategy",
-        "string",
-        "e.g. Manage Closely, Keep Informed, Keep Satisfied",
-    ),
-    "Key Concerns": ("key_concerns", "string", "Primary concerns for this stakeholder"),
-    "Communication Frequency": (
-        "communication_frequency",
-        "string",
-        "Weekly, Bi-weekly, Monthly, or Ad-hoc",
-    ),
-    "Engagement Approach": (
-        "engagement_approach",
-        "string",
-        "How to engage this stakeholder",
-    ),
-    "Communication Method": (
-        "communication_method",
-        "string",
-        "Channels and forums for communication",
-    ),
-}
+_RACI_SHEET = "RACI Table Sample"
+_RACI_ACTIVITY_HEADER = "Deliverable / Activity"
+_RACI_HEADER_ROW_LABEL = _RACI_ACTIVITY_HEADER
+_RACI_LETTERS = frozenset({"R", "A", "C", "I"})
 
 
-def extract_stakeholder_spec(xlsx_path: Path) -> dict[str, Any]:
+def extract_raci_spec(xlsx_path: Path) -> dict[str, Any]:
     from openpyxl import load_workbook
 
     workbook = load_workbook(xlsx_path, data_only=True)
-    if "Stakeholder Map" not in workbook.sheetnames:
-        raise ValueError(f"Stakeholder Map sheet not found in {xlsx_path}")
-    ws = workbook["Stakeholder Map"]
+    if _RACI_SHEET not in workbook.sheetnames:
+        raise ValueError(f"{_RACI_SHEET!r} sheet not found in {xlsx_path}")
+    ws = workbook[_RACI_SHEET]
 
-    header_row = _find_row_with_label(ws, "Stakeholder", max_row=20)
+    header_row = _find_row_with_label(ws, _RACI_HEADER_ROW_LABEL, max_row=20)
     headers = _row_text_headers(ws, header_row)
-    columns: list[dict[str, str]] = []
-    for header in headers:
-        if header in _STAKEHOLDER_FIELD_MAP:
-            field, typ, desc = _STAKEHOLDER_FIELD_MAP[header]
-            columns.append({"header": header, "field": field, "type": typ, "description": desc})
-    if not any(col["field"] == "organization_side" for col in columns):
-        columns.insert(
-            1,
-            {
-                "header": "Organization Side",
-                "field": "organization_side",
-                "type": "string",
-                "description": "Client, Consultant, Joint, or Other",
-            },
-        )
-
+    if not headers or headers[0] != _RACI_ACTIVITY_HEADER:
+        raise ValueError(f"Expected {_RACI_ACTIVITY_HEADER!r} as first column in {xlsx_path}")
+    roles = headers[1:]
     header_cols = _header_column_map(ws, header_row, headers)
 
     example_rows: list[dict[str, Any]] = []
-    for row_idx in range(header_row + 1, min(header_row + 9, ws.max_row + 1)):
+    for row_idx in range(header_row + 1, ws.max_row + 1):
         row_data = _row_dict_by_columns(ws, row_idx, header_cols)
-        name = row_data.get("Stakeholder", "").strip()
-        if not name:
+        activity = row_data.get(_RACI_ACTIVITY_HEADER, "").strip()
+        if not activity:
             continue
-        entry: dict[str, Any] = {}
-        for header, (field, _, _) in _STAKEHOLDER_FIELD_MAP.items():
-            raw = row_data.get(header, "")
-            value = str(raw).strip() if raw is not None else ""
-            if field == "organization_side":
-                entry[field] = _infer_organization_side(row_data)
-            elif field == "source":
-                entry[field] = value.lower() if value else value
-            elif field == "rationale" and value.upper() in ("N/A", ""):
-                entry[field] = None
-            else:
-                entry[field] = value
-        example_rows.append(entry)
+        assignments: dict[str, str] = {}
+        for role in roles:
+            value = row_data.get(role, "").strip().upper()
+            if value in _RACI_LETTERS:
+                assignments[role] = value
+        example_rows.append({"activity": activity, "assignments": assignments})
 
     return {
         "source_file": xlsx_path.name,
-        "sheet": "Stakeholder Map",
+        "sheet": _RACI_SHEET,
         "summary": (
-            "Stakeholder map follows the Deloitte Excel template: one row per stakeholder "
-            "with influence/interest analysis and engagement strategy. Ground every row in "
-            "the brief, WBS, or RAID; limit inferred stakeholders to 3–5 with rationale."
+            "RACI matrix follows the Deloitte Excel template: rows are deliverables or "
+            "activities from the WBS; columns are engagement roles; each cell is R, A, C, "
+            "or I. Derive roles from the brief and WBS owners; align activities to level-2 "
+            "or level-3 WBS elements."
         ),
-        "columns": columns,
+        "activity_column": _RACI_ACTIVITY_HEADER,
+        "roles": roles,
+        "assignment_values": ["R", "A", "C", "I"],
         "generation_rules": [
-            "Root JSON: {\"stakeholders\": [ /* one object per table row */ ]}.",
-            "organization_side must be Client, Consultant, Joint, or Other.",
-            "source must be explicit or inferred (lowercase in JSON).",
-            "rationale is required and non-empty when source is inferred; null or empty when explicit.",
-            "influence_level and interest_level: High, Medium, or Low.",
-            "communication_frequency: Weekly, Bi-weekly, Monthly, or Ad-hoc.",
-            "Do not invent generic roles without WBS/RAID/brief justification.",
+            'Root JSON: {"roles": [ /* column headers */ ], "rows": [ /* one object per activity row */ ]}.',
+            "Each row object: activity (string) and assignments (object mapping role name to R, A, C, or I).",
+            "Every role in roles must appear as a key in each row's assignments.",
+            "Each activity row should have exactly one Accountable (A) assignment.",
+            "Use R for Responsible, A for Accountable, C for Consulted, I for Informed.",
+            "Ground roles in named stakeholders and WBS owners from the brief; do not invent generic columns.",
+            "Include at least one row per major WBS deliverable or work stream.",
         ],
         "example_rows": example_rows,
     }
@@ -501,26 +441,6 @@ def extract_status_report_spec(docx_path: Path) -> dict[str, Any]:
         ],
         "example_milestones": example_milestones,
     }
-
-
-def _infer_organization_side(row_data: dict[str, str]) -> str:
-    text = " ".join(
-        row_data.get(header, "")
-        for header in ("Stakeholder", "Department/Group", "Role in Project")
-    ).lower()
-    if "client" in text or "end user" in text or "evaluator" in text:
-        return "Client"
-    if (
-        "deloitte" in text
-        or "consulting" in text
-        or "student team" in text
-        or "technical team" in text
-        or "quality assurance" in text
-    ):
-        return "Consultant"
-    if "academic" in text or "instructor" in text or "ta" in text:
-        return "Other"
-    return "Joint"
 
 
 def _find_row_with_label(ws: object, label: str, *, max_row: int) -> int:

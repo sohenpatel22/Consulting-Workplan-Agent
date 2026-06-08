@@ -1,14 +1,14 @@
 from workplan_agent.templates.deloitte_specs import (
+    build_raci_generation_contract,
     build_raid_generation_contract,
-    build_stakeholder_generation_contract,
     build_status_report_generation_contract,
     build_wbs_generation_contract,
+    load_raci_spec,
     load_raid_spec,
-    load_stakeholder_spec,
     load_status_report_spec,
     load_wbs_spec,
+    raci_json_output_instruction,
     raid_json_output_instruction,
-    stakeholder_json_output_instruction,
     status_json_output_instruction,
     wbs_json_output_instruction,
 )
@@ -30,13 +30,11 @@ def test_raid_spec_sections_match_template() -> None:
         assert any(field["name"] == "owner_side" for field in section["fields"])
 
 
-def test_stakeholder_spec_columns_match_template() -> None:
-    spec = load_stakeholder_spec()
-    fields = {col["field"] for col in spec["columns"]}
-    assert "name" in fields
-    assert "organization_side" in fields
-    assert "engagement_strategy" in fields
+def test_raci_spec_matches_template() -> None:
+    spec = load_raci_spec()
+    assert spec.get("roles")
     assert spec.get("example_rows")
+    assert spec["activity_column"] == "Deliverable / Activity"
 
 
 def test_status_report_spec_sections_match_template() -> None:
@@ -51,7 +49,7 @@ def test_status_report_spec_sections_match_template() -> None:
 def test_generation_contracts_include_template_structure() -> None:
     wbs_prompt = build_wbs_generation_contract()
     raid_prompt = build_raid_generation_contract()
-    stakeholder_prompt = build_stakeholder_generation_contract()
+    raci_prompt = build_raci_generation_contract()
     status_prompt = build_status_report_generation_contract()
     assert "wbs_code" in wbs_prompt
     assert "owner_side" in wbs_prompt
@@ -59,11 +57,11 @@ def test_generation_contracts_include_template_structure() -> None:
     assert "risks" in raid_prompt
     assert "Actions" in raid_prompt
     assert "owner_side" in raid_prompt
-    assert "stakeholders" in stakeholder_prompt
-    assert "organization_side" in stakeholder_prompt
+    assert "roles" in raci_prompt
+    assert "Deliverable / Activity" in raci_prompt
     assert "milestones" in status_prompt
     assert "owner_side" in status_prompt
     assert wbs_json_output_instruction()
     assert raid_json_output_instruction()
-    assert stakeholder_json_output_instruction()
+    assert raci_json_output_instruction()
     assert status_json_output_instruction()

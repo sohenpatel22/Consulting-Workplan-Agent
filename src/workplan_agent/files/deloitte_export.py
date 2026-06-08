@@ -10,7 +10,7 @@ from openpyxl import load_workbook
 from openpyxl.cell.cell import MergedCell
 from openpyxl.worksheet.worksheet import Worksheet
 
-from workplan_agent.display_values import Notes, display_cell, display_stakeholder_rationale
+from workplan_agent.display_values import Notes, display_cell
 from workplan_agent.files.pdf_render import (
     add_landscape_table_section,
     pdf_text,
@@ -22,12 +22,17 @@ from workplan_agent.files.pdf_render import (
 )
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.raid import ActionEntry, DecisionEntry, IssueEntry, RAIDLog, RiskEntry
-from workplan_agent.models.stakeholder import StakeholderMap
+from workplan_agent.models.raci import RaciLetter, RaciMatrix
 from workplan_agent.models.status_report import WeeklyStatusReport
 from workplan_agent.models.wbs import WBS, WorkPackage
 
 _PACKAGE_TEMPLATES = Path(__file__).resolve().parent.parent / "templates" / "deloitte"
 RAID_TEMPLATE_PATH = _PACKAGE_TEMPLATES / "raid_log_template.xlsx"
+RACI_TEMPLATE_PATH = _PACKAGE_TEMPLATES / "raci_template.xlsx"
+
+_RACI_SHEET = "RACI Table Sample"
+_RACI_HEADER_ROW = 4
+_RACI_DATA_START_ROW = 5
 
 _DETAIL_SHEET = "RAID Log - Detail"
 _DETAIL_DATA_START_ROW = 7
@@ -167,22 +172,6 @@ _DECISION_PDF_HEADERS = [
 ]
 _DECISION_PDF_COL_WIDTHS = (12, 30, 55, 35, 25, 20, 18)
 
-_STAKEHOLDER_PDF_HEADERS = [
-    "Stakeholder",
-    "Organization Side",
-    "Source",
-    "Rationale",
-    "Department",
-    "Role",
-    "Influence",
-    "Interest",
-    "Strategy",
-    "Concerns",
-    "Communication Frequency",
-    "Engagement Approach",
-    "Communication Method",
-]
-_STAKEHOLDER_PDF_COL_WIDTHS = (22, 16, 12, 22, 18, 16, 14, 14, 18, 30, 14, 26, 28)
 
 _MILESTONE_PDF_HEADERS = [
     "Milestone",
@@ -364,11 +353,59 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
     return bytes(pdf.output())
 
 
-def export_stakeholder_deloitte_pdf(
-    stakeholder_map: StakeholderMap,
+def resolve_raci_template(path: Path | None = None) -> Path:
+    if path is not None:
+        if not path.is_file():
+            raise FileNotFoundError(f"RACI template not found: {path}")
+        return path
+    if RACI_TEMPLATE_PATH.is_file():
+        return RACI_TEMPLATE_PATH
+    repo_root = Path.cwd()
+    candidate = repo_root / "templates" / "deloitte" / "raci_template.xlsx"
+    if candidate.is_file():
+        return candidate
+    raise FileNotFoundError(
+        "RACI Excel template not found. Expected bundled raci_template.xlsx."
+    )
+
+
+def export_raci_deloitte_xlsx(
+    raci_matrix: RaciMatrix,
+    parsed_brief: ParsedBrief,
+    template_path: Path | None = None,
+) -> bytes:
+    """Fill the RACI Excel template."""
+    path = resolve_raci_template(template_path)
+    workbook = load_workbook(path)
+    if _RACI_SHEET not in workbook.sheetnames:
+        raise ValueError(f"RACI template missing required sheet: {_RACI_SHEET!r}")
+    ws = workbook[_RACI_SHEET]
+    project = parsed_brief.project_title or "Project"
+    _set_cell(ws, 2, 2, f"RACI — {project}")
+    _set_cell(ws, _RACI_HEADER_ROW, 2, "Deliverable / Activity")
+    for col_idx, role in enumerate(raci_matrix.roles, start=3):
+        _set_cell(ws, _RACI_HEADER_ROW, col_idx, role)
+
+    end_row = max(_RACI_DATA_START_ROW + len(raci_matrix.rows) + 5, ws.max_row)
+    _clear_row_range(ws, _RACI_DATA_START_ROW, end_row, max(2 + len(raci_matrix.roles), 7))
+
+    for row_idx, row in enumerate(raci_matrix.rows, start=_RACI_DATA_START_ROW):
+        _set_cell(ws, row_idx, 2, row.activity)
+        for col_idx, role in enumerate(raci_matrix.roles, start=3):
+            letter = row.assignments.get(role)
+            value = letter.value if isinstance(letter, RaciLetter) else letter
+            _set_cell(ws, row_idx, col_idx, value)
+
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()
+
+
+def export_raci_deloitte_pdf(
+    raci_matrix: RaciMatrix,
     parsed_brief: ParsedBrief,
 ) -> bytes:
-    """Build a landscape stakeholder map PDF."""
+    """Build a landscape RACI matrix PDF."""
     try:
         from fpdf import FPDF
     except ImportError as exc:
@@ -378,34 +415,28 @@ def export_stakeholder_deloitte_pdf(
     pdf.set_margins(18, 18, 18)
     pdf.set_auto_page_break(auto=True, margin=18)
     pdf.add_page()
-    write_brief_header(pdf, "Stakeholder Map", parsed_brief)
+    write_brief_header(pdf, "RACI Matrix", parsed_brief)
+
+    headers = ["Deliverable / Activity", *raci_matrix.roles]
+    col_count = len(headers)
+    col_width = max(180 / col_count, 18)
+    col_widths = tuple([max(col_width * 1.5, 35), *[col_width] * (col_count - 1)])
 
     rows = [
-        [
-            display_cell(sh.name),
-            display_cell(sh.organization_side.value),
-            display_cell(sh.source.value),
-            display_stakeholder_rationale(sh.source.value, sh.rationale),
-            display_cell(sh.department, note=Notes.SIGNOFF),
-            display_cell(sh.role_in_project, note=Notes.SIGNOFF),
-            display_cell(sh.influence_level.value),
-            display_cell(sh.interest_level.value),
-            display_cell(sh.engagement_strategy, note=Notes.SIGNOFF),
-            display_cell(sh.key_concerns, note=Notes.SIGNOFF),
-            display_cell(sh.communication_frequency.value),
-            display_cell(sh.engagement_approach, note=Notes.SIGNOFF),
-            display_cell(sh.communication_method, note=Notes.SIGNOFF),
+        [display_cell(row.activity)]
+        + [
+            display_cell(
+                row.assignments[role].value
+                if role in row.assignments
+                else None
+            )
+            for role in raci_matrix.roles
         ]
-        for sh in stakeholder_map.stakeholders
+        for row in raci_matrix.rows
     ]
     pdf.add_page(orientation="L")
     pdf.set_margins(10, 12, 10)
-    render_table(
-        pdf,
-        _STAKEHOLDER_PDF_HEADERS,
-        rows,
-        col_widths=_STAKEHOLDER_PDF_COL_WIDTHS,
-    )
+    render_table(pdf, headers, rows, col_widths=col_widths)
     return bytes(pdf.output())
 
 

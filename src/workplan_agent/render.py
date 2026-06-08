@@ -4,12 +4,12 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from workplan_agent.display_values import display_cell, display_stakeholder_rationale
+from workplan_agent.display_values import display_cell
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.raid import RAIDLog
 from workplan_agent.models.session import SessionStatus, WorkplanSession
 from workplan_agent.models.wbs import WBS
-from workplan_agent.models.stakeholder import StakeholderMap
+from workplan_agent.models.raci import RaciLetter, RaciMatrix
 from workplan_agent.models.status_report import WeeklyStatusReport
 from workplan_agent.models.quality_gates import QualityGateItem, QualityGates
 
@@ -29,7 +29,6 @@ def _env() -> Environment:
             autoescape=select_autoescape(default=False),
         )
         env.filters["cell"] = _cell_filter
-        env.globals["display_stakeholder_rationale"] = display_stakeholder_rationale
         _TEMPLATE_ENV = env
     return _TEMPLATE_ENV
 
@@ -52,10 +51,10 @@ def render_raid_markdown(raid: RAIDLog, parsed_brief: ParsedBrief) -> str:
     )
 
 
-def render_stakeholder_markdown(stakeholder_map: StakeholderMap, parsed_brief: ParsedBrief) -> str:
-    template = _env().get_template("stakeholder_map.md.j2")
+def render_raci_markdown(raci_matrix: RaciMatrix, parsed_brief: ParsedBrief) -> str:
+    template = _env().get_template("raci.md.j2")
     return template.render(
-        stakeholder_map=stakeholder_map,
+        raci_matrix=raci_matrix,
         client_name=parsed_brief.client_name,
         project_title=parsed_brief.project_title,
     )
@@ -168,29 +167,38 @@ def generate_quality_gates(session: WorkplanSession) -> QualityGates:
         manual=True
     ))
 
-    # --- Stakeholder Checks ---
-    # 6. Sponsor Strategy
-    sponsor_ok = True
-    sponsor_msg = "Key sponsors are classified with appropriate engagement strategies."
-    if session.stakeholder_map:
-        closely_managed = []
-        for sh in session.stakeholder_map.stakeholders:
-            if "cmo" in sh.role_in_project.lower() or "cio" in sh.role_in_project.lower() or "vasquez" in sh.name.lower() or "chen" in sh.name.lower():
-                if sh.engagement_strategy == "Manage Closely":
-                    closely_managed.append(sh.name)
-        if len(closely_managed) < 2:
-            sponsor_ok = False
-            sponsor_msg = "Ensure CMO (Elena Vasquez) and CIO (Marcus Chen) are set to 'Manage Closely'."
+    # --- RACI Checks ---
+    raci_ok = True
+    raci_msg = "Each activity has exactly one Accountable (A) assignment."
+    if session.raci_matrix:
+        invalid_rows: list[str] = []
+        for row in session.raci_matrix.rows:
+            accountable = [
+                role
+                for role, letter in row.assignments.items()
+                if letter == RaciLetter.ACCOUNTABLE
+            ]
+            if len(accountable) != 1:
+                invalid_rows.append(row.activity)
+        if invalid_rows:
+            raci_ok = False
+            raci_msg = (
+                "Activities without exactly one Accountable (A): "
+                + ", ".join(invalid_rows[:3])
+            )
+        elif len(session.raci_matrix.rows) < 3:
+            raci_ok = False
+            raci_msg = "RACI matrix should include at least three activity rows."
     else:
-        sponsor_ok = False
-        sponsor_msg = "Stakeholder map not generated."
+        raci_ok = False
+        raci_msg = "RACI matrix not generated."
 
     items.append(QualityGateItem(
-        category="Stakeholder",
-        title="Sponsor Strategy Alignment",
-        description="Verify that key decision-makers (CMO, CIO) are classified as High Influence/Interest and marked as Manage Closely.",
-        passed=sponsor_ok,
-        message=sponsor_msg,
+        category="RACI",
+        title="Accountability Coverage",
+        description="Verify each deliverable/activity has exactly one Accountable (A) role.",
+        passed=raci_ok,
+        message=raci_msg,
         manual=False
     ))
 
@@ -242,7 +250,7 @@ def render_quality_gates_markdown(quality_gates: QualityGates, parsed_brief: Par
         ""
     ]
     
-    categories = ["WBS", "RAID", "Stakeholder", "Status"]
+    categories = ["WBS", "RAID", "RACI", "Status"]
     for cat in categories:
         lines.append(f"## {cat} Quality Gates")
         lines.append("")
@@ -333,12 +341,22 @@ def save_artifacts(
         except (FileNotFoundError, RuntimeError):
             pass
 
-    if session.stakeholder_map is not None:
-        save_json(output_dir / "stakeholder_map.json", session.stakeholder_map)
+    if session.raci_matrix is not None:
+        save_json(output_dir / "raci_matrix.json", session.raci_matrix)
         save_text(
-            output_dir / "stakeholder_map.md",
-            render_stakeholder_markdown(session.stakeholder_map, session.parsed_brief),
+            output_dir / "raci_matrix.md",
+            render_raci_markdown(session.raci_matrix, session.parsed_brief),
         )
+        try:
+            from workplan_agent.files.deloitte_export import export_raci_deloitte_xlsx
+
+            xlsx_path = output_dir / "raci.xlsx"
+            xlsx_path.parent.mkdir(parents=True, exist_ok=True)
+            xlsx_path.write_bytes(
+                export_raci_deloitte_xlsx(session.raci_matrix, session.parsed_brief)
+            )
+        except (FileNotFoundError, RuntimeError):
+            pass
 
     if session.status_report is not None:
         save_json(output_dir / "status_report.json", session.status_report)
@@ -372,11 +390,11 @@ def save_version_snapshot(output_dir: Path, session: WorkplanSession, version: i
             version_dir / "raid.md",
             render_raid_markdown(session.raid, session.parsed_brief),
         )
-    if session.stakeholder_map is not None:
-        save_json(version_dir / "stakeholder_map.json", session.stakeholder_map)
+    if session.raci_matrix is not None:
+        save_json(version_dir / "raci_matrix.json", session.raci_matrix)
         save_text(
-            version_dir / "stakeholder_map.md",
-            render_stakeholder_markdown(session.stakeholder_map, session.parsed_brief),
+            version_dir / "raci_matrix.md",
+            render_raci_markdown(session.raci_matrix, session.parsed_brief),
         )
     if session.status_report is not None:
         save_json(version_dir / "status_report.json", session.status_report)
@@ -404,7 +422,7 @@ def save_status(output_dir: Path, session: WorkplanSession) -> None:
             "raid_actions": len(session.raid.actions) if session.raid else 0,
             "raid_issues": len(session.raid.issues) if session.raid else 0,
             "raid_decisions": len(session.raid.decisions) if session.raid else 0,
-            "stakeholders_count": len(session.stakeholder_map.stakeholders) if session.stakeholder_map else 0,
+            "raci_activities_count": len(session.raci_matrix.rows) if session.raci_matrix else 0,
             "status_milestones_count": len(session.status_report.milestones) if session.status_report else 0,
             "quality_gates_passed": sum(1 for i in session.quality_gates.items if i.passed) if session.quality_gates else 0,
             "quality_gates_total": len(session.quality_gates.items) if session.quality_gates else 0,

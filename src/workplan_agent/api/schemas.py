@@ -10,7 +10,7 @@ ReviewActionName = Literal[
     "quality_check",
     "wbs",
     "raid",
-    "stakeholder",
+    "raci",
     "status",
 ]
 
@@ -65,7 +65,7 @@ class SessionSummary(BaseModel):
     raid_actions: int = 0
     raid_issues: int = 0
     raid_decisions: int = 0
-    stakeholders_count: int = 0
+    raci_activities_count: int = 0
     status_milestones_count: int = 0
     quality_gates_passed: int = 0
     quality_gates_total: int = 0
@@ -78,7 +78,7 @@ class SessionSummary(BaseModel):
 class RevisionDiff(BaseModel):
     wbs: str | None = None
     raid: str | None = None
-    stakeholder_map: str | None = None
+    raci_matrix: str | None = None
     status_report: str | None = None
 
 
@@ -107,17 +107,17 @@ class SessionResponse(BaseModel):
     parsed_brief: dict | None = None
     wbs: dict | None = None
     raid: dict | None = None
-    stakeholder_map: dict | None = None
+    raci_matrix: dict | None = None
     status_report: dict | None = None
     quality_gates: dict | None = None
     wbs_markdown: str | None = None
     raid_markdown: str | None = None
-    stakeholder_markdown: str | None = None
+    raci_markdown: str | None = None
     status_markdown: str | None = None
     quality_gates_markdown: str | None = None
     wbs_html: str | None = None
     raid_html: str | None = None
-    stakeholder_html: str | None = None
+    raci_html: str | None = None
     status_html: str | None = None
     quality_gates_html: str | None = None
 
