@@ -21,7 +21,8 @@
     "Each row object: activity (string) and assignments (object mapping role name to R, A, C, or I).",
     "Every role in roles must appear as a key in each row's assignments.",
     "Each activity row should have exactly one Accountable (A) assignment.",
-    "Use R for Responsible, A for Accountable, C for Consulted, I for Informed.",
+    "Use R for Responsible (holds the pen — does the work), A for Accountable (owns that the work is done; may be client leadership or consultant), C for Consulted (supports the Responsible party), I for Informed.",
+    "WBS owner_side maps to the Accountable (A) party; supporting roles belong here as R or C, not as Joint in the WBS.",
     "Ground roles in named stakeholders and WBS owners from the brief; do not invent generic columns.",
     "Include at least one row per major WBS deliverable or work stream."
   ],

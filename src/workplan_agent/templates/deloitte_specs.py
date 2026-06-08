@@ -66,6 +66,12 @@ def build_wbs_generation_contract(spec: dict[str, Any] | None = None) -> str:
     for rule in spec.get("hierarchy_rules", []):
         lines.append(f"- {rule}")
 
+    generation_rules = spec.get("generation_rules", [])
+    if generation_rules:
+        lines.extend(["", "### Generation rules"])
+        for rule in generation_rules:
+            lines.append(f"- {rule}")
+
     lines.extend(
         [
             "",
@@ -87,7 +93,8 @@ def build_wbs_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "- Map work to objectives and in-scope items from the parsed brief.",
             "- Exclude out-of-scope work.",
             "- Use client terminology from the brief in titles and descriptions.",
-            "- Classify `owner_side` as Client, Consultant, or Joint for every work package.",
+            "- Set `owner_side` to the accountable party (RACI A): Client or Consultant when one side leads; Joint only when accountability is genuinely shared.",
+            "- Do not default to Joint — supporting parties belong in the RACI matrix, not in `owner_side`.",
         ]
     )
     return "\n".join(lines).strip()
@@ -123,6 +130,13 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
             )
         lines.append("")
 
+    generation_rules = spec.get("generation_rules", [])
+    if generation_rules:
+        lines.append("### Generation rules")
+        for rule in generation_rules:
+            lines.append(f"- {rule}")
+        lines.append("")
+
     simple = spec.get("simple_view", {})
     if simple:
         lines.append("### Simple log view (for exports)")
@@ -134,14 +148,16 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "### Pre-submit checklist",
             "- Every risk and action includes `wbs_links` pointing to real `wbs_code` values from the WBS.",
             "- Every RAID item includes `owner_side`: Client, Consultant, or Joint.",
-            "- Risks include `mitigation`, `probability`, `impact`, `risk_rating`, "
-            "`risk_appetite`, and response `priority` (Monitor closely, Monitor, "
-            "Stay informed, or Respond as required).",
+            "- Every risk includes a `mitigation` value (concrete plan or TBD wording when unknown).",
+            "- Risks include `probability`, `impact`, `risk_rating`, `risk_appetite`, and response "
+            "`priority` (Monitor closely, Monitor, Stay informed, or Respond as required).",
             "- Actions, issues, and decisions use `priority`: High, Moderate, or Low.",
+            "- Do not duplicate risk mitigations as separate actions — keep mitigation on the risk row.",
             "- Derive actions from assumptions, client activities, and follow-ups in the brief.",
             "",
             "### Content alignment",
             "- Ground items in the parsed brief and WBS; do not invent unrelated risks.",
+            "- Keep Risks and Actions lists distinct with minimal overlap.",
         ]
     )
     return "\n".join(lines).strip()
@@ -226,6 +242,8 @@ def build_raci_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "- Derive roles from named stakeholders and WBS owners in the brief.",
             "- Align activity rows to WBS deliverables and work streams.",
             "- Each activity must have exactly one Accountable (A) assignment.",
+            "- Use R for who holds the pen; C for parties supporting the Responsible role.",
+            "- WBS `owner_side` should match the Accountable (A) assignment for that activity.",
         ]
     )
     return "\n".join(lines).strip()
@@ -282,7 +300,8 @@ def build_status_report_generation_contract(spec: dict[str, Any] | None = None) 
             "### Content alignment",
             "- Do not invent progress not supported by WBS or RAID.",
             "- Pull risks from RAID; blockers from open RAID issues or WBS dependencies.",
-            "- Classify each milestone `owner_side` as Client, Consultant, or Joint.",
+            "- Milestones must reflect the WBS delivery plan with concrete target dates — avoid TBD unless unavoidable.",
+            "- Set each milestone `owner_side` to the accountable party (aligned with WBS owner_side).",
         ]
     )
     return "\n".join(lines).strip()

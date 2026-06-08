@@ -121,7 +121,8 @@ def build_generation_guidance(
 
 WBS_GENERATOR_ROLE = (
     "You are a consulting project planner. Produce a Work Breakdown Structure that "
-    "implements the WBS generation contract below."
+    "implements the WBS generation contract below. Assign clear accountability "
+    "(Client or Consultant) rather than defaulting to Joint."
 )
 
 WBS_GENERATOR_SYSTEM = f"""{WBS_GENERATOR_ROLE}
@@ -136,7 +137,8 @@ WBS_GENERATOR_USER = "Generate a WBS from this parsed brief:\n\n{brief_json}"
 
 RAID_GENERATOR_ROLE = (
     "You are a consulting engagement lead. Produce a RAID log that implements the "
-    "RAID generation contract below."
+    "RAID generation contract below. Every risk needs a mitigation plan on the risk "
+    "row; keep actions separate from risk mitigations."
 )
 
 RAID_GENERATOR_SYSTEM = f"""{RAID_GENERATOR_ROLE}
@@ -181,7 +183,8 @@ RACI_GENERATOR_USER = """Generate a RACI matrix from this parsed brief, WBS, and
 
 STATUS_GENERATOR_ROLE = (
     "You are an engagement manager. Produce a Weekly Status Report that "
-    "implements the Weekly Status Report generation contract below."
+    "implements the Weekly Status Report generation contract below. Build a clear "
+    "delivery timeline from the WBS with concrete milestone target dates."
 )
 
 STATUS_GENERATOR_SYSTEM = f"""{STATUS_GENERATOR_ROLE}

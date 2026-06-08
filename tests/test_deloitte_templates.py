@@ -53,14 +53,20 @@ def test_generation_contracts_include_template_structure() -> None:
     status_prompt = build_status_report_generation_contract()
     assert "wbs_code" in wbs_prompt
     assert "owner_side" in wbs_prompt
+    assert "RACI A" in wbs_prompt
     assert "generation contract" in wbs_prompt.lower()
     assert "risks" in raid_prompt
     assert "Actions" in raid_prompt
     assert "owner_side" in raid_prompt
+    assert "mitigation" in raid_prompt.lower()
+    assert "duplicate" in raid_prompt.lower()
     assert "roles" in raci_prompt
     assert "Deliverable / Activity" in raci_prompt
+    assert "holds the pen" in raci_prompt.lower()
     assert "milestones" in status_prompt
     assert "owner_side" in status_prompt
+    assert "target_date" in status_prompt
+    assert "TBD" in status_prompt
     assert wbs_json_output_instruction()
     assert raid_json_output_instruction()
     assert raci_json_output_instruction()
