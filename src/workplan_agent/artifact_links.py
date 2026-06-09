@@ -40,12 +40,11 @@ def owner_role_for_wbs_code(wbs: WBS, raci: RaciMatrix, wbs_code: str) -> str | 
     return responsible_role(row) or accountable_role(row)
 
 
-def collect_wbs_owner_roles(wbs: WBS, *, min_level: int = 2) -> list[str]:
+def derive_raci_roles_from_wbs(wbs: WBS) -> list[str]:
+    """Distinct WBS owner values in work-package order — RACI column headers."""
     seen: set[str] = set()
     ordered: list[str] = []
     for wp in wbs.work_packages:
-        if wp.level < min_level:
-            continue
         owner = wp.owner.strip()
         if owner and owner not in seen:
             seen.add(owner)
@@ -53,8 +52,18 @@ def collect_wbs_owner_roles(wbs: WBS, *, min_level: int = 2) -> list[str]:
     return ordered
 
 
+def collect_wbs_owner_roles(wbs: WBS, *, min_level: int = 1) -> list[str]:
+    """Alias kept for callers; RACI columns use all WBS owners regardless of level."""
+    return derive_raci_roles_from_wbs(wbs)
+
+
 def _ensure_role_assignments(row: RaciRow, roles: list[str]) -> RaciRow:
-    assignments = dict(row.assignments)
+    role_set = set(roles)
+    assignments = {
+        role: letter
+        for role, letter in row.assignments.items()
+        if role in role_set
+    }
     for role in roles:
         assignments.setdefault(role, RaciLetter.INFORMED)
     return row.model_copy(update={"assignments": assignments})
@@ -80,14 +89,10 @@ def _set_owner_raci(row: RaciRow, owner: str) -> RaciRow:
 
 
 def reconcile_raci_matrix(wbs: WBS, raci: RaciMatrix) -> RaciMatrix:
-    """Align RACI roles and assignments with WBS owners and task IDs."""
-    owner_roles = collect_wbs_owner_roles(wbs)
-    roles = list(raci.roles)
-    role_set = set(roles)
-    for owner in owner_roles:
-        if owner not in role_set:
-            roles.append(owner)
-            role_set.add(owner)
+    """Align RACI column headers to WBS owners and rows to WBS task IDs."""
+    roles = derive_raci_roles_from_wbs(wbs)
+    if not roles:
+        roles = list(raci.roles)
 
     wbs_by_code = {wp.wbs_code: wp for wp in wbs.work_packages}
     title_to_code = {

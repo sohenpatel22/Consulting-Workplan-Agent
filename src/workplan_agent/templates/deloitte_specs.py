@@ -212,7 +212,6 @@ def format_raid_spec_for_prompt(spec: dict[str, Any] | None = None) -> str:
 def build_raci_generation_contract(spec: dict[str, Any] | None = None) -> str:
     """Full Deloitte RACI contract from raci_template.spec.json."""
     spec = spec or load_raci_spec()
-    roles = spec.get("roles", [])
     wbs_code_col = spec.get("wbs_code_column", "WBS Code")
     activity_col = spec.get("activity_column", "Task / Activity")
     lines = [
@@ -221,22 +220,23 @@ def build_raci_generation_contract(spec: dict[str, Any] | None = None) -> str:
         spec.get("summary", ""),
         "",
         "WBS is the foundation. Each RACI row maps to one WBS task via `wbs_code`. "
-        "Column headers are people/roles; the WBS `owner` for that task must hold R or A.",
+        "Column headers are **dynamic**: set `roles` to the distinct `owner` values from "
+        "the WBS (same strings as the WBS Owner column). The WBS owner for each task must hold R or A.",
         "",
         "Generate the complete RACI matrix in one response. Column headers go in `roles`; "
         "each WBS task is one object in `rows`.",
         "",
         "### Required JSON envelope",
-        '{"roles": [ /* people/role column headers */ ], "rows": [ /* one per WBS task */ ]}',
+        '{"roles": [ /* distinct WBS owner strings, first-seen order */ ], "rows": [ /* one per WBS task */ ]}',
         "",
         f"### Row identifier: **{wbs_code_col}** (`wbs_code` in JSON — must match WBS)",
         f"### Task column: **{activity_col}** (`activity` in JSON — WBS element title)",
         "",
-        "### Role columns (people/roles — use these strings in `roles`, WBS `owner`, and RAID `owner`)",
+        "### Role columns (dynamic — derived from WBS `owner` field)",
+        "- Collect every distinct non-empty `owner` from `work_packages` into `roles`.",
+        "- Do not invent column headers that are not WBS owners.",
+        "- RAID `owner` must use the same strings as WBS owners / RACI columns.",
     ]
-    for role in roles:
-        lines.append(f"- {role}")
-
     assignment_values = spec.get("assignment_values", ["R", "A", "C", "I"])
     lines.extend(
         [
@@ -252,8 +252,7 @@ def build_raci_generation_contract(spec: dict[str, Any] | None = None) -> str:
     lines.extend(
         [
             "",
-            "### Example rows from the Deloitte template",
-            f"- roles: {json.dumps(roles, ensure_ascii=False)}",
+            "### Example rows (illustrative — your `roles` must match the WBS owners provided)",
         ]
     )
     for row in spec.get("example_rows", []):
@@ -263,7 +262,7 @@ def build_raci_generation_contract(spec: dict[str, Any] | None = None) -> str:
         [
             "",
             "### Content alignment",
-            "- Derive column roles from WBS owners and named stakeholders in the brief (not academic labels).",
+            "- Column headers (`roles`) must be exactly the distinct WBS owner values — no extra stakeholders.",
             "- One row per level-3 WBS work package; every row must include the matching `wbs_code`.",
             "- WBS `owner` for each task must appear as R or A in that row's assignments.",
             "- Each row must have exactly one Accountable (A) assignment.",

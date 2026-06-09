@@ -1,4 +1,5 @@
 from workplan_agent.artifact_links import (
+    derive_raci_roles_from_wbs,
     reconcile_raci_matrix,
     reconcile_raid_log,
     validate_owner_alignment,
@@ -9,6 +10,39 @@ from workplan_agent.llm.fixtures import RACI_MATRIX_FIXTURE, RAID_FIXTURE, WBS_F
 from workplan_agent.models.raci import RaciLetter, RaciMatrix
 from workplan_agent.models.raid import RAIDLog
 from workplan_agent.models.wbs import WBS
+
+
+def test_raci_roles_derived_from_wbs_owners() -> None:
+    wbs = WBS.model_validate(WBS_FIXTURE)
+    assert derive_raci_roles_from_wbs(wbs) == [
+        "Deloitte Delivery Lead",
+        "Data Engineering Lead",
+        "Client CIO",
+    ]
+
+
+def test_reconcile_raci_columns_match_wbs_owners_only() -> None:
+    wbs = WBS.model_validate(WBS_FIXTURE)
+    raci = RaciMatrix.model_validate(
+        {
+            "roles": ["Engagement Sponsor (CMO)", "Deloitte Delivery Lead"],
+            "rows": [
+                {
+                    "wbs_code": "1.1",
+                    "activity": "Stakeholder interviews",
+                    "assignments": {
+                        "Engagement Sponsor (CMO)": "A",
+                        "Deloitte Delivery Lead": "R",
+                    },
+                }
+            ],
+        }
+    )
+    reconciled = reconcile_raci_matrix(wbs, raci)
+    assert reconciled.roles == derive_raci_roles_from_wbs(wbs)
+    assert "Engagement Sponsor (CMO)" not in reconciled.roles
+    row = next(r for r in reconciled.rows if r.wbs_code == "1.1")
+    assert "Engagement Sponsor (CMO)" not in row.assignments
 
 
 def test_reconcile_raci_adds_wbs_codes_and_owner_roles() -> None:

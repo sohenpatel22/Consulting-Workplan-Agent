@@ -1,16 +1,10 @@
 {
   "source_file": "raci_template.xlsx",
   "sheet": "RACI Table Sample",
-  "summary": "RACI answers who does what for each WBS task. WBS is the foundation: every level-3 work package has a unique wbs_code that threads through RACI (rows), RAID (wbs_links), and the status report. Column headers are engagement people/roles (from WBS owners and named stakeholders); rows are WBS tasks.",
+  "summary": "RACI answers who does what for each WBS task. WBS is the foundation: every level-3 work package has a unique wbs_code that threads through RACI (rows), RAID (wbs_links), and the status report. Column headers are derived dynamically from distinct WBS owner values; rows are WBS tasks.",
   "wbs_code_column": "WBS Code",
   "activity_column": "Task / Activity",
-  "roles": [
-    "Engagement Sponsor (CMO)",
-    "Client CIO",
-    "Deloitte Delivery Lead",
-    "Data Engineering Lead",
-    "Marketing Ops Lead"
-  ],
+  "roles_source": "wbs_owners",
   "assignment_values": [
     "R",
     "A",
@@ -18,49 +12,33 @@
     "I"
   ],
   "generation_rules": [
-    "Root JSON: {\"roles\": [ /* people/role column headers */ ], \"rows\": [ /* one per WBS task */ ]}.",
-    "Each row object: wbs_code (string, required), activity (string), assignments (object mapping role name to R, A, C, or I).",
+    "Root JSON: {\"roles\": [ /* distinct WBS owner strings */ ], \"rows\": [ /* one per WBS task */ ]}.",
+    "Set `roles` to every distinct non-empty `owner` value from the WBS work_packages (first-seen order). Do not add columns that are not WBS owners.",
+    "Each row object: wbs_code (string, required), activity (string), assignments (object mapping WBS owner name to R, A, C, or I).",
     "Include one RACI row per level-3 WBS work package; wbs_code must exactly match the WBS.",
     "Set activity to the WBS element title (optionally prefixed with the wbs_code for readability).",
-    "Column headers in roles must be people/roles from the brief and WBS — use the same strings as WBS owner values.",
-    "Every role in roles must appear as a key in each row's assignments.",
+    "Every role in `roles` must appear as a key in each row's assignments.",
     "Each row must have exactly one Accountable (A) assignment.",
     "The WBS owner for each task must hold R (Responsible — holds the pen) or A (Accountable) in that row.",
-    "Use R for who performs the work; A for who owns delivery; C for parties consulted; I for parties informed.",
-    "Do not use generic academic labels (e.g. Student Team, AI Agent System) — use engagement role names."
+    "Use R for who performs the work; A for who owns delivery; C for parties consulted; I for parties informed."
   ],
   "example_rows": [
     {
       "wbs_code": "1.1.1",
       "activity": "Project kickoff and charter",
       "assignments": {
-        "Engagement Sponsor (CMO)": "A",
-        "Client CIO": "C",
-        "Deloitte Delivery Lead": "R",
-        "Data Engineering Lead": "I",
-        "Marketing Ops Lead": "C"
+        "Engagement Manager": "R",
+        "Solution Architect": "A",
+        "Data Engineer": "C"
       }
     },
     {
       "wbs_code": "2.1.1",
       "activity": "Current-state data source profiling",
       "assignments": {
-        "Engagement Sponsor (CMO)": "I",
-        "Client CIO": "C",
-        "Deloitte Delivery Lead": "A",
-        "Data Engineering Lead": "R",
-        "Marketing Ops Lead": "C"
-      }
-    },
-    {
-      "wbs_code": "3.1.1",
-      "activity": "Target architecture design",
-      "assignments": {
-        "Engagement Sponsor (CMO)": "I",
-        "Client CIO": "A",
-        "Deloitte Delivery Lead": "R",
-        "Data Engineering Lead": "R",
-        "Marketing Ops Lead": "C"
+        "Engagement Manager": "A",
+        "Solution Architect": "C",
+        "Data Engineer": "R"
       }
     }
   ]

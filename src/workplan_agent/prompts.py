@@ -187,8 +187,8 @@ RACI_GENERATOR_SYSTEM = f"""{RACI_GENERATOR_ROLE}
 RACI_GENERATOR_USER = """Generate a RACI matrix from this parsed brief and WBS.
 
 WBS is the foundation: one RACI row per level-3 WBS task. Each row must include `wbs_code`
-matching the WBS. Column headers (`roles`) are people/roles from the brief and WBS owners —
-use the same strings as the WBS `owner` field. The WBS owner for each task must hold **R**
+matching the WBS. Column headers (`roles`) must be the distinct WBS `owner` values only —
+do not add columns that are not WBS owners. The WBS owner for each task must hold **R**
 or **A** in that row.
 
 ## Parsed Brief
@@ -456,7 +456,7 @@ def raci_generator_user_blocks(
 ) -> list[ContentBlock]:
     task = append_generation_context(
         "Generate a RACI matrix from the parsed brief and WBS above. "
-        "One row per level-3 WBS task with matching wbs_code; roles are WBS owners and stakeholders.",
+        "One row per level-3 WBS task with matching wbs_code; roles = distinct WBS owner values.",
         user_prompt,
     )
     return [
