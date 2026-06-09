@@ -36,6 +36,10 @@ class ConfirmationQuestion(BaseModel):
         default_factory=list,
         description="Verbatim excerpts from the client brief that motivated this question",
     )
+    derivation_rationale: str = Field(
+        default="",
+        description="How the quoted brief passages lead to this confirmation question",
+    )
 
 
 class ParsedBrief(BaseModel):

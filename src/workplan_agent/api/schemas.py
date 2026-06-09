@@ -33,6 +33,7 @@ class ConfirmationQuestionItem(BaseModel):
     question: str = Field(min_length=1)
     suggested_answers: list[str] = Field(default_factory=list)
     brief_quotes: list[str] = Field(default_factory=list)
+    derivation_rationale: str = ""
 
 
 class QuestionAnswer(BaseModel):

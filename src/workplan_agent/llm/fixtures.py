@@ -52,6 +52,11 @@ PARSED_BRIEF_FIXTURE = {
             "brief_quotes": [
                 "Identity resolution vendor decision pending",
             ],
+            "derivation_rationale": (
+                "The brief flags the identity vendor as undecided but does not say "
+                "whether to standardize now, run a bake-off, or defer — we need that "
+                "choice before architecture and build tasks are scheduled."
+            ),
         }
     ],
 }

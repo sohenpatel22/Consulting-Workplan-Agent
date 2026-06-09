@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from workplan_agent.brief_quotes import extract_brief_quotes, extract_risk_appetite_quotes
+from workplan_agent.brief_quotes import (
+    build_derivation_rationale,
+    build_risk_appetite_rationale,
+    extract_brief_quotes,
+    extract_risk_appetite_quotes,
+)
 from workplan_agent.models.brief import ConfirmationQuestion, ParsedBrief
 
 MAX_CONFIRMATION_QUESTIONS = 5
@@ -27,10 +32,12 @@ GENERIC_SUGGESTIONS = [
 
 
 def risk_appetite_question(brief_text: str = "") -> ConfirmationQuestion:
+    quotes = extract_risk_appetite_quotes(brief_text)
     return ConfirmationQuestion(
         question=RISK_APPETITE_QUESTION_TEXT,
         suggested_answers=list(RISK_APPETITE_SUGGESTIONS),
-        brief_quotes=extract_risk_appetite_quotes(brief_text),
+        brief_quotes=quotes,
+        derivation_rationale=build_risk_appetite_rationale(quotes),
     )
 
 
@@ -41,12 +48,25 @@ def _is_risk_appetite_question(text: str) -> bool:
     )
 
 
+def _resolve_derivation_rationale(
+    question: str,
+    quotes: list[str],
+    explicit: str,
+) -> str:
+    rationale = explicit.strip()
+    if rationale:
+        return rationale
+    return build_derivation_rationale(question, quotes)
+
+
 def _generic_question(text: str, brief_text: str = "") -> ConfirmationQuestion:
-    quotes = extract_brief_quotes(text, brief_text)
+    question = text.strip()
+    quotes = extract_brief_quotes(question, brief_text)
     return ConfirmationQuestion(
-        question=text.strip(),
+        question=question,
         suggested_answers=list(GENERIC_SUGGESTIONS),
         brief_quotes=quotes,
+        derivation_rationale=build_derivation_rationale(question, quotes),
     )
 
 
@@ -77,13 +97,15 @@ def build_confirmation_questions(
         answers = [a.strip() for a in item.suggested_answers if a.strip()]
         if len(answers) < 2:
             answers = list(GENERIC_SUGGESTIONS)
+        quotes = _resolve_brief_quotes(question, item.brief_quotes, brief_text)
         by_question[question] = ConfirmationQuestion(
             question=question,
             suggested_answers=answers[:6],
-            brief_quotes=_resolve_brief_quotes(
+            brief_quotes=quotes,
+            derivation_rationale=_resolve_derivation_rationale(
                 question,
-                item.brief_quotes,
-                brief_text,
+                quotes,
+                item.derivation_rationale,
             ),
         )
 

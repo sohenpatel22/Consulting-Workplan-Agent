@@ -882,7 +882,12 @@ function renderParsePreview(preview) {
 
 function normalizeConfirmationQuestion(item) {
   if (typeof item === "string") {
-    return { question: item, suggested_answers: [], brief_quotes: [] };
+    return {
+      question: item,
+      suggested_answers: [],
+      brief_quotes: [],
+      derivation_rationale: "",
+    };
   }
   return {
     question: item?.question || "",
@@ -890,6 +895,7 @@ function normalizeConfirmationQuestion(item) {
       ? item.suggested_answers
       : [],
     brief_quotes: Array.isArray(item?.brief_quotes) ? item.brief_quotes : [],
+    derivation_rationale: item?.derivation_rationale || "",
   };
 }
 
@@ -897,15 +903,28 @@ function renderConfirmationForm(questions) {
   const form = $("confirmQuestionsForm");
   form.innerHTML = questions
     .map((item, index) => {
-      const { question, suggested_answers: choices, brief_quotes: quotes } =
-        normalizeConfirmationQuestion(item);
+      const {
+        question,
+        suggested_answers: choices,
+        brief_quotes: quotes,
+        derivation_rationale: rationale,
+      } = normalizeConfirmationQuestion(item);
       const quotesHtml =
-        quotes.length > 0
+        quotes.length > 0 || rationale
           ? `<div class="confirm-brief-quotes">
-          <span class="confirm-quotes-label">From the client brief</span>
+          ${
+            quotes.length > 0
+              ? `<span class="confirm-quotes-label">From the client brief</span>
           <ul class="confirm-quote-list">
             ${quotes.map((quote) => `<li>${escapeHtml(quote)}</li>`).join("")}
-          </ul>
+          </ul>`
+              : ""
+          }
+          ${
+            rationale
+              ? `<p class="confirm-derivation-rationale"><span class="confirm-rationale-label">Why we ask</span>${escapeHtml(rationale)}</p>`
+              : ""
+          }
         </div>`
           : "";
       const choicesHtml =

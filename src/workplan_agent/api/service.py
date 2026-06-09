@@ -191,6 +191,7 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
                     question=item.question,
                     suggested_answers=list(item.suggested_answers),
                     brief_quotes=list(item.brief_quotes),
+                    derivation_rationale=item.derivation_rationale,
                 )
                 for item in record.pending_confirmation
             ]

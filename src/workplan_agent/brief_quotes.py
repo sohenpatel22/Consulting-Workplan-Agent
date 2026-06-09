@@ -104,6 +104,38 @@ def _risk_appetite_fallback() -> list[str]:
     ]
 
 
+def build_derivation_rationale(question: str, quotes: list[str]) -> str:
+    """Fallback rationale when the parser did not supply one."""
+    cleaned = [quote.strip() for quote in quotes if quote.strip()]
+    if not cleaned:
+        return ""
+
+    topic = question.rstrip("?").strip()
+    if len(cleaned) == 1:
+        return (
+            f"The quoted passage does not resolve “{topic}”; your answer becomes "
+            "a decided fact for WBS and RAID generation."
+        )
+    return (
+        f"These passages collectively leave “{topic}” ambiguous; confirm your "
+        "decision so the workplan reflects your sign-off."
+    )
+
+
+def build_risk_appetite_rationale(quotes: list[str]) -> str:
+    """Explain how brief context (or standard practice) motivates risk appetite."""
+    if quotes and "planning question" not in quotes[0].lower():
+        return (
+            "The quoted brief language highlights delivery risk, timeline pressure, "
+            "or uncertainty — risk appetite sets how aggressively RAID items are rated "
+            "and mitigated across the engagement."
+        )
+    return (
+        "Standard pre-build sign-off: sets how much delivery uncertainty and "
+        "trade-off the RAID log should tolerate before WBS generation."
+    )
+
+
 def extract_risk_appetite_quotes(brief_text: str, *, max_quotes: int = 2) -> list[str]:
     """Brief passages about delivery risk, timeline pressure, or uncertainty."""
     if not brief_text.strip():

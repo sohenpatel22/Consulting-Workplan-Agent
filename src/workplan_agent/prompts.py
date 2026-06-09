@@ -35,7 +35,9 @@ Rules:
 - For each open question (at most four), add a matching planner_confirmations entry with
   the same question text, 2–5 tentative suggested_answers the planner might choose
   before build (concrete options implied by the brief where possible), and 1–2
-  brief_quotes: verbatim excerpts from the client brief that motivated the question.
+  brief_quotes: verbatim excerpts from the client brief that motivated the question,
+  and derivation_rationale: one or two sentences explaining how those quotes create
+  the ambiguity this question resolves.
 - Do not include overall engagement risk appetite in open_questions or
   planner_confirmations (the application adds that separately).
 - Preserve client naming and terminology from the brief.
