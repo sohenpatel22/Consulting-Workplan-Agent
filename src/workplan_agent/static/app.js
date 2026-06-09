@@ -882,13 +882,14 @@ function renderParsePreview(preview) {
 
 function normalizeConfirmationQuestion(item) {
   if (typeof item === "string") {
-    return { question: item, suggested_answers: [] };
+    return { question: item, suggested_answers: [], brief_quotes: [] };
   }
   return {
     question: item?.question || "",
     suggested_answers: Array.isArray(item?.suggested_answers)
       ? item.suggested_answers
       : [],
+    brief_quotes: Array.isArray(item?.brief_quotes) ? item.brief_quotes : [],
   };
 }
 
@@ -896,7 +897,17 @@ function renderConfirmationForm(questions) {
   const form = $("confirmQuestionsForm");
   form.innerHTML = questions
     .map((item, index) => {
-      const { question, suggested_answers: choices } = normalizeConfirmationQuestion(item);
+      const { question, suggested_answers: choices, brief_quotes: quotes } =
+        normalizeConfirmationQuestion(item);
+      const quotesHtml =
+        quotes.length > 0
+          ? `<div class="confirm-brief-quotes">
+          <span class="confirm-quotes-label">From the client brief</span>
+          <ul class="confirm-quote-list">
+            ${quotes.map((quote) => `<li>${escapeHtml(quote)}</li>`).join("")}
+          </ul>
+        </div>`
+          : "";
       const choicesHtml =
         choices.length > 0
           ? `<div class="confirm-choices" role="group" aria-label="Suggested answers">
@@ -921,6 +932,7 @@ function renderConfirmationForm(questions) {
       <label class="confirm-q-label" for="confirm-answer-${index}">
         ${index + 1}. ${escapeHtml(question)}
       </label>
+      ${quotesHtml}
       ${choicesHtml}
       <textarea
         id="confirm-answer-${index}"

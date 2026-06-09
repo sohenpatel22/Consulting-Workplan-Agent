@@ -33,8 +33,9 @@ Rules:
 - Do not invent scope, objectives, or constraints not implied by the brief.
 - Put ambiguities, missing information, and unclear items in open_questions.
 - For each open question (at most four), add a matching planner_confirmations entry with
-  the same question text and 2–5 tentative suggested_answers the planner might choose
-  before build (concrete options implied by the brief where possible).
+  the same question text, 2–5 tentative suggested_answers the planner might choose
+  before build (concrete options implied by the brief where possible), and 1–2
+  brief_quotes: verbatim excerpts from the client brief that motivated the question.
 - Do not include overall engagement risk appetite in open_questions or
   planner_confirmations (the application adds that separately).
 - Preserve client naming and terminology from the brief.
@@ -86,7 +87,11 @@ def append_generation_context(body: str, context: str | None) -> str:
 _CONFIRMED_ANSWERS_HEADER = """## Confirmed open questions (planner sign-off)
 
 The engagement team resolved the following ambiguities from the brief before WBS/RAID
-generation. Treat each answer as a decided fact when building artifacts."""
+generation. Treat each answer as a decided fact when building artifacts.
+
+When an item directly implements one of these confirmed answers, set
+`from_confirmed_answer` to true on that work package, RAID entry, RACI row, or milestone.
+Leave it false for all other items."""
 
 
 def format_confirmed_answers(

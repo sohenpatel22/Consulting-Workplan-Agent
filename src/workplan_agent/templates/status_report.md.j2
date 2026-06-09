@@ -1,4 +1,7 @@
-## Summary
+{% if has_confirmed_items %}
+*Items marked with * were shaped by confirmed planner questions before build.*
+
+{% endif %}## Summary
 
 {{ status_report.summary }}
 
@@ -34,7 +37,7 @@ _No risks._
 | Milestone | Target Date | Actual Date | Owner Side | Status |
 |-----------|-------------|-------------|------------|--------|
 {% for m in status_report.milestones -%}
-| {{ m.name | cell }} | {{ m.target_date | cell }} | {{ m.actual_date | cell('not yet reached') }} | {{ m.owner_side | cell }} | {{ m.status | cell }} |
+| {{ m.name | cell }}{{ m | confirmed_marker }} | {{ m.target_date | cell }} | {{ m.actual_date | cell('not yet reached') }} | {{ m.owner_side | cell }} | {{ m.status | cell }} |
 {% endfor %}
 
 ## Supporting Links

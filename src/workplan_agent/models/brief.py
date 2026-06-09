@@ -32,6 +32,10 @@ class ResolvedQuestion(BaseModel):
 class ConfirmationQuestion(BaseModel):
     question: str = Field(min_length=1)
     suggested_answers: list[str] = Field(min_length=2, max_length=6)
+    brief_quotes: list[str] = Field(
+        default_factory=list,
+        description="Verbatim excerpts from the client brief that motivated this question",
+    )
 
 
 class ParsedBrief(BaseModel):

@@ -201,7 +201,10 @@ class OrchestratorAgent:
         if session.parsed_brief:
             from workplan_agent.confirmation import build_confirmation_questions
 
-            pending = build_confirmation_questions(session.parsed_brief)
+            pending = build_confirmation_questions(
+                session.parsed_brief,
+                brief_text=brief_text,
+            )
             session.parsed_brief.open_questions = [item.question for item in pending]
             self._auto_resolve_open_questions(session)
             save_artifacts(self.output_dir, session)

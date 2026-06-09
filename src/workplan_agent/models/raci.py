@@ -16,6 +16,10 @@ class RaciRow(BaseModel):
         default_factory=dict,
         description="Role name to R/A/C/I assignment",
     )
+    from_confirmed_answer: bool = Field(
+        default=False,
+        description="True when this row directly implements a confirmed open-question answer",
+    )
 
 
 class RaciMatrix(BaseModel):

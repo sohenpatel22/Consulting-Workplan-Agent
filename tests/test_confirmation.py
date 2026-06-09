@@ -35,6 +35,25 @@ def test_build_confirmation_caps_at_five_and_puts_risk_last() -> None:
     assert all("risk appetite" not in q.question.lower() for q in questions[:-1])
 
 
+def test_build_confirmation_propagates_brief_quotes() -> None:
+    brief = ParsedBrief(
+        client_name="Acme",
+        project_title="Rollout",
+        objectives=[Objective(id="1", description="Go live")],
+        scope_in=["Build"],
+        open_questions=["Vendor?"],
+        planner_confirmations=[
+            ConfirmationQuestion(
+                question="Vendor?",
+                suggested_answers=["A", "B", "C"],
+                brief_quotes=['The brief says "vendor TBD".'],
+            )
+        ],
+    )
+    questions = build_confirmation_questions(brief, brief_text="The brief says vendor TBD.")
+    assert questions[0].brief_quotes == ['The brief says "vendor TBD".']
+
+
 def test_build_confirmation_uses_planner_suggestions() -> None:
     brief = ParsedBrief(
         client_name="Acme",

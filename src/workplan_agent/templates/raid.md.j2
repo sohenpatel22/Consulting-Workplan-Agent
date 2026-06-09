@@ -2,13 +2,17 @@
 
 **Project:** {{ project_title }}  
 **Client:** {{ client_name }}
+{% if has_confirmed_items %}
+
+*Items marked with * were shaped by confirmed planner questions before build.*
+{% endif %}
 
 ## Risks
 
 | ID | Title | Description | Status | Mitigation | Owner | Owner Side | WBS Links | Probability | Impact | Risk Rating | Risk Appetite | Priority |
 |----|-------|-------------|--------|------------|-------|------------|-----------|-------------|--------|-------------|---------------|----------|
 {% for item in raid.risks -%}
-| {{ item.id | cell }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.status | cell }} | {{ item.mitigation | cell('not yet defined') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.owner_side | cell }} | {{ item.wbs_links | cell('not linked to WBS') }} | {{ item.probability | cell }} | {{ item.impact | cell }} | {{ item.risk_rating | cell }} | {{ item.risk_appetite | cell }} | {{ item.priority | cell }} |
+| {{ item.id | cell }}{{ item | confirmed_marker }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.status | cell }} | {{ item.mitigation | cell('not yet defined') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.owner_side | cell }} | {{ item.wbs_links | cell('not linked to WBS') }} | {{ item.probability | cell }} | {{ item.impact | cell }} | {{ item.risk_rating | cell }} | {{ item.risk_appetite | cell }} | {{ item.priority | cell }} |
 {% endfor %}
 
 ## Actions
@@ -16,7 +20,7 @@
 | ID | Title | Description | Status | Owner | Owner Side | WBS Links | Priority |
 |----|-------|-------------|--------|-------|------------|-----------|----------|
 {% for item in raid.actions -%}
-| {{ item.id | cell }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.status | cell }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.owner_side | cell }} | {{ item.wbs_links | cell('not linked to WBS') }} | {{ item.priority | cell }} |
+| {{ item.id | cell }}{{ item | confirmed_marker }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.status | cell }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.owner_side | cell }} | {{ item.wbs_links | cell('not linked to WBS') }} | {{ item.priority | cell }} |
 {% endfor %}
 
 ## Issues
@@ -24,7 +28,7 @@
 | ID | Title | Description | Resolution | Owner | Owner Side | Priority |
 |----|-------|-------------|------------|-------|------------|----------|
 {% for item in raid.issues -%}
-| {{ item.id | cell }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.resolution | cell('pending resolution') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.owner_side | cell }} | {{ item.priority | cell }} |
+| {{ item.id | cell }}{{ item | confirmed_marker }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.resolution | cell('pending resolution') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.owner_side | cell }} | {{ item.priority | cell }} |
 {% endfor %}
 {% if not raid.issues %}
 | — | No issues identified | n/a (none identified) | n/a (pending resolution) | n/a (not assigned at sign-off) | n/a | n/a |
@@ -35,5 +39,5 @@
 | ID | Title | Description / Justification | Resolution | Owner | Owner Side | Priority |
 |----|-------|----------------------------|------------|-------|------------|----------|
 {% for item in raid.decisions -%}
-| {{ item.id | cell }} | {{ item.title | cell }} | {{ item.description_justification | cell('not detailed at sign-off') }} | {{ item.resolution | cell('pending resolution') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.owner_side | cell }} | {{ item.priority | cell }} |
+| {{ item.id | cell }}{{ item | confirmed_marker }} | {{ item.title | cell }} | {{ item.description_justification | cell('not detailed at sign-off') }} | {{ item.resolution | cell('pending resolution') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.owner_side | cell }} | {{ item.priority | cell }} |
 {% endfor %}

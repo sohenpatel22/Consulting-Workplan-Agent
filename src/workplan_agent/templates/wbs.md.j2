@@ -2,6 +2,10 @@
 
 **Project:** {{ project_title }}  
 **Client:** {{ client_name }}
+{% if has_confirmed_items %}
+
+*Items marked with * were shaped by confirmed planner questions before build.*
+{% endif %}
 
 ## Phases (level 1)
 
@@ -13,5 +17,5 @@
 | Level | WBS Code | WBS Element Title | Description / Scope of Work | Key Deliverable | Owner | Duration | Dependencies |
 |-------|----------|-------------------|------------------------------|-----------------|-------|----------|--------------|
 {% for wp in wbs.work_packages -%}
-| {{ wp.level | cell }} | {{ wp.wbs_code | cell }} | {{ wp.wbs_element_title | cell }} | {{ wp.description_scope | cell('not detailed at sign-off') }} | {{ wp.key_deliverable | cell('not confirmed at sign-off') }} | {{ wp.owner | cell('not assigned at sign-off') }} | {{ wp.estimated_duration | cell('not estimated at sign-off') }} | {{ wp.dependencies | cell('none identified') }} |
+| {{ wp.level | cell }} | {{ wp.wbs_code | cell }}{{ wp | confirmed_marker }} | {{ wp.wbs_element_title | cell }} | {{ wp.description_scope | cell('not detailed at sign-off') }} | {{ wp.key_deliverable | cell('not confirmed at sign-off') }} | {{ wp.owner | cell('not assigned at sign-off') }} | {{ wp.estimated_duration | cell('not estimated at sign-off') }} | {{ wp.dependencies | cell('none identified') }} |
 {% endfor %}

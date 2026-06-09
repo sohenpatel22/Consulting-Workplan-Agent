@@ -1,0 +1,73 @@
+<h1>Weekly Status Report</h1>
+<p><strong>Project:</strong> {{ project_title }}<br />
+<strong>Client:</strong> {{ client_name }}</p>
+{% if has_confirmed_items %}
+<p class="confirmed-legend"><em>* Items marked with * were shaped by confirmed planner questions before build.</em></p>
+{% endif %}
+
+<h2>Summary</h2>
+<p>{{ status_report.summary }}</p>
+
+<h2>New Initiatives</h2>
+{% if status_report.new_initiatives %}
+<ul>
+  {% for item in status_report.new_initiatives %}
+  <li>{{ item }}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p><em>No new initiatives.</em></p>
+{% endif %}
+
+<h2>Blockers</h2>
+{% if status_report.blockers %}
+<ul>
+  {% for item in status_report.blockers %}
+  <li>{{ item }}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p><em>No blockers.</em></p>
+{% endif %}
+
+<h2>Risks</h2>
+{% if status_report.risks %}
+<ul>
+  {% for item in status_report.risks %}
+  <li>{{ item }}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p><em>No risks.</em></p>
+{% endif %}
+
+<h2>Milestones</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Milestone</th><th>Target Date</th><th>Actual Date</th><th>Owner Side</th><th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for m in status_report.milestones %}
+    <tr{% if m.from_confirmed_answer %} class="from-confirmed"{% endif %}>
+      <td>{{ m.name | cell }}</td>
+      <td>{{ m.target_date | cell }}</td>
+      <td>{{ m.actual_date | cell('not yet reached') }}</td>
+      <td>{{ m.owner_side | cell }}</td>
+      <td>{{ m.status | cell }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h2>Supporting Links</h2>
+{% if status_report.supporting_links %}
+<ul>
+  {% for link in status_report.supporting_links %}
+  <li>{{ link }}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p><em>No supporting links.</em></p>
+{% endif %}

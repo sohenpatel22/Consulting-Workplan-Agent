@@ -24,6 +24,10 @@ class WorkPackage(BaseModel):
     owner: str = Field(default="", validation_alias=AliasChoices("owner", "owner_role"))
     estimated_duration: str = ""
     dependencies: list[str] = Field(default_factory=list)
+    from_confirmed_answer: bool = Field(
+        default=False,
+        description="True when this row directly implements a confirmed open-question answer",
+    )
 
     @field_validator("key_deliverable", mode="before")
     @classmethod

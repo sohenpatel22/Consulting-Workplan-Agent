@@ -94,6 +94,8 @@ def build_wbs_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "- Exclude out-of-scope work.",
             "- Use client terminology from the brief in titles and descriptions.",
             "- Set `owner` to the named role or person accountable for the work package when known from the brief.",
+            "- When confirmed open-question answers are provided, set `from_confirmed_answer` "
+            "to true on rows that directly implement those answers; otherwise false.",
         ]
     )
     return "\n".join(lines).strip()
@@ -164,6 +166,8 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "### Content alignment",
             "- Ground items in the parsed brief and WBS; do not invent unrelated risks.",
             "- Keep Risks and Actions lists distinct with minimal overlap.",
+            "- When confirmed open-question answers are provided, set `from_confirmed_answer` "
+            "to true on entries that directly implement those answers; otherwise false.",
         ]
     )
     return "\n".join(lines).strip()
@@ -252,6 +256,8 @@ def build_raci_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "- Each activity must have exactly one Accountable (A) assignment.",
             "- Use R for who holds the pen; C for parties supporting the Responsible role.",
             "- Accountable (A) should reflect the party that owns delivery of each activity.",
+            "- When confirmed open-question answers are provided, set `from_confirmed_answer` "
+            "to true on rows that directly implement those answers; otherwise false.",
         ]
     )
     return "\n".join(lines).strip()
@@ -310,6 +316,8 @@ def build_status_report_generation_contract(spec: dict[str, Any] | None = None) 
             "- Pull risks from RAID; blockers from open RAID issues or WBS dependencies.",
             "- Milestones must reflect the WBS delivery plan with concrete target dates — avoid TBD unless unavoidable.",
             "- Set each milestone `owner_side` to the accountable party for that milestone.",
+            "- When confirmed open-question answers are provided, set `from_confirmed_answer` "
+            "to true on milestones that directly implement those answers; otherwise false.",
         ]
     )
     return "\n".join(lines).strip()

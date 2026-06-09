@@ -38,6 +38,10 @@ _DETAIL_SHEET = "RAID Log - Detail"
 _DETAIL_DATA_START_ROW = 7
 
 
+def _confirmed_marker_suffix(item: object) -> str:
+    return "*" if getattr(item, "from_confirmed_answer", False) else ""
+
+
 def resolve_raid_template(path: Path | None = None) -> Path:
     if path is not None:
         if not path.is_file():
@@ -89,7 +93,7 @@ def export_wbs_deloitte_docx(wbs: WBS, parsed_brief: ParsedBrief) -> bytes:
     for wp in sorted(wbs.work_packages, key=_wbs_sort_key):
         row = table.add_row().cells
         row[0].text = str(wp.level)
-        row[1].text = wp.wbs_code
+        row[1].text = f"{wp.wbs_code}{_confirmed_marker_suffix(wp)}"
         row[2].text = display_cell(wp.wbs_element_title)
         row[3].text = display_cell(wp.description_scope, note=Notes.SIGNOFF_DETAIL)
         row[4].text = display_cell(wp.key_deliverable, note=Notes.SIGNOFF)
@@ -216,7 +220,7 @@ def export_wbs_deloitte_pdf(wbs: WBS, parsed_brief: ParsedBrief) -> bytes:
         [
             [
                 display_cell(wp.level),
-                display_cell(wp.wbs_code),
+                display_cell(f"{wp.wbs_code}{_confirmed_marker_suffix(wp)}"),
                 display_cell(wp.wbs_element_title),
                 display_cell(wp.description_scope, note=Notes.SIGNOFF_DETAIL),
                 display_cell(wp.key_deliverable, note=Notes.SIGNOFF),
@@ -247,7 +251,7 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
 
     risk_rows = [
         [
-            display_cell(item.id),
+            display_cell(f"{item.id}{_confirmed_marker_suffix(item)}"),
             display_cell(item.title),
             display_cell(item.description, note=Notes.SIGNOFF_DETAIL),
             display_cell(item.status),
@@ -274,7 +278,7 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
 
     action_rows = [
         [
-            display_cell(item.id),
+            display_cell(f"{item.id}{_confirmed_marker_suffix(item)}"),
             display_cell(item.title),
             display_cell(item.description, note=Notes.SIGNOFF_DETAIL),
             display_cell(item.status),
@@ -297,7 +301,7 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
     if raid.issues:
         issue_rows = [
             [
-                display_cell(item.id),
+                display_cell(f"{item.id}{_confirmed_marker_suffix(item)}"),
                 display_cell(item.title),
                 display_cell(item.description, note=Notes.SIGNOFF_DETAIL),
                 display_cell(item.resolution, note=Notes.PENDING_RESOLUTION),
@@ -329,7 +333,7 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
 
     decision_rows = [
         [
-            display_cell(item.id),
+            display_cell(f"{item.id}{_confirmed_marker_suffix(item)}"),
             display_cell(item.title),
             display_cell(item.description_justification, note=Notes.SIGNOFF_DETAIL),
             display_cell(item.resolution, note=Notes.PENDING_RESOLUTION),
@@ -388,7 +392,12 @@ def export_raci_deloitte_xlsx(
     _clear_row_range(ws, _RACI_DATA_START_ROW, end_row, max(2 + len(raci_matrix.roles), 7))
 
     for row_idx, row in enumerate(raci_matrix.rows, start=_RACI_DATA_START_ROW):
-        _set_cell(ws, row_idx, 2, row.activity)
+        _set_cell(
+            ws,
+            row_idx,
+            2,
+            f"{row.activity}{_confirmed_marker_suffix(row)}",
+        )
         for col_idx, role in enumerate(raci_matrix.roles, start=3):
             letter = row.assignments.get(role)
             value = letter.value if isinstance(letter, RaciLetter) else letter
@@ -421,7 +430,7 @@ def export_raci_deloitte_pdf(
     col_widths = tuple([max(col_width * 1.5, 35), *[col_width] * (col_count - 1)])
 
     rows = [
-        [display_cell(row.activity)]
+        [display_cell(f"{row.activity}{_confirmed_marker_suffix(row)}")]
         + [
             display_cell(
                 row.assignments[role].value
@@ -490,7 +499,7 @@ def export_status_deloitte_pdf(
     write_section_heading(pdf, "Milestones")
     milestone_rows = [
         [
-            display_cell(milestone.name),
+            display_cell(f"{milestone.name}{_confirmed_marker_suffix(milestone)}"),
             display_cell(milestone.target_date),
             display_cell(milestone.actual_date, note=Notes.NOT_YET_REACHED),
             display_cell(milestone.owner_side),
@@ -633,7 +642,7 @@ def _fill_raid_detail_sheet(
 
 
 def _write_detail_risk(ws: Worksheet, row: int, item: RiskEntry) -> None:
-    _set_cell(ws, row, 1, item.id)
+    _set_cell(ws, row, 1, f"{item.id}{_confirmed_marker_suffix(item)}")
     _set_cell(ws, row, 2, item.title)
     _set_cell(ws, row, 3, item.description, note=Notes.SIGNOFF_DETAIL)
     _set_cell(ws, row, 4, item.status)
@@ -648,7 +657,7 @@ def _write_detail_risk(ws: Worksheet, row: int, item: RiskEntry) -> None:
 
 
 def _write_detail_action(ws: Worksheet, row: int, item: ActionEntry) -> None:
-    _set_cell(ws, row, 14, item.id)
+    _set_cell(ws, row, 14, f"{item.id}{_confirmed_marker_suffix(item)}")
     _set_cell(ws, row, 15, item.title)
     _set_cell(ws, row, 16, item.description, note=Notes.SIGNOFF_DETAIL)
     _set_cell(ws, row, 17, item.status)
@@ -658,7 +667,7 @@ def _write_detail_action(ws: Worksheet, row: int, item: ActionEntry) -> None:
 
 
 def _write_detail_issue(ws: Worksheet, row: int, item: IssueEntry) -> None:
-    _set_cell(ws, row, 22, item.id)
+    _set_cell(ws, row, 22, f"{item.id}{_confirmed_marker_suffix(item)}")
     _set_cell(ws, row, 23, item.title)
     _set_cell(ws, row, 24, item.description, note=Notes.SIGNOFF_DETAIL)
     _set_cell(ws, row, 25, item.resolution, note=Notes.PENDING_RESOLUTION)
@@ -667,7 +676,7 @@ def _write_detail_issue(ws: Worksheet, row: int, item: IssueEntry) -> None:
 
 
 def _write_detail_decision(ws: Worksheet, row: int, item: DecisionEntry) -> None:
-    _set_cell(ws, row, 29, item.id)
+    _set_cell(ws, row, 29, f"{item.id}{_confirmed_marker_suffix(item)}")
     _set_cell(ws, row, 30, item.title)
     _set_cell(ws, row, 31, item.description_justification, note=Notes.SIGNOFF_DETAIL)
     _set_cell(ws, row, 32, item.resolution, note=Notes.PENDING_RESOLUTION)

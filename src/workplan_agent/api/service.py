@@ -30,10 +30,14 @@ from workplan_agent.models.session import SessionStatus, WorkplanSession
 from workplan_agent.orchestrator import OrchestratorAgent
 from workplan_agent.files.export import markdown_to_html_body
 from workplan_agent.render import (
+    render_raid_html,
     render_raid_markdown,
-    render_wbs_markdown,
+    render_raci_html,
     render_raci_markdown,
+    render_status_html,
     render_status_markdown,
+    render_wbs_html,
+    render_wbs_markdown,
     render_quality_gates_markdown,
     generate_quality_gates,
     save_artifacts,
@@ -165,16 +169,16 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
         summary = _build_summary(session)
         if session.wbs is not None:
             wbs_markdown = render_wbs_markdown(session.wbs, parsed)
-            wbs_html = markdown_to_html_body(wbs_markdown)
+            wbs_html = render_wbs_html(session.wbs, parsed)
         if session.raid is not None:
             raid_markdown = render_raid_markdown(session.raid, parsed)
-            raid_html = markdown_to_html_body(raid_markdown)
+            raid_html = render_raid_html(session.raid, parsed)
         if session.raci_matrix is not None:
             raci_markdown = render_raci_markdown(session.raci_matrix, parsed)
-            raci_html = markdown_to_html_body(raci_markdown)
+            raci_html = render_raci_html(session.raci_matrix, parsed)
         if session.status_report is not None:
             status_markdown = render_status_markdown(session.status_report, parsed)
-            status_html = markdown_to_html_body(status_markdown)
+            status_html = render_status_html(session.status_report, parsed)
 
     awaiting_confirmation = record.phase == "awaiting_confirmation"
     confirmation_questions: list[ConfirmationQuestionItem] = []
@@ -186,6 +190,7 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
                 ConfirmationQuestionItem(
                     question=item.question,
                     suggested_answers=list(item.suggested_answers),
+                    brief_quotes=list(item.brief_quotes),
                 )
                 for item in record.pending_confirmation
             ]
@@ -375,7 +380,7 @@ def run_generation(record: SessionRecord) -> None:
 
         parsed = record.session.parsed_brief
         assert parsed is not None
-        pending = build_confirmation_questions(parsed)
+        pending = build_confirmation_questions(parsed, brief_text=record.brief_text)
         parsed.open_questions = [item.question for item in pending]
         record.session.status = SessionStatus.AWAITING_CONFIRMATION
         save_status(record.output_dir, record.session)

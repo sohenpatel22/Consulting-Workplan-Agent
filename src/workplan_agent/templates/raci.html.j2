@@ -1,0 +1,26 @@
+<h1>RACI Matrix</h1>
+<p><strong>Project:</strong> {{ project_title }}<br />
+<strong>Client:</strong> {{ client_name }}</p>
+{% if has_confirmed_items %}
+<p class="confirmed-legend"><em>* Items marked with * were shaped by confirmed planner questions before build.</em></p>
+{% endif %}
+<table>
+  <thead>
+    <tr>
+      <th>Deliverable / Activity</th>
+      {% for role in raci_matrix.roles %}
+      <th>{{ role | cell }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+  {% for row in raci_matrix.rows %}
+    <tr{% if row.from_confirmed_answer %} class="from-confirmed"{% endif %}>
+      <td>{{ row.activity | cell }}</td>
+      {% for role in raci_matrix.roles %}
+      <td>{{ row.assignments.get(role, '') | cell }}</td>
+      {% endfor %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>

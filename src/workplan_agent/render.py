@@ -21,14 +21,25 @@ def _cell_filter(value: object, note: str = "") -> str:
     return display_cell(value, note=note.strip() or None)
 
 
+def _confirmed_marker(item: object) -> str:
+    return "*" if getattr(item, "from_confirmed_answer", False) else ""
+
+
+def _has_confirmed_items(items: object) -> bool:
+    if not isinstance(items, list):
+        return False
+    return any(getattr(item, "from_confirmed_answer", False) for item in items)
+
+
 def _env() -> Environment:
     global _TEMPLATE_ENV
     if _TEMPLATE_ENV is None:
         env = Environment(
             loader=FileSystemLoader(TEMPLATES_DIR),
-            autoescape=select_autoescape(default=False),
+            autoescape=select_autoescape(["html"]),
         )
         env.filters["cell"] = _cell_filter
+        env.filters["confirmed_marker"] = _confirmed_marker
         _TEMPLATE_ENV = env
     return _TEMPLATE_ENV
 
@@ -39,15 +50,39 @@ def render_wbs_markdown(wbs: WBS, parsed_brief: ParsedBrief) -> str:
         wbs=wbs,
         client_name=parsed_brief.client_name,
         project_title=parsed_brief.project_title,
+        has_confirmed_items=_has_confirmed_items(wbs.work_packages),
+    )
+
+
+def render_wbs_html(wbs: WBS, parsed_brief: ParsedBrief) -> str:
+    template = _env().get_template("wbs.html.j2")
+    return template.render(
+        wbs=wbs,
+        client_name=parsed_brief.client_name,
+        project_title=parsed_brief.project_title,
+        has_confirmed_items=_has_confirmed_items(wbs.work_packages),
     )
 
 
 def render_raid_markdown(raid: RAIDLog, parsed_brief: ParsedBrief) -> str:
     template = _env().get_template("raid.md.j2")
+    all_items = [*raid.risks, *raid.actions, *raid.issues, *raid.decisions]
     return template.render(
         raid=raid,
         client_name=parsed_brief.client_name,
         project_title=parsed_brief.project_title,
+        has_confirmed_items=_has_confirmed_items(all_items),
+    )
+
+
+def render_raid_html(raid: RAIDLog, parsed_brief: ParsedBrief) -> str:
+    template = _env().get_template("raid.html.j2")
+    all_items = [*raid.risks, *raid.actions, *raid.issues, *raid.decisions]
+    return template.render(
+        raid=raid,
+        client_name=parsed_brief.client_name,
+        project_title=parsed_brief.project_title,
+        has_confirmed_items=_has_confirmed_items(all_items),
     )
 
 
@@ -57,6 +92,17 @@ def render_raci_markdown(raci_matrix: RaciMatrix, parsed_brief: ParsedBrief) -> 
         raci_matrix=raci_matrix,
         client_name=parsed_brief.client_name,
         project_title=parsed_brief.project_title,
+        has_confirmed_items=_has_confirmed_items(raci_matrix.rows),
+    )
+
+
+def render_raci_html(raci_matrix: RaciMatrix, parsed_brief: ParsedBrief) -> str:
+    template = _env().get_template("raci.html.j2")
+    return template.render(
+        raci_matrix=raci_matrix,
+        client_name=parsed_brief.client_name,
+        project_title=parsed_brief.project_title,
+        has_confirmed_items=_has_confirmed_items(raci_matrix.rows),
     )
 
 
@@ -66,6 +112,17 @@ def render_status_markdown(status_report: WeeklyStatusReport, parsed_brief: Pars
         status_report=status_report,
         client_name=parsed_brief.client_name,
         project_title=parsed_brief.project_title,
+        has_confirmed_items=_has_confirmed_items(status_report.milestones),
+    )
+
+
+def render_status_html(status_report: WeeklyStatusReport, parsed_brief: ParsedBrief) -> str:
+    template = _env().get_template("status_report.html.j2")
+    return template.render(
+        status_report=status_report,
+        client_name=parsed_brief.client_name,
+        project_title=parsed_brief.project_title,
+        has_confirmed_items=_has_confirmed_items(status_report.milestones),
     )
 
 

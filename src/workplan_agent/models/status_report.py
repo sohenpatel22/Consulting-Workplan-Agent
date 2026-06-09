@@ -13,6 +13,10 @@ class WeeklyStatusMilestone(BaseModel):
         default="Not Started",
         description="Must be one of: Not Started, In Progress, Completed, Delayed",
     )
+    from_confirmed_answer: bool = Field(
+        default=False,
+        description="True when this milestone directly implements a confirmed open-question answer",
+    )
 
 
 class WeeklyStatusReport(BaseModel):

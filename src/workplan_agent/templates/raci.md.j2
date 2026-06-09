@@ -1,5 +1,8 @@
-| Deliverable / Activity |{% for role in raci_matrix.roles %} {{ role | cell }} |{% endfor %}
+{% if has_confirmed_items %}
+*Items marked with * were shaped by confirmed planner questions before build.*
+
+{% endif %}| Deliverable / Activity |{% for role in raci_matrix.roles %} {{ role | cell }} |{% endfor %}
 |------------------------|{% for role in raci_matrix.roles %}---|{% endfor %}
 {% for row in raci_matrix.rows -%}
-| {{ row.activity | cell }} |{% for role in raci_matrix.roles %} {{ row.assignments.get(role, '') | cell }} |{% endfor %}
+| {{ row.activity | cell }}{{ row | confirmed_marker }} |{% for role in raci_matrix.roles %} {{ row.assignments.get(role, '') | cell }} |{% endfor %}
 {% endfor %}

@@ -49,6 +49,9 @@ PARSED_BRIEF_FIXTURE = {
                 "Run a short vendor bake-off before architecture sign-off",
                 "Defer vendor selection — document as a RAID decision",
             ],
+            "brief_quotes": [
+                "Identity resolution vendor decision pending",
+            ],
         }
     ],
 }
@@ -153,6 +156,7 @@ WBS_FIXTURE = {
             "owner": "Data Engineer",
             "estimated_duration": "4 weeks",
             "dependencies": ["3.1"],
+            "from_confirmed_answer": True,
         },
     ],
 }

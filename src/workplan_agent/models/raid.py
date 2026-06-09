@@ -55,6 +55,10 @@ class RiskEntry(BaseModel):
         default="Monitor",
         description="Response level: Monitor closely, Monitor, Stay informed, or Respond as required",
     )
+    from_confirmed_answer: bool = Field(
+        default=False,
+        description="True when this entry directly implements a confirmed open-question answer",
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -111,6 +115,10 @@ class ActionEntry(BaseModel):
         default="Moderate",
         validation_alias=AliasChoices("priority", "severity"),
     )
+    from_confirmed_answer: bool = Field(
+        default=False,
+        description="True when this entry directly implements a confirmed open-question answer",
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -129,6 +137,10 @@ class IssueEntry(BaseModel):
     priority: str = Field(
         default="Moderate",
         validation_alias=AliasChoices("priority", "severity"),
+    )
+    from_confirmed_answer: bool = Field(
+        default=False,
+        description="True when this entry directly implements a confirmed open-question answer",
     )
 
     model_config = {"populate_by_name": True}
@@ -151,6 +163,10 @@ class DecisionEntry(BaseModel):
     priority: str = Field(
         default="Moderate",
         validation_alias=AliasChoices("priority", "severity"),
+    )
+    from_confirmed_answer: bool = Field(
+        default=False,
+        description="True when this entry directly implements a confirmed open-question answer",
     )
 
     model_config = {"populate_by_name": True}

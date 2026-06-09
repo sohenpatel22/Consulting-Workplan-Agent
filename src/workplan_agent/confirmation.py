@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from workplan_agent.brief_quotes import extract_brief_quotes, extract_risk_appetite_quotes
 from workplan_agent.models.brief import ConfirmationQuestion, ParsedBrief
 
 MAX_CONFIRMATION_QUESTIONS = 5
@@ -25,10 +26,11 @@ GENERIC_SUGGESTIONS = [
 ]
 
 
-def risk_appetite_question() -> ConfirmationQuestion:
+def risk_appetite_question(brief_text: str = "") -> ConfirmationQuestion:
     return ConfirmationQuestion(
         question=RISK_APPETITE_QUESTION_TEXT,
         suggested_answers=list(RISK_APPETITE_SUGGESTIONS),
+        brief_quotes=extract_risk_appetite_quotes(brief_text),
     )
 
 
@@ -39,14 +41,31 @@ def _is_risk_appetite_question(text: str) -> bool:
     )
 
 
-def _generic_question(text: str) -> ConfirmationQuestion:
+def _generic_question(text: str, brief_text: str = "") -> ConfirmationQuestion:
+    quotes = extract_brief_quotes(text, brief_text)
     return ConfirmationQuestion(
         question=text.strip(),
         suggested_answers=list(GENERIC_SUGGESTIONS),
+        brief_quotes=quotes,
     )
 
 
-def build_confirmation_questions(parsed: ParsedBrief) -> list[ConfirmationQuestion]:
+def _resolve_brief_quotes(
+    question: str,
+    explicit_quotes: list[str],
+    brief_text: str,
+) -> list[str]:
+    cleaned = [quote.strip() for quote in explicit_quotes if quote.strip()]
+    if cleaned:
+        return cleaned[:2]
+    return extract_brief_quotes(question, brief_text)
+
+
+def build_confirmation_questions(
+    parsed: ParsedBrief,
+    *,
+    brief_text: str = "",
+) -> list[ConfirmationQuestion]:
     """Up to five planner sign-off questions, always including risk appetite."""
     brief_slots = MAX_CONFIRMATION_QUESTIONS - 1
     by_question: dict[str, ConfirmationQuestion] = {}
@@ -61,6 +80,11 @@ def build_confirmation_questions(parsed: ParsedBrief) -> list[ConfirmationQuesti
         by_question[question] = ConfirmationQuestion(
             question=question,
             suggested_answers=answers[:6],
+            brief_quotes=_resolve_brief_quotes(
+                question,
+                item.brief_quotes,
+                brief_text,
+            ),
         )
 
     for text in parsed.open_questions:
@@ -68,7 +92,7 @@ def build_confirmation_questions(parsed: ParsedBrief) -> list[ConfirmationQuesti
         if not question or _is_risk_appetite_question(question):
             continue
         if question not in by_question:
-            by_question[question] = _generic_question(question)
+            by_question[question] = _generic_question(question, brief_text)
 
     brief_questions = list(by_question.values())[:brief_slots]
-    return [*brief_questions, risk_appetite_question()]
+    return [*brief_questions, risk_appetite_question(brief_text)]
