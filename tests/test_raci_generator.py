@@ -43,6 +43,7 @@ def test_raci_markdown_render(parsed_brief: ParsedBrief) -> None:
             "roles": ["Sponsor", "Delivery Lead"],
             "rows": [
                 {
+                    "wbs_code": "1.1.1",
                     "activity": "Discovery workshops",
                     "assignments": {
                         "Sponsor": "A",
@@ -53,6 +54,7 @@ def test_raci_markdown_render(parsed_brief: ParsedBrief) -> None:
         }
     )
     md = render_raci_markdown(matrix, parsed_brief)
-    assert "Deliverable / Activity | Sponsor | Delivery Lead" in md
+    assert "WBS Code | Task / Activity | Sponsor | Delivery Lead" in md
+    assert "1.1.1" in md
     assert "Discovery workshops" in md
     assert RaciLetter.ACCOUNTABLE.value in md

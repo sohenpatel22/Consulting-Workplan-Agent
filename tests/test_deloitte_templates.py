@@ -34,7 +34,8 @@ def test_raci_spec_matches_template() -> None:
     spec = load_raci_spec()
     assert spec.get("roles")
     assert spec.get("example_rows")
-    assert spec["activity_column"] == "Deliverable / Activity"
+    assert spec["activity_column"] == "Task / Activity"
+    assert spec.get("wbs_code_column") == "WBS Code"
 
 
 def test_status_report_spec_sections_match_template() -> None:
@@ -63,7 +64,8 @@ def test_generation_contracts_include_template_structure() -> None:
     assert "WRONG" in raid_prompt
     assert "one action per risk mitigation" in raid_prompt.lower()
     assert "roles" in raci_prompt
-    assert "Deliverable / Activity" in raci_prompt
+    assert "wbs_code" in raci_prompt
+    assert "Task / Activity" in raci_prompt
     assert "holds the pen" in raci_prompt.lower()
     assert "milestones" in status_prompt
     assert "owner_side" in status_prompt

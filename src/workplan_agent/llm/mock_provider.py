@@ -170,6 +170,7 @@ class MockLLMProvider:
         if "add" in lower or "new" in lower:
             data["rows"].append(
                 {
+                    "wbs_code": "9.9.9",
                     "activity": "Additional scope (per review)",
                     "assignments": {
                         role: "C" for role in data["roles"]

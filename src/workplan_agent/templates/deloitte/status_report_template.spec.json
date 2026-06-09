@@ -87,6 +87,7 @@
     "Each milestone object: name, target_date, actual_date (optional), owner_side, status.",
     "owner_side must be Client, Consultant, or Joint (accountable party for the milestone).",
     "Risks and blockers must trace to RAID; milestones must align with WBS.",
+    "Synthesize WBS task progress, RACI accountability (who reports on in-flight work), and RAID escalations (risks/issues tagged to WBS codes).",
     "Build the milestone table from WBS level-1 phases and key level-2 deliverables so the delivery plan is clear at a glance.",
     "Every milestone must have a concrete target_date. Roll up WBS estimated_duration and dependencies into a coherent timeline; minimize TBD dates.",
     "Infer target dates from brief milestones, phase durations, and WBS sequencing when explicit dates are not stated — use relative week/month offsets rather than leaving dates blank."

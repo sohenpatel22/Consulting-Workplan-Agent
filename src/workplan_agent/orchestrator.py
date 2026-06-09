@@ -5,6 +5,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 
+from workplan_agent.artifact_links import reconcile_raci_matrix, reconcile_raid_log
 from workplan_agent.agents.brief_parser import BriefParserAgent
 from workplan_agent.models.brief import ResolvedQuestion
 from workplan_agent.prompts import build_generation_guidance
@@ -163,6 +164,7 @@ class OrchestratorAgent:
             wbs=session.wbs,
             user_prompt=guidance,
         )
+        session.raci_matrix = reconcile_raci_matrix(session.wbs, session.raci_matrix)
         _notify("raci")
         self._warm_raid_build_cache(session)
 
@@ -172,6 +174,9 @@ class OrchestratorAgent:
             wbs=session.wbs,
             raci_matrix=session.raci_matrix,
             user_prompt=guidance,
+        )
+        session.raid = reconcile_raid_log(
+            session.wbs, session.raci_matrix, session.raid
         )
         _notify("raid")
 
@@ -243,12 +248,25 @@ class OrchestratorAgent:
         )
         if result.wbs is not None:
             session.wbs = result.wbs
-        if result.raid is not None:
-            session.raid = result.raid
         if result.raci_matrix is not None:
             session.raci_matrix = result.raci_matrix
+        if result.raid is not None:
+            session.raid = result.raid
         if result.status_report is not None:
             session.status_report = result.status_report
+
+        if session.wbs is not None and session.raci_matrix is not None:
+            session.raci_matrix = reconcile_raci_matrix(
+                session.wbs, session.raci_matrix
+            )
+        if (
+            session.wbs is not None
+            and session.raci_matrix is not None
+            and session.raid is not None
+        ):
+            session.raid = reconcile_raid_log(
+                session.wbs, session.raci_matrix, session.raid
+            )
 
         session.revision_count += 1
         session.snapshot(f"revision_{session.revision_count}")

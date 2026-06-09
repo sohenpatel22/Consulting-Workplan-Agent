@@ -93,7 +93,8 @@ def build_wbs_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "- Map work to objectives and in-scope items from the parsed brief.",
             "- Exclude out-of-scope work.",
             "- Use client terminology from the brief in titles and descriptions.",
-            "- Set `owner` to the named role or person accountable for the work package when known from the brief.",
+            "- Set `owner` to the named role or person who will hold R in RACI (use the same label as a RACI column header).",
+            "- Every `wbs_code` is the unique ID that links RACI rows, RAID wbs_links, and status milestones.",
             "- When confirmed open-question answers are provided, set `from_confirmed_answer` "
             "to true on rows that directly implement those answers; otherwise false.",
         ]
@@ -152,6 +153,11 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
 
     lines.extend(
         [
+            "### Cross-artifact linking (WBS → RACI → RAID)",
+            "- WBS `wbs_code` is the thread: every risk and action must include `wbs_links` to affected WBS tasks.",
+            "- RAID `owner` must match the RACI Responsible (R) role for the primary linked WBS task "
+            "(same person who owns the work in WBS).",
+            "",
             "### Pre-submit checklist",
             "- Every risk and action includes `wbs_links` pointing to real `wbs_code` values from the WBS.",
             "- Every RAID item includes `owner_side`: Client, Consultant, or Joint.",
@@ -207,20 +213,26 @@ def build_raci_generation_contract(spec: dict[str, Any] | None = None) -> str:
     """Full Deloitte RACI contract from raci_template.spec.json."""
     spec = spec or load_raci_spec()
     roles = spec.get("roles", [])
+    wbs_code_col = spec.get("wbs_code_column", "WBS Code")
+    activity_col = spec.get("activity_column", "Task / Activity")
     lines = [
         "## Deloitte RACI generation contract (authoritative — follow while generating)",
         "",
         spec.get("summary", ""),
         "",
+        "WBS is the foundation. Each RACI row maps to one WBS task via `wbs_code`. "
+        "Column headers are people/roles; the WBS `owner` for that task must hold R or A.",
+        "",
         "Generate the complete RACI matrix in one response. Column headers go in `roles`; "
-        "each activity row is one object in `rows`.",
+        "each WBS task is one object in `rows`.",
         "",
         "### Required JSON envelope",
-        '{"roles": [ /* column headers */ ], "rows": [ /* one object per activity row */ ]}',
+        '{"roles": [ /* people/role column headers */ ], "rows": [ /* one per WBS task */ ]}',
         "",
-        f"### Activity column: **{spec.get('activity_column', 'Deliverable / Activity')}**",
+        f"### Row identifier: **{wbs_code_col}** (`wbs_code` in JSON — must match WBS)",
+        f"### Task column: **{activity_col}** (`activity` in JSON — WBS element title)",
         "",
-        "### Role columns (use these exact strings in `roles` and as assignment keys)",
+        "### Role columns (people/roles — use these strings in `roles`, WBS `owner`, and RAID `owner`)",
     ]
     for role in roles:
         lines.append(f"- {role}")
@@ -251,11 +263,11 @@ def build_raci_generation_contract(spec: dict[str, Any] | None = None) -> str:
         [
             "",
             "### Content alignment",
-            "- Derive roles from named stakeholders and WBS owners in the brief.",
-            "- Align activity rows to WBS deliverables and work streams.",
-            "- Each activity must have exactly one Accountable (A) assignment.",
+            "- Derive column roles from WBS owners and named stakeholders in the brief (not academic labels).",
+            "- One row per level-3 WBS work package; every row must include the matching `wbs_code`.",
+            "- WBS `owner` for each task must appear as R or A in that row's assignments.",
+            "- Each row must have exactly one Accountable (A) assignment.",
             "- Use R for who holds the pen; C for parties supporting the Responsible role.",
-            "- Accountable (A) should reflect the party that owns delivery of each activity.",
             "- When confirmed open-question answers are provided, set `from_confirmed_answer` "
             "to true on rows that directly implement those answers; otherwise false.",
         ]
@@ -310,6 +322,11 @@ def build_status_report_generation_contract(spec: dict[str, Any] | None = None) 
 
     lines.extend(
         [
+            "",
+            "### Cross-artifact linking (pull from WBS, RACI, and RAID)",
+            "- Progress and milestones: trace to WBS tasks and their schedule status.",
+            "- Accountability: reference who reports what using RACI R/A holders for in-flight WBS tasks.",
+            "- Escalations: surface high-priority RAID risks and open issues linked to WBS work packages.",
             "",
             "### Content alignment",
             "- Do not invent progress not supported by WBS or RAID.",

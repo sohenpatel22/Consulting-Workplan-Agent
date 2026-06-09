@@ -157,7 +157,10 @@ RAID_GENERATOR_USER = """Generate a RAID log from this parsed brief, WBS, and RA
 Critical: every risk must have a `mitigation` on the risk row. Do **not** create a separate
 action for each risk mitigation — actions are only for unrelated follow-up work from the brief
 (client prerequisites, assumptions to validate, etc.). An empty `actions` array is valid.
-Align risk and action owners with RACI accountable and responsible assignments where applicable.
+
+Cross-artifact linking: tag every risk and action back to WBS via `wbs_links`. The RAID `owner`
+must be the same role/person who holds **R** (Responsible) in RACI for the primary linked
+WBS task — they own both the work and the associated risk/action.
 
 ## Parsed Brief
 {brief_json}
@@ -183,6 +186,11 @@ RACI_GENERATOR_SYSTEM = f"""{RACI_GENERATOR_ROLE}
 
 RACI_GENERATOR_USER = """Generate a RACI matrix from this parsed brief and WBS.
 
+WBS is the foundation: one RACI row per level-3 WBS task. Each row must include `wbs_code`
+matching the WBS. Column headers (`roles`) are people/roles from the brief and WBS owners —
+use the same strings as the WBS `owner` field. The WBS owner for each task must hold **R**
+or **A** in that row.
+
 ## Parsed Brief
 {brief_json}
 
@@ -204,6 +212,10 @@ STATUS_GENERATOR_SYSTEM = f"""{STATUS_GENERATOR_ROLE}
 {status_json_output_instruction()}"""
 
 STATUS_GENERATOR_USER = """Generate a Weekly Status Report from this parsed brief, WBS, RACI matrix, and RAID log.
+
+Pull from all three upstream artifacts: progress against WBS tasks (on track / delayed),
+accountability from RACI (who is reporting on in-flight work), and escalations from RAID
+(high-priority risks and open issues tagged to WBS work packages).
 
 ## Parsed Brief
 {brief_json}
@@ -300,8 +312,13 @@ Keep mitigation plans on risk rows only — do not add or keep actions that rest
 
 REVISION_RACI_USER = """Revise the RACI matrix based on reviewer feedback.
 
+Preserve wbs_code linkage: each row must map to a WBS task; WBS owners must hold R or A.
+
 ## Parsed Brief
 {parsed_brief_json}
+
+## Current WBS
+{wbs_json}
 
 ## Current RACI Matrix
 {raci_matrix_json}
@@ -420,7 +437,8 @@ def raid_generator_user_blocks(
 ) -> list[ContentBlock]:
     task = append_generation_context(
         "Generate a RAID log from the parsed brief, WBS, and RACI matrix above. "
-        "Put mitigation plans on risk rows only — do not mirror them as actions.",
+        "Put mitigation plans on risk rows only — do not mirror them as actions. "
+        "Tag each item to WBS via wbs_links; set owner to the RACI R holder for that task.",
         user_prompt,
     )
     return [
@@ -437,7 +455,8 @@ def raci_generator_user_blocks(
     user_prompt: str | None = None,
 ) -> list[ContentBlock]:
     task = append_generation_context(
-        "Generate a RACI matrix from the parsed brief and WBS above.",
+        "Generate a RACI matrix from the parsed brief and WBS above. "
+        "One row per level-3 WBS task with matching wbs_code; roles are WBS owners and stakeholders.",
         user_prompt,
     )
     return [
@@ -455,7 +474,7 @@ def status_generator_user_blocks(
 ) -> list[ContentBlock]:
     task = append_generation_context(
         "Generate a Weekly Status Report from the parsed brief, WBS, RACI matrix, "
-        "and RAID log above.",
+        "and RAID log above. Synthesize WBS progress, RACI accountability, and RAID escalations.",
         user_prompt,
     )
     return [

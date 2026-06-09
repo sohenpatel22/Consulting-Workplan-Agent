@@ -139,7 +139,8 @@ def test_deloitte_raci_pdf_export() -> None:
     )
     assert name == "raci.pdf"
     text = "\n".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(content)).pages)
-    assert "Discovery and current-state assessment" in text
+    assert "Stakeholder interviews" in text
+    assert "1.1" in text
     assert "|-------------|" not in text
 
 

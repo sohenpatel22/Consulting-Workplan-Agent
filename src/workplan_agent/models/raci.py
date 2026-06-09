@@ -11,6 +11,10 @@ class RaciLetter(str, Enum):
 
 
 class RaciRow(BaseModel):
+    wbs_code: str = Field(
+        default="",
+        description="WBS task ID — must match a wbs_code from the WBS (the cross-artifact thread)",
+    )
     activity: str = Field(description="Deliverable or activity aligned to the WBS")
     assignments: dict[str, RaciLetter] = Field(
         default_factory=dict,

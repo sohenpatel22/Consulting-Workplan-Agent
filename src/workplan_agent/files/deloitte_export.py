@@ -384,21 +384,23 @@ def export_raci_deloitte_xlsx(
     ws = workbook[_RACI_SHEET]
     project = parsed_brief.project_title or "Project"
     _set_cell(ws, 2, 2, f"RACI — {project}")
-    _set_cell(ws, _RACI_HEADER_ROW, 2, "Deliverable / Activity")
-    for col_idx, role in enumerate(raci_matrix.roles, start=3):
+    _set_cell(ws, _RACI_HEADER_ROW, 2, "WBS Code")
+    _set_cell(ws, _RACI_HEADER_ROW, 3, "Task / Activity")
+    for col_idx, role in enumerate(raci_matrix.roles, start=4):
         _set_cell(ws, _RACI_HEADER_ROW, col_idx, role)
 
     end_row = max(_RACI_DATA_START_ROW + len(raci_matrix.rows) + 5, ws.max_row)
-    _clear_row_range(ws, _RACI_DATA_START_ROW, end_row, max(2 + len(raci_matrix.roles), 7))
+    _clear_row_range(ws, _RACI_DATA_START_ROW, end_row, max(3 + len(raci_matrix.roles), 8))
 
     for row_idx, row in enumerate(raci_matrix.rows, start=_RACI_DATA_START_ROW):
+        _set_cell(ws, row_idx, 2, row.wbs_code)
         _set_cell(
             ws,
             row_idx,
-            2,
+            3,
             f"{row.activity}{_confirmed_marker_suffix(row)}",
         )
-        for col_idx, role in enumerate(raci_matrix.roles, start=3):
+        for col_idx, role in enumerate(raci_matrix.roles, start=4):
             letter = row.assignments.get(role)
             value = letter.value if isinstance(letter, RaciLetter) else letter
             _set_cell(ws, row_idx, col_idx, value)
@@ -424,13 +426,16 @@ def export_raci_deloitte_pdf(
     pdf.add_page()
     write_brief_header(pdf, "RACI Matrix", parsed_brief)
 
-    headers = ["Deliverable / Activity", *raci_matrix.roles]
+    headers = ["WBS Code", "Task / Activity", *raci_matrix.roles]
     col_count = len(headers)
     col_width = max(180 / col_count, 18)
-    col_widths = tuple([max(col_width * 1.5, 35), *[col_width] * (col_count - 1)])
+    col_widths = tuple([col_width, max(col_width * 1.5, 35), *[col_width] * (col_count - 2)])
 
     rows = [
-        [display_cell(f"{row.activity}{_confirmed_marker_suffix(row)}")]
+        [
+            display_cell(row.wbs_code),
+            display_cell(f"{row.activity}{_confirmed_marker_suffix(row)}"),
+        ]
         + [
             display_cell(
                 row.assignments[role].value

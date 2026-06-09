@@ -82,6 +82,7 @@ class RevisionAgent:
                 raise ValueError("raci_matrix is required for RACI revision")
             result.raci_matrix = self._raci_agent.run(
                 parsed_brief_json=brief_json,
+                wbs=wbs,
                 raci_matrix=raci_matrix,
                 feedback=feedback,
             )
@@ -190,11 +191,15 @@ class _RaciRevisionHelper(BaseAgent[RaciMatrix]):
         return RaciMatrix
 
     def build_user_prompt(self, **kwargs: object) -> str:
+        wbs = kwargs.get("wbs")
         raci_matrix = kwargs.get("raci_matrix")
+        if not isinstance(wbs, WBS):
+            raise TypeError("wbs must be a WBS")
         if not isinstance(raci_matrix, RaciMatrix):
             raise TypeError("raci_matrix must be a RaciMatrix")
         return REVISION_RACI_USER.format(
             parsed_brief_json=kwargs["parsed_brief_json"],
+            wbs_json=wbs.model_dump_json(indent=2),
             raci_matrix_json=raci_matrix.model_dump_json(indent=2),
             feedback=kwargs["feedback"],
         )

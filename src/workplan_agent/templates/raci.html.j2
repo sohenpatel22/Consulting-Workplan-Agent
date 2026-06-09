@@ -7,7 +7,8 @@
 <table>
   <thead>
     <tr>
-      <th>Deliverable / Activity</th>
+      <th>WBS Code</th>
+      <th>Task / Activity</th>
       {% for role in raci_matrix.roles %}
       <th>{{ role | cell }}</th>
       {% endfor %}
@@ -16,6 +17,7 @@
   <tbody>
   {% for row in raci_matrix.rows %}
     <tr{% if row.from_confirmed_answer %} class="from-confirmed"{% endif %}>
+      <td>{{ row.wbs_code | cell }}</td>
       <td>{{ row.activity | cell }}</td>
       {% for role in raci_matrix.roles %}
       <td>{{ row.assignments.get(role, '') | cell }}</td>
