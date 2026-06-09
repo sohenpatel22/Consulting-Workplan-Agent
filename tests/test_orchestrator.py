@@ -33,7 +33,7 @@ def test_generate_workplan_artifacts_notifies_per_step(output_dir: Path) -> None
         session,
         on_artifact_ready=ready.append,
     )
-    assert ready == ["wbs", "raid", "raci", "status"]
+    assert ready == ["wbs", "raci", "raid", "status"]
 
 
 def test_orchestrator_pipeline(output_dir: Path) -> None:

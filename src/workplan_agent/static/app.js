@@ -375,8 +375,8 @@ function progressPercent(phase, jobStatus) {
     parsing: 25,
     awaiting_confirmation: 40,
     generating_wbs: 55,
-    generating_raid: 70,
-    generating_raci: 85,
+    generating_raci: 70,
+    generating_raid: 85,
     generating_status: 95,
     ready_for_review: 100,
   };

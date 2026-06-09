@@ -252,7 +252,7 @@ def warm_build_prompt_cache_for_record(
     *,
     wbs_json: str | None = None,
 ) -> None:
-    """Prime Anthropic cache for WBS/RAID build (templates + parsed brief [+ WBS])."""
+    """Prime Anthropic cache for WBS/RAID build (templates + parsed brief [+ prior artifacts])."""
     if record.mock:
         return
     parsed = record.session.parsed_brief
@@ -305,9 +305,9 @@ def _make_orchestrator(record: SessionRecord) -> OrchestratorAgent:
 
 
 _BUILD_PHASE_AFTER_ARTIFACT = {
-    "wbs": "generating_raid",
-    "raid": "generating_raci",
-    "raci": "generating_status",
+    "wbs": "generating_raci",
+    "raci": "generating_raid",
+    "raid": "generating_status",
     "status": "ready_for_review",
 }
 

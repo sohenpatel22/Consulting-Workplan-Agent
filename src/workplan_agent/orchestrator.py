@@ -83,7 +83,7 @@ class OrchestratorAgent:
 
     def _warm_raid_build_cache(self, session: WorkplanSession) -> None:
         parsed = session.parsed_brief
-        if parsed is None or session.wbs is None:
+        if parsed is None or session.wbs is None or session.raci_matrix is None:
             return
         warm_raid = getattr(self.provider, "warm_raid_build_prefix", None)
         if not callable(warm_raid):
@@ -91,6 +91,7 @@ class OrchestratorAgent:
         warm_raid(
             parsed.model_dump_json(indent=2),
             session.wbs.model_dump_json(indent=2),
+            session.raci_matrix.model_dump_json(indent=2),
         )
 
     def _generation_guidance(self, session: WorkplanSession, user_prompt: str) -> str:
@@ -155,29 +156,30 @@ class OrchestratorAgent:
             user_prompt=guidance,
         )
         _notify("wbs")
-        self._warm_raid_build_cache(session)
 
-        self._log("[bold]Step 3:[/bold] Generating RAID log...")
-        session.raid = self.raid_generator.run(
-            parsed_brief=session.parsed_brief,
-            wbs=session.wbs,
-            user_prompt=guidance,
-        )
-        _notify("raid")
-
-        self._log("[bold]Step 4:[/bold] Generating RACI matrix...")
+        self._log("[bold]Step 3:[/bold] Generating RACI matrix...")
         session.raci_matrix = self.raci_generator.run(
             parsed_brief=session.parsed_brief,
             wbs=session.wbs,
-            raid=session.raid,
             user_prompt=guidance,
         )
         _notify("raci")
+        self._warm_raid_build_cache(session)
+
+        self._log("[bold]Step 4:[/bold] Generating RAID log...")
+        session.raid = self.raid_generator.run(
+            parsed_brief=session.parsed_brief,
+            wbs=session.wbs,
+            raci_matrix=session.raci_matrix,
+            user_prompt=guidance,
+        )
+        _notify("raid")
 
         self._log("[bold]Step 5:[/bold] Generating Weekly Status Report...")
         session.status_report = self.status_generator.run(
             parsed_brief=session.parsed_brief,
             wbs=session.wbs,
+            raci_matrix=session.raci_matrix,
             raid=session.raid,
             user_prompt=guidance,
         )

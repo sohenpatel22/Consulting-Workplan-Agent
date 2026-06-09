@@ -152,17 +152,21 @@ RAID_GENERATOR_SYSTEM = f"""{RAID_GENERATOR_ROLE}
 
 {raid_json_output_instruction()}"""
 
-RAID_GENERATOR_USER = """Generate a RAID log from this parsed brief and WBS.
+RAID_GENERATOR_USER = """Generate a RAID log from this parsed brief, WBS, and RACI matrix.
 
 Critical: every risk must have a `mitigation` on the risk row. Do **not** create a separate
 action for each risk mitigation — actions are only for unrelated follow-up work from the brief
 (client prerequisites, assumptions to validate, etc.). An empty `actions` array is valid.
+Align risk and action owners with RACI accountable and responsible assignments where applicable.
 
 ## Parsed Brief
 {brief_json}
 
 ## WBS
-{wbs_json}"""
+{wbs_json}
+
+## RACI Matrix
+{raci_json}"""
 
 # --- RACI generator ---
 
@@ -177,16 +181,13 @@ RACI_GENERATOR_SYSTEM = f"""{RACI_GENERATOR_ROLE}
 
 {raci_json_output_instruction()}"""
 
-RACI_GENERATOR_USER = """Generate a RACI matrix from this parsed brief, WBS, and RAID log.
+RACI_GENERATOR_USER = """Generate a RACI matrix from this parsed brief and WBS.
 
 ## Parsed Brief
 {brief_json}
 
 ## WBS
-{wbs_json}
-
-## RAID Log
-{raid_json}"""
+{wbs_json}"""
 
 # --- Weekly Status Report generator ---
 
@@ -202,13 +203,16 @@ STATUS_GENERATOR_SYSTEM = f"""{STATUS_GENERATOR_ROLE}
 
 {status_json_output_instruction()}"""
 
-STATUS_GENERATOR_USER = """Generate a Weekly Status Report from this parsed brief, WBS, and RAID log.
+STATUS_GENERATOR_USER = """Generate a Weekly Status Report from this parsed brief, WBS, RACI matrix, and RAID log.
 
 ## Parsed Brief
 {brief_json}
 
 ## WBS
 {wbs_json}
+
+## RACI Matrix
+{raci_json}
 
 ## RAID Log
 {raid_json}"""
@@ -411,11 +415,29 @@ def wbs_generator_user_blocks(
 def raid_generator_user_blocks(
     brief_json: str,
     wbs_json: str,
+    raci_json: str,
     user_prompt: str | None = None,
 ) -> list[ContentBlock]:
     task = append_generation_context(
-        "Generate a RAID log from the parsed brief and WBS above. "
+        "Generate a RAID log from the parsed brief, WBS, and RACI matrix above. "
         "Put mitigation plans on risk rows only — do not mirror them as actions.",
+        user_prompt,
+    )
+    return [
+        parsed_brief_block(brief_json),
+        plain_block(
+            f"## WBS\n{wbs_json}\n\n## RACI Matrix\n{raci_json}\n\n{task}"
+        ),
+    ]
+
+
+def raci_generator_user_blocks(
+    brief_json: str,
+    wbs_json: str,
+    user_prompt: str | None = None,
+) -> list[ContentBlock]:
+    task = append_generation_context(
+        "Generate a RACI matrix from the parsed brief and WBS above.",
         user_prompt,
     )
     return [
@@ -424,35 +446,24 @@ def raid_generator_user_blocks(
     ]
 
 
-def raci_generator_user_blocks(
-    brief_json: str,
-    wbs_json: str,
-    raid_json: str,
-    user_prompt: str | None = None,
-) -> list[ContentBlock]:
-    task = append_generation_context(
-        "Generate a RACI matrix from the parsed brief, WBS, and RAID log above.",
-        user_prompt,
-    )
-    return [
-        parsed_brief_block(brief_json),
-        plain_block(f"## WBS\n{wbs_json}\n\n## RAID Log\n{raid_json}\n\n{task}"),
-    ]
-
-
 def status_generator_user_blocks(
     brief_json: str,
     wbs_json: str,
+    raci_json: str,
     raid_json: str,
     user_prompt: str | None = None,
 ) -> list[ContentBlock]:
     task = append_generation_context(
-        "Generate a Weekly Status Report from the parsed brief, WBS, and RAID log above.",
+        "Generate a Weekly Status Report from the parsed brief, WBS, RACI matrix, "
+        "and RAID log above.",
         user_prompt,
     )
     return [
         parsed_brief_block(brief_json),
-        plain_block(f"## WBS\n{wbs_json}\n\n## RAID Log\n{raid_json}\n\n{task}"),
+        plain_block(
+            f"## WBS\n{wbs_json}\n\n## RACI Matrix\n{raci_json}\n\n"
+            f"## RAID Log\n{raid_json}\n\n{task}"
+        ),
     ]
 
 

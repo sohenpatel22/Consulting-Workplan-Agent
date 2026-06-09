@@ -160,12 +160,12 @@ def test_session_response_exposes_partial_artifacts(client: TestClient) -> None:
     record.session.parsed_brief = ParsedBrief.model_validate(PARSED_BRIEF_FIXTURE)
     record.session.wbs = WBS.model_validate(WBS_FIXTURE)
     record.job_status = "running"
-    record.phase = "generating_raid"
+    record.phase = "generating_raci"
     get_store().update(
         record.session.session_id,
         session=record.session,
         job_status="running",
-        phase="generating_raid",
+        phase="generating_raci",
     )
 
     data = session_to_response(record)
@@ -176,11 +176,19 @@ def test_session_response_exposes_partial_artifacts(client: TestClient) -> None:
     assert data.summary.wbs_items > 0
     assert data.summary.raid_risks == 0
 
+    from workplan_agent.llm.fixtures import RACI_MATRIX_FIXTURE
+    from workplan_agent.models.raci import RaciMatrix
+
+    record.session.raci_matrix = RaciMatrix.model_validate(RACI_MATRIX_FIXTURE)
+    record.phase = "generating_raid"
+    data = session_to_response(record)
+    assert data.raci_html
+    assert data.raid_html is None
+
     record.session.raid = RAIDLog.model_validate(RAID_FIXTURE)
-    record.phase = "generating_raci"
+    record.phase = "generating_status"
     data = session_to_response(record)
     assert data.raid_html
-    assert data.raci_html is None
 
 
 def test_create_session_mock(client: TestClient) -> None:

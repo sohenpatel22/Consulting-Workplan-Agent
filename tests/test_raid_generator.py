@@ -1,10 +1,11 @@
 import pytest
 
 from workplan_agent.agents.raid_generator import RAIDGeneratorAgent
-from workplan_agent.llm.fixtures import PARSED_BRIEF_FIXTURE, WBS_FIXTURE
+from workplan_agent.llm.fixtures import PARSED_BRIEF_FIXTURE, RACI_MATRIX_FIXTURE, WBS_FIXTURE
 from workplan_agent.llm.mock_provider import MockLLMProvider
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.raid import RAIDLog
+from workplan_agent.models.raci import RaciMatrix
 from workplan_agent.models.wbs import WBS
 from workplan_agent.render import render_raid_markdown
 
@@ -20,15 +21,23 @@ def wbs() -> WBS:
 
 
 @pytest.fixture
+def raci_matrix() -> RaciMatrix:
+    return RaciMatrix.model_validate(RACI_MATRIX_FIXTURE)
+
+
+@pytest.fixture
 def provider() -> MockLLMProvider:
     return MockLLMProvider()
 
 
 def test_raid_generator_returns_valid_raid(
-    provider: MockLLMProvider, parsed_brief: ParsedBrief, wbs: WBS
+    provider: MockLLMProvider,
+    parsed_brief: ParsedBrief,
+    wbs: WBS,
+    raci_matrix: RaciMatrix,
 ) -> None:
     agent = RAIDGeneratorAgent(provider)
-    raid = agent.run(parsed_brief=parsed_brief, wbs=wbs)
+    raid = agent.run(parsed_brief=parsed_brief, wbs=wbs, raci_matrix=raci_matrix)
     assert isinstance(raid, RAIDLog)
     assert len(raid.risks) >= 3
     assert len(raid.actions) >= 2

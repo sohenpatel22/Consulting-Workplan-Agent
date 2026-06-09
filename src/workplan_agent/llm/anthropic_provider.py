@@ -90,9 +90,18 @@ class AnthropicProvider:
         system_blocks, user_blocks = wbs_build_cache_blocks(parsed_brief_json)
         self._ping_prompt_cache("wbs_build", system_blocks, user_blocks)
 
-    def warm_raid_build_prefix(self, parsed_brief_json: str, wbs_json: str) -> None:
+    def warm_raid_build_prefix(
+        self,
+        parsed_brief_json: str,
+        wbs_json: str,
+        raci_json: str,
+    ) -> None:
         """Cache RAID system templates + parsed brief before RAID generation."""
-        system_blocks, user_blocks = raid_build_cache_blocks(parsed_brief_json, wbs_json)
+        system_blocks, user_blocks = raid_build_cache_blocks(
+            parsed_brief_json,
+            wbs_json,
+            raci_json,
+        )
         self._ping_prompt_cache("raid_build", system_blocks, user_blocks)
 
     def call_structured(
@@ -121,7 +130,7 @@ class AnthropicProvider:
                     "messages": user_messages,
                 }
                 if not model_rejects_sampling_params(model):
-                    kwargs["temperature"] = 0.2
+                    kwargs["temperature"] = 0
                 # Block-level cache_control is set in prompts; top-level cache_control
                 # would add another breakpoint and can exceed the limit of 4.
                 response = self._client.messages.create(**kwargs)
