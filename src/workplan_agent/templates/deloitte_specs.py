@@ -93,8 +93,7 @@ def build_wbs_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "- Map work to objectives and in-scope items from the parsed brief.",
             "- Exclude out-of-scope work.",
             "- Use client terminology from the brief in titles and descriptions.",
-            "- Set `owner_side` to the accountable party (RACI A): Client or Consultant when one side leads; Joint only when accountability is genuinely shared.",
-            "- Do not default to Joint — supporting parties belong in the RACI matrix, not in `owner_side`.",
+            "- Set `owner` to the named role or person accountable for the work package when known from the brief.",
         ]
     )
     return "\n".join(lines).strip()
@@ -252,7 +251,7 @@ def build_raci_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "- Align activity rows to WBS deliverables and work streams.",
             "- Each activity must have exactly one Accountable (A) assignment.",
             "- Use R for who holds the pen; C for parties supporting the Responsible role.",
-            "- WBS `owner_side` should match the Accountable (A) assignment for that activity.",
+            "- Accountable (A) should reflect the party that owns delivery of each activity.",
         ]
     )
     return "\n".join(lines).strip()
@@ -310,7 +309,7 @@ def build_status_report_generation_contract(spec: dict[str, Any] | None = None) 
             "- Do not invent progress not supported by WBS or RAID.",
             "- Pull risks from RAID; blockers from open RAID issues or WBS dependencies.",
             "- Milestones must reflect the WBS delivery plan with concrete target dates — avoid TBD unless unavoidable.",
-            "- Set each milestone `owner_side` to the accountable party (aligned with WBS owner_side).",
+            "- Set each milestone `owner_side` to the accountable party for that milestone.",
         ]
     )
     return "\n".join(lines).strip()

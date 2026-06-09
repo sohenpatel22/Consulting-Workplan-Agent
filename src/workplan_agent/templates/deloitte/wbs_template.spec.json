@@ -31,12 +31,6 @@
       "field": "key_deliverable",
       "type": "string",
       "description": "Primary deliverable for this element"
-    },
-    {
-      "header": "Owner Side",
-      "field": "owner_side",
-      "type": "string",
-      "description": "Accountable party (maps to RACI A): Client or Consultant who owns delivery of this element. Use Joint only when accountability is genuinely shared. Supporting parties belong in the RACI matrix, not here."
     }
   ],
   "hierarchy_rules": [
@@ -45,15 +39,9 @@
     "Level 3 = task under a work stream (X.Y.Z).",
     "parent_wbs_code must reference an existing wbs_code one level above.",
     "Minimum 3 level-1 elements, each with at least 2 level-2 children.",
-    "Also include owner, estimated_duration, and dependencies (list of wbs_codes).",
-    "Also include owner_side for each row: Client, Consultant, or Joint.",
-    "Prefer Client or Consultant over Joint — assign the party that is accountable (RACI A) for the work being done.",
-    "Do not use Joint as a default when one party clearly leads or holds the pen (RACI R/A).",
-    "Supporting roles (who helps the responsible party) are captured in the RACI matrix, not in owner_side."
+    "Also include owner, estimated_duration, and dependencies (list of wbs_codes)."
   ],
   "generation_rules": [
-    "owner_side indicates who is accountable for the work package (RACI A), not who supports delivery.",
-    "Assign Client or Consultant whenever one side clearly leads; reserve Joint for genuinely shared accountability.",
     "Set `owner` to the named role or person who holds the pen (RACI R) when known from the brief.",
     "Provide `estimated_duration` on level-2 and level-3 items to support milestone scheduling in the status report."
   ],
@@ -63,56 +51,49 @@
       "wbs_code": "1.0",
       "wbs_element_title": "Uptown Yonge BIA Streetscape Master Plan",
       "description_scope": "Complete project scope for developing a long-term streetscape vision and implementation plan for Uptown Yonge BIA.",
-      "key_deliverable": "Final Streetscape Master Plan",
-      "owner_side": "Joint"
+      "key_deliverable": "Final Streetscape Master Plan"
     },
     {
       "level": 2,
       "wbs_code": "1.1",
       "wbs_element_title": "Project Management",
       "description_scope": "Manage project scope, schedule, communication, meetings, quality control, and coordination with the BIA and City staff.",
-      "key_deliverable": "Project management plan",
-      "owner_side": "Consultant"
+      "key_deliverable": "Project management plan"
     },
     {
       "level": 3,
       "wbs_code": "1.1.1",
       "wbs_element_title": "Project Kickoff",
       "description_scope": "Confirm project objectives, study area, roles, schedule, communication process, and approval pathway.",
-      "key_deliverable": "Kickoff meeting notes",
-      "owner_side": "Joint"
+      "key_deliverable": "Kickoff meeting notes"
     },
     {
       "level": 3,
       "wbs_code": "1.1.2",
       "wbs_element_title": "Progress Coordination",
       "description_scope": "Provide regular updates to the BIA Board, Streetscape Committee, Executive Director, and City Staff Working Group.",
-      "key_deliverable": "Progress meeting records",
-      "owner_side": "Consultant"
+      "key_deliverable": "Progress meeting records"
     },
     {
       "level": 3,
       "wbs_code": "1.1.3",
       "wbs_element_title": "QA/QC and Submission Control",
       "description_scope": "Review all reports, drawings, cost estimates, and presentation materials before submission.",
-      "key_deliverable": "QA/QC checklist",
-      "owner_side": "Consultant"
+      "key_deliverable": "QA/QC checklist"
     },
     {
       "level": 2,
       "wbs_code": "1.2",
       "wbs_element_title": "Background and Policy Review",
       "description_scope": "Review existing conditions, development plans, transit plans, City policies, design guidelines, and regulatory constraints.",
-      "key_deliverable": "Background review summary",
-      "owner_side": "Consultant"
+      "key_deliverable": "Background review summary"
     },
     {
       "level": 3,
       "wbs_code": "1.2.1",
       "wbs_element_title": "Policy and Guideline Review",
       "description_scope": "Review City of Toronto policies, transportation standards, public realm guidelines, accessibility requirements, and BIA-related guidance.",
-      "key_deliverable": "Policy review memo",
-      "owner_side": "Consultant"
+      "key_deliverable": "Policy review memo"
     }
   ]
 }

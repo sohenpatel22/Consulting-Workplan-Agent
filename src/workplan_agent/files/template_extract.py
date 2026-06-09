@@ -35,19 +35,6 @@ def extract_wbs_spec(docx_path: Path) -> dict[str, Any]:
         if header in field_map:
             field, typ, desc = field_map[header]
             columns.append({"header": header, "field": field, "type": typ, "description": desc})
-    columns.append(
-        {
-            "header": "Owner Side",
-            "field": "owner_side",
-            "type": "string",
-            "description": (
-                "Accountable party (maps to RACI A): Client or Consultant who owns delivery "
-                "of this element. Use Joint only when accountability is genuinely shared. "
-                "Supporting parties belong in the RACI matrix, not here."
-            ),
-        }
-    )
-
     example_rows: list[dict[str, Any]] = []
     for row in table.rows[1:8]:
         cells = [cell.text.strip() for cell in row.cells]
@@ -61,7 +48,6 @@ def extract_wbs_spec(docx_path: Path) -> dict[str, Any]:
                 "wbs_element_title": row_data.get("WBS Element Title", ""),
                 "description_scope": row_data.get("Description / Scope of Work", ""),
                 "key_deliverable": row_data.get("Key Deliverable", ""),
-                "owner_side": "Joint",
             }
         )
 
@@ -79,14 +65,8 @@ def extract_wbs_spec(docx_path: Path) -> dict[str, Any]:
             "parent_wbs_code must reference an existing wbs_code one level above.",
             "Minimum 3 level-1 elements, each with at least 2 level-2 children.",
             "Also include owner, estimated_duration, and dependencies (list of wbs_codes).",
-            "Also include owner_side for each row: Client, Consultant, or Joint.",
-            "Prefer Client or Consultant over Joint — assign the party that is accountable (RACI A) for the work being done.",
-            "Do not use Joint as a default when one party clearly leads or holds the pen (RACI R/A).",
-            "Supporting roles (who helps the responsible party) are captured in the RACI matrix, not in owner_side.",
         ],
         "generation_rules": [
-            "owner_side indicates who is accountable for the work package (RACI A), not who supports delivery.",
-            "Assign Client or Consultant whenever one side clearly leads; reserve Joint for genuinely shared accountability.",
             "Set `owner` to the named role or person who holds the pen (RACI R) when known from the brief.",
             "Provide `estimated_duration` on level-2 and level-3 items to support milestone scheduling in the status report.",
         ],
@@ -360,7 +340,7 @@ def extract_raci_spec(xlsx_path: Path) -> dict[str, Any]:
             "Every role in roles must appear as a key in each row's assignments.",
             "Each activity row should have exactly one Accountable (A) assignment.",
             "Use R for Responsible (holds the pen — does the work), A for Accountable (owns that the work is done; may be client leadership or consultant), C for Consulted (supports the Responsible party), I for Informed.",
-            "WBS owner_side maps to the Accountable (A) party; supporting roles belong here as R or C, not as Joint in the WBS.",
+            "Assign Accountable (A) to the party that owns delivery of the activity.",
             "Ground roles in named stakeholders and WBS owners from the brief; do not invent generic columns.",
             "Include at least one row per major WBS deliverable or work stream.",
         ],
@@ -467,7 +447,7 @@ def extract_status_report_spec(docx_path: Path) -> dict[str, Any]:
             "new_initiatives, blockers, risks, milestones, supporting_links.",
             "new_initiatives, blockers, risks, and supporting_links are arrays of strings.",
             "Each milestone object: name, target_date, actual_date (optional), owner_side, status.",
-            "owner_side must be Client, Consultant, or Joint (accountable party for the milestone, aligned with WBS owner_side).",
+            "owner_side must be Client, Consultant, or Joint (accountable party for the milestone).",
             "Risks and blockers must trace to RAID; milestones must align with WBS.",
             "Build the milestone table from WBS level-1 phases and key level-2 deliverables so the delivery plan is clear at a glance.",
             "Every milestone must have a concrete target_date. Roll up WBS estimated_duration and dependencies into a coherent timeline; minimize TBD dates.",

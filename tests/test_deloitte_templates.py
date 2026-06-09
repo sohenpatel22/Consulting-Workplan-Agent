@@ -19,7 +19,7 @@ def test_wbs_spec_loaded() -> None:
     fields = {col["field"] for col in spec["columns"]}
     assert "wbs_code" in fields
     assert "key_deliverable" in fields
-    assert "owner_side" in fields
+    assert "owner_side" not in fields
 
 
 def test_raid_spec_sections_match_template() -> None:
@@ -52,8 +52,8 @@ def test_generation_contracts_include_template_structure() -> None:
     raci_prompt = build_raci_generation_contract()
     status_prompt = build_status_report_generation_contract()
     assert "wbs_code" in wbs_prompt
-    assert "owner_side" in wbs_prompt
-    assert "RACI A" in wbs_prompt
+    assert "owner_side" not in wbs_prompt
+    assert "owner" in wbs_prompt
     assert "generation contract" in wbs_prompt.lower()
     assert "risks" in raid_prompt
     assert "Actions" in raid_prompt

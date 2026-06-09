@@ -113,13 +113,12 @@ _WBS_PDF_HEADERS = [
     "Description / Scope of Work",
     "Key Deliverable",
     "Owner",
-    "Owner Side",
     "Duration",
     "Dependencies",
 ]
 
 # Landscape A4 effective width with 10 mm side margins (mm).
-_WBS_PDF_COL_WIDTHS = (14, 20, 32, 55, 38, 30, 24, 24, 40)
+_WBS_PDF_COL_WIDTHS = (14, 20, 34, 58, 40, 32, 26, 44)
 
 _RISK_PDF_HEADERS = [
     "ID",
@@ -222,7 +221,6 @@ def export_wbs_deloitte_pdf(wbs: WBS, parsed_brief: ParsedBrief) -> bytes:
                 display_cell(wp.description_scope, note=Notes.SIGNOFF_DETAIL),
                 display_cell(wp.key_deliverable, note=Notes.SIGNOFF),
                 display_cell(wp.owner, note=Notes.SIGNOFF_ASSIGNED),
-                display_cell(wp.owner_side),
                 display_cell(wp.estimated_duration, note=Notes.SIGNOFF_ESTIMATE),
                 display_cell(wp.dependencies, note=Notes.NONE_IDENTIFIED),
             ]
