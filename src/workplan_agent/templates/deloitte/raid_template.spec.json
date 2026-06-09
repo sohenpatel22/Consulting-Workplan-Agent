@@ -1,6 +1,6 @@
 {
   "source_file": "raid_log_template.xlsx",
-  "summary": "RAID log follows the Deloitte Excel template on a single detail sheet: Risks, Actions, Issues, and Decisions are side-by-side sections. Risks include probability, impact, risk rating, risk appetite, and a response priority. Actions, issues, and decisions use High, Moderate, or Low priority. Each item labels whether the owner is on the Client, Consultant, or Joint side. Keep Risks and Actions distinct: mitigation belongs on the risk row, not as a duplicate action.",
+  "summary": "RAID log follows the Deloitte Excel template on a single detail sheet: Risks, Actions, Issues, and Decisions are side-by-side sections. Risks include probability, impact, risk rating, risk appetite, and a response priority. Actions, issues, and decisions use High, Moderate, or Low priority. Keep Risks and Actions distinct: mitigation belongs on the risk row, not as a duplicate action.",
   "generation_rules": [
     "Every risk must include a `mitigation` value. Use a concrete plan when known; otherwise use \"To be determined\" or \"TBD — mitigation approach to be defined\".",
     "Do not create an Action whose sole purpose is to restate a risk's mitigation plan. Put mitigation in the risk's `mitigation` field instead.",
@@ -52,12 +52,6 @@
           "type": "string",
           "required": true,
           "description": ""
-        },
-        {
-          "name": "owner_side",
-          "type": "string",
-          "required": true,
-          "description": "Client, Consultant, or Joint"
         },
         {
           "name": "wbs_links",
@@ -153,12 +147,6 @@
           "description": ""
         },
         {
-          "name": "owner_side",
-          "type": "string",
-          "required": true,
-          "description": "Client, Consultant, or Joint"
-        },
-        {
           "name": "wbs_links",
           "type": "array",
           "required": true,
@@ -217,12 +205,6 @@
           "description": ""
         },
         {
-          "name": "owner_side",
-          "type": "string",
-          "required": true,
-          "description": "Client, Consultant, or Joint"
-        },
-        {
           "name": "priority",
           "type": "string",
           "required": true,
@@ -272,12 +254,6 @@
           "type": "string",
           "required": true,
           "description": ""
-        },
-        {
-          "name": "owner_side",
-          "type": "string",
-          "required": true,
-          "description": "Client, Consultant, or Joint"
         },
         {
           "name": "priority",

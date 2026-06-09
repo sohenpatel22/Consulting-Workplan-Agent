@@ -131,7 +131,6 @@ _RISK_PDF_HEADERS = [
     "Status",
     "Mitigation",
     "Owner",
-    "Owner Side",
     "WBS Links",
     "Probability",
     "Impact",
@@ -139,7 +138,7 @@ _RISK_PDF_HEADERS = [
     "Risk Appetite",
     "Priority",
 ]
-_RISK_PDF_COL_WIDTHS = (12, 24, 38, 16, 30, 22, 18, 20, 18, 16, 18, 20, 20)
+_RISK_PDF_COL_WIDTHS = (12, 24, 38, 16, 30, 22, 20, 18, 16, 18, 20, 20)
 
 _ACTION_PDF_HEADERS = [
     "ID",
@@ -147,11 +146,10 @@ _ACTION_PDF_HEADERS = [
     "Description",
     "Status",
     "Owner",
-    "Owner Side",
     "WBS Links",
     "Priority",
 ]
-_ACTION_PDF_COL_WIDTHS = (12, 28, 55, 18, 25, 20, 22, 18)
+_ACTION_PDF_COL_WIDTHS = (12, 28, 55, 18, 25, 22, 18)
 
 _ISSUE_PDF_HEADERS = [
     "ID",
@@ -159,10 +157,9 @@ _ISSUE_PDF_HEADERS = [
     "Description",
     "Resolution",
     "Owner",
-    "Owner Side",
     "Priority",
 ]
-_ISSUE_PDF_COL_WIDTHS = (12, 30, 55, 35, 25, 20, 18)
+_ISSUE_PDF_COL_WIDTHS = (12, 30, 55, 35, 25, 18)
 
 _DECISION_PDF_HEADERS = [
     "ID",
@@ -170,10 +167,9 @@ _DECISION_PDF_HEADERS = [
     "Description / Justification",
     "Resolution",
     "Owner",
-    "Owner Side",
     "Priority",
 ]
-_DECISION_PDF_COL_WIDTHS = (12, 30, 55, 35, 25, 20, 18)
+_DECISION_PDF_COL_WIDTHS = (12, 30, 55, 35, 25, 18)
 
 
 _MILESTONE_PDF_HEADERS = [
@@ -257,7 +253,6 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
             display_cell(item.status),
             display_cell(item.mitigation, note=Notes.NOT_YET_DEFINED),
             display_cell(item.owner, note=Notes.SIGNOFF_ASSIGNED),
-            display_cell(item.owner_side),
             display_cell(item.wbs_links, note=Notes.NOT_LINKED_WBS),
             display_cell(item.probability),
             display_cell(item.impact),
@@ -283,7 +278,6 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
             display_cell(item.description, note=Notes.SIGNOFF_DETAIL),
             display_cell(item.status),
             display_cell(item.owner, note=Notes.SIGNOFF_ASSIGNED),
-            display_cell(item.owner_side),
             display_cell(item.wbs_links, note=Notes.NOT_LINKED_WBS),
             display_cell(item.priority),
         ]
@@ -306,7 +300,6 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
                 display_cell(item.description, note=Notes.SIGNOFF_DETAIL),
                 display_cell(item.resolution, note=Notes.PENDING_RESOLUTION),
                 display_cell(item.owner, note=Notes.SIGNOFF_ASSIGNED),
-                display_cell(item.owner_side),
                 display_cell(item.priority),
             ]
             for item in raid.issues
@@ -319,7 +312,6 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
                 display_cell(None, note=Notes.NONE_IDENTIFIED),
                 display_cell(None, note=Notes.PENDING_RESOLUTION),
                 display_cell(None, note=Notes.SIGNOFF_ASSIGNED),
-                display_cell(None),
                 display_cell(None),
             ]
         ]
@@ -338,7 +330,6 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
             display_cell(item.description_justification, note=Notes.SIGNOFF_DETAIL),
             display_cell(item.resolution, note=Notes.PENDING_RESOLUTION),
             display_cell(item.owner, note=Notes.SIGNOFF_ASSIGNED),
-            display_cell(item.owner_side),
             display_cell(item.priority),
         ]
         for item in raid.decisions

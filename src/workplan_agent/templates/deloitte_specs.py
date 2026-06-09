@@ -160,7 +160,6 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "",
             "### Pre-submit checklist",
             "- Every risk and action includes `wbs_links` pointing to real `wbs_code` values from the WBS.",
-            "- Every RAID item includes `owner_side`: Client, Consultant, or Joint.",
             "- Every risk includes a `mitigation` value (concrete plan or TBD wording when unknown).",
             "- Risks include `probability`, `impact`, `risk_rating`, `risk_appetite`, and response "
             "`priority` (Monitor closely, Monitor, Stay informed, or Respond as required).",

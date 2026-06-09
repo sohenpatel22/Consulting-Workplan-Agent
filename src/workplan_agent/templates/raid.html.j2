@@ -10,7 +10,7 @@
   <thead>
     <tr>
       <th>ID</th><th>Title</th><th>Description</th><th>Status</th><th>Mitigation</th>
-      <th>Owner</th><th>Owner Side</th><th>WBS Links</th><th>Probability</th><th>Impact</th>
+      <th>Owner</th><th>WBS Links</th><th>Probability</th><th>Impact</th>
       <th>Risk Rating</th><th>Risk Appetite</th><th>Priority</th>
     </tr>
   </thead>
@@ -23,7 +23,6 @@
       <td>{{ item.status | cell }}</td>
       <td>{{ item.mitigation | cell('not yet defined') }}</td>
       <td>{{ item.owner | cell('not assigned at sign-off') }}</td>
-      <td>{{ item.owner_side | cell }}</td>
       <td>{{ item.wbs_links | cell('not linked to WBS') }}</td>
       <td>{{ item.probability | cell }}</td>
       <td>{{ item.impact | cell }}</td>
@@ -40,7 +39,7 @@
   <thead>
     <tr>
       <th>ID</th><th>Title</th><th>Description</th><th>Status</th>
-      <th>Owner</th><th>Owner Side</th><th>WBS Links</th><th>Priority</th>
+      <th>Owner</th><th>WBS Links</th><th>Priority</th>
     </tr>
   </thead>
   <tbody>
@@ -51,7 +50,6 @@
       <td>{{ item.description | cell('not detailed at sign-off') }}</td>
       <td>{{ item.status | cell }}</td>
       <td>{{ item.owner | cell('not assigned at sign-off') }}</td>
-      <td>{{ item.owner_side | cell }}</td>
       <td>{{ item.wbs_links | cell('not linked to WBS') }}</td>
       <td>{{ item.priority | cell }}</td>
     </tr>
@@ -64,7 +62,7 @@
   <thead>
     <tr>
       <th>ID</th><th>Title</th><th>Description</th><th>Resolution</th>
-      <th>Owner</th><th>Owner Side</th><th>Priority</th>
+      <th>Owner</th><th>Priority</th>
     </tr>
   </thead>
   <tbody>
@@ -76,12 +74,11 @@
       <td>{{ item.description | cell('not detailed at sign-off') }}</td>
       <td>{{ item.resolution | cell('pending resolution') }}</td>
       <td>{{ item.owner | cell('not assigned at sign-off') }}</td>
-      <td>{{ item.owner_side | cell }}</td>
       <td>{{ item.priority | cell }}</td>
     </tr>
     {% endfor %}
   {% else %}
-    <tr><td>—</td><td>No issues identified</td><td colspan="5">n/a</td></tr>
+    <tr><td>—</td><td>No issues identified</td><td colspan="4">n/a</td></tr>
   {% endif %}
   </tbody>
 </table>
@@ -91,7 +88,7 @@
   <thead>
     <tr>
       <th>ID</th><th>Title</th><th>Description / Justification</th><th>Resolution</th>
-      <th>Owner</th><th>Owner Side</th><th>Priority</th>
+      <th>Owner</th><th>Priority</th>
     </tr>
   </thead>
   <tbody>
@@ -102,7 +99,6 @@
       <td>{{ item.description_justification | cell('not detailed at sign-off') }}</td>
       <td>{{ item.resolution | cell('pending resolution') }}</td>
       <td>{{ item.owner | cell('not assigned at sign-off') }}</td>
-      <td>{{ item.owner_side | cell }}</td>
       <td>{{ item.priority | cell }}</td>
     </tr>
   {% endfor %}

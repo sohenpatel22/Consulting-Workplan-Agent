@@ -128,5 +128,5 @@ def test_raid_markdown_render(parsed_brief: ParsedBrief) -> None:
     md = render_raid_markdown(raid, parsed_brief)
     assert "RAID Log" in md
     assert "R1" in md
-    assert "Owner Side" in md
+    assert "Owner Side" not in md
     assert "## Actions" in md

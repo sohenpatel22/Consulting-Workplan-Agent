@@ -35,11 +35,6 @@ class RiskEntry(BaseModel):
     status: str = "Open"
     mitigation: str = ""
     owner: str = ""
-    owner_side: str = Field(
-        default="Joint",
-        description="Client, Consultant, or Joint owner side for this RAID item",
-        validation_alias=AliasChoices("owner_side", "responsible_side", "company_side"),
-    )
     wbs_links: list[str] = Field(
         default_factory=list,
         validation_alias=AliasChoices("wbs_links", "related_wbs_ids"),
@@ -102,11 +97,6 @@ class ActionEntry(BaseModel):
     status_update: str = ""
     status: str = "Open"
     owner: str = ""
-    owner_side: str = Field(
-        default="Joint",
-        description="Client, Consultant, or Joint owner side for this RAID item",
-        validation_alias=AliasChoices("owner_side", "responsible_side", "company_side"),
-    )
     wbs_links: list[str] = Field(
         default_factory=list,
         validation_alias=AliasChoices("wbs_links", "related_wbs_ids"),
@@ -129,11 +119,6 @@ class IssueEntry(BaseModel):
     description: str = ""
     resolution: str = ""
     owner: str = ""
-    owner_side: str = Field(
-        default="Joint",
-        description="Client, Consultant, or Joint owner side for this RAID item",
-        validation_alias=AliasChoices("owner_side", "responsible_side", "company_side"),
-    )
     priority: str = Field(
         default="Moderate",
         validation_alias=AliasChoices("priority", "severity"),
@@ -155,11 +140,6 @@ class DecisionEntry(BaseModel):
     )
     resolution: str = ""
     owner: str = ""
-    owner_side: str = Field(
-        default="Joint",
-        description="Client, Consultant, or Joint owner side for this RAID item",
-        validation_alias=AliasChoices("owner_side", "responsible_side", "company_side"),
-    )
     priority: str = Field(
         default="Moderate",
         validation_alias=AliasChoices("priority", "severity"),

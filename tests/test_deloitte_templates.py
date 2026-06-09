@@ -27,7 +27,8 @@ def test_raid_spec_sections_match_template() -> None:
     keys = {section["key"] for section in spec["sections"]}
     assert keys == {"risks", "actions", "issues", "decisions"}
     for section in spec["sections"]:
-        assert any(field["name"] == "owner_side" for field in section["fields"])
+        fields = {field["name"] for field in section["fields"]}
+        assert "owner_side" not in fields
 
 
 def test_raci_spec_matches_template() -> None:
@@ -58,7 +59,7 @@ def test_generation_contracts_include_template_structure() -> None:
     assert "generation contract" in wbs_prompt.lower()
     assert "risks" in raid_prompt
     assert "Actions" in raid_prompt
-    assert "owner_side" in raid_prompt
+    assert "owner_side" not in raid_prompt
     assert "mitigation" in raid_prompt.lower()
     assert "duplicate" in raid_prompt.lower()
     assert "WRONG" in raid_prompt

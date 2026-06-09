@@ -103,12 +103,6 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
                 },
                 {"name": "owner", "type": "string", "required": True, "description": ""},
                 {
-                    "name": "owner_side",
-                    "type": "string",
-                    "required": True,
-                    "description": "Client, Consultant, or Joint",
-                },
-                {
                     "name": "wbs_links",
                     "type": "array",
                     "required": True,
@@ -164,12 +158,6 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
                 {"name": "status", "type": "string", "required": True, "description": ""},
                 {"name": "owner", "type": "string", "required": True, "description": ""},
                 {
-                    "name": "owner_side",
-                    "type": "string",
-                    "required": True,
-                    "description": "Client, Consultant, or Joint",
-                },
-                {
                     "name": "wbs_links",
                     "type": "array",
                     "required": True,
@@ -200,12 +188,6 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
                 },
                 {"name": "owner", "type": "string", "required": True, "description": ""},
                 {
-                    "name": "owner_side",
-                    "type": "string",
-                    "required": True,
-                    "description": "Client, Consultant, or Joint",
-                },
-                {
                     "name": "priority",
                     "type": "string",
                     "required": True,
@@ -235,12 +217,6 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
                 },
                 {"name": "owner", "type": "string", "required": True, "description": ""},
                 {
-                    "name": "owner_side",
-                    "type": "string",
-                    "required": True,
-                    "description": "Client, Consultant, or Joint",
-                },
-                {
                     "name": "priority",
                     "type": "string",
                     "required": True,
@@ -258,8 +234,7 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
             "Risks, Actions, Issues, and Decisions are side-by-side sections. "
             "Risks include probability, impact, risk rating, risk appetite, and a "
             "response priority. Actions, issues, and decisions use High, Moderate, "
-            "or Low priority. Each item labels whether the owner is on the Client, "
-            "Consultant, or Joint side. Keep Risks and Actions distinct: mitigation "
+            "or Low priority. Keep Risks and Actions distinct: mitigation "
             "belongs on the risk row, not as a duplicate action."
         ),
         "generation_rules": [
