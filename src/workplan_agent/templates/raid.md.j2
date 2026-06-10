@@ -6,13 +6,17 @@
 
 *Items marked with * were shaped by confirmed planner questions before build.*
 {% endif %}
+{% if has_assumed_items %}
+
+*Items marked with ~ contain values assumed by the agent (not stated in the brief) — verify before use.*
+{% endif %}
 
 ## Risks
 
 | ID | Title | Description | Status | Mitigation | Owner | WBS Links | Probability | Impact | Risk Rating | Risk Appetite | Required action |
 |----|-------|-------------|--------|------------|-------|-----------|-------------|--------|-------------|---------------|-----------------|
 {% for item in raid.risks -%}
-| {{ item.id | cell }}{{ item | confirmed_marker }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.status | cell }} | {{ item.mitigation | cell('not yet defined') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.wbs_links | cell('not linked to WBS') }} | {{ item.probability | cell }} | {{ item.impact | cell }} | {{ item.risk_rating | cell }} | {{ item.risk_appetite | cell }} | {{ item.priority | cell }} |
+| {{ item.id | cell }}{{ item | confirmed_marker }}{{ item | assumed_marker }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.status | cell }} | {{ item.mitigation | cell('not yet defined') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.wbs_links | cell('not linked to WBS') }} | {{ item.probability | cell }} | {{ item.impact | cell }} | {{ item.risk_rating | cell }} | {{ item.risk_appetite | cell }} | {{ item.priority | cell }} |
 {% endfor %}
 
 ## Actions
@@ -20,7 +24,7 @@
 | ID | Title | Description | Status | Owner | WBS Links | Priority |
 |----|-------|-------------|--------|-------|-----------|----------|
 {% for item in raid.actions -%}
-| {{ item.id | cell }}{{ item | confirmed_marker }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.status | cell }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.wbs_links | cell('not linked to WBS') }} | {{ item.priority | cell }} |
+| {{ item.id | cell }}{{ item | confirmed_marker }}{{ item | assumed_marker }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.status | cell }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.wbs_links | cell('not linked to WBS') }} | {{ item.priority | cell }} |
 {% endfor %}
 
 ## Issues
@@ -28,7 +32,7 @@
 | ID | Title | Description | Resolution | Owner | Priority |
 |----|-------|-------------|------------|-------|----------|
 {% for item in raid.issues -%}
-| {{ item.id | cell }}{{ item | confirmed_marker }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.resolution | cell('pending resolution') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.priority | cell }} |
+| {{ item.id | cell }}{{ item | confirmed_marker }}{{ item | assumed_marker }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.resolution | cell('pending resolution') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.priority | cell }} |
 {% endfor %}
 {% if not raid.issues %}
 | — | No issues identified | n/a (none identified) | n/a (pending resolution) | n/a (not assigned at sign-off) | n/a |

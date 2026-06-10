@@ -148,6 +148,39 @@ def test_open_questions_pause_before_build(client: TestClient) -> None:
     assert final["wbs"] is not None
 
 
+def test_reconfirm_after_build_regenerates_artifacts(client: TestClient) -> None:
+    create = client.post(
+        "/api/sessions",
+        json={"brief_text": BRIEF, "mock": True},
+    )
+    session_id = create.json()["session_id"]
+    first = _wait_for_complete(client, session_id)
+    assert first["job_status"] == "complete"
+    assert first["wbs"] is not None
+    # Questions remain available after the build so the UI can re-confirm.
+    questions = first["confirmation_questions"]
+    assert questions
+
+    answers = [
+        {"question": _question_text(q), "answer": f"Changed answer: {_question_text(q)}"}
+        for q in questions
+    ]
+    response = client.post(
+        f"/api/sessions/{session_id}/confirm",
+        json={"answers": answers},
+    )
+    assert response.status_code == 202, response.text
+
+    rebuilt = _wait_for_complete(client, session_id)
+    assert rebuilt["job_status"] == "complete"
+    assert rebuilt["wbs"] is not None
+    assert rebuilt["revision_count"] == 0
+
+    resolved = rebuilt["parsed_brief"]["resolved_open_questions"]
+    assert len(resolved) == len(questions)
+    assert all(item["answer"].startswith("Changed answer:") for item in resolved)
+
+
 def test_session_response_exposes_partial_artifacts(client: TestClient) -> None:
     from workplan_agent.api.schemas import CreateSessionRequest
     from workplan_agent.api.service import create_session, get_store, session_to_response

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "workplan-agent",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "uvicorn", "workplan_agent.api.app:app", "--port", "8123"],
+      "port": 8123
+    }
+  ]
+}

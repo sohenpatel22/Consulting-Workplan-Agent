@@ -6,11 +6,15 @@
 
 *Items marked with * were shaped by confirmed planner questions before build.*
 {% endif %}
+{% if has_assumed_items %}
+
+*Items marked with ~ contain values assumed by the agent (not stated in the brief) — verify before use.*
+{% endif %}
 
 ## Work packages
 
 | WBS Code | WBS Element Title | Description / Scope of Work | Key Deliverable | Owner | Duration | Dependencies |
 |----------|-------------------|------------------------------|-----------------|-------|----------|--------------|
 {% for wp in wbs.work_packages -%}
-| {{ wp.wbs_code | cell }}{{ wp | confirmed_marker }} | {{ wp.wbs_element_title | cell }} | {{ wp.description_scope | cell('not detailed at sign-off') }} | {{ wp.key_deliverable | cell('not confirmed at sign-off') }} | {{ wp.owner | cell('not assigned at sign-off') }} | {{ wp.estimated_duration | cell('not estimated at sign-off') }} | {{ wp.dependencies | cell('none identified') }} |
+| {{ wp.wbs_code | cell }}{{ wp | confirmed_marker }}{{ wp | assumed_marker }} | {{ wp.wbs_element_title | cell }} | {{ wp.description_scope | cell('not detailed at sign-off') }} | {{ wp.key_deliverable | cell('not confirmed at sign-off') }} | {{ wp.owner | cell('not assigned at sign-off') }} | {{ wp.estimated_duration | cell('not estimated at sign-off') }} | {{ wp.dependencies | cell('none identified') }} |
 {% endfor %}

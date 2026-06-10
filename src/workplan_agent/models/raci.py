@@ -24,6 +24,10 @@ class RaciRow(BaseModel):
         default=False,
         description="True when this row directly implements a confirmed open-question answer",
     )
+    is_assumed: bool = Field(
+        default=False,
+        description="True when one or more key fields on this row are assumed (not stated in the brief)",
+    )
 
 
 class RaciMatrix(BaseModel):

@@ -54,6 +54,10 @@ class RiskEntry(BaseModel):
         default=False,
         description="True when this entry directly implements a confirmed open-question answer",
     )
+    is_assumed: bool = Field(
+        default=False,
+        description="True when one or more key fields on this entry are assumed (not stated in the brief)",
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -109,6 +113,10 @@ class ActionEntry(BaseModel):
         default=False,
         description="True when this entry directly implements a confirmed open-question answer",
     )
+    is_assumed: bool = Field(
+        default=False,
+        description="True when one or more key fields on this entry are assumed (not stated in the brief)",
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -126,6 +134,10 @@ class IssueEntry(BaseModel):
     from_confirmed_answer: bool = Field(
         default=False,
         description="True when this entry directly implements a confirmed open-question answer",
+    )
+    is_assumed: bool = Field(
+        default=False,
+        description="True when one or more key fields on this entry are assumed (not stated in the brief)",
     )
 
     model_config = {"populate_by_name": True}
@@ -147,6 +159,10 @@ class DecisionEntry(BaseModel):
     from_confirmed_answer: bool = Field(
         default=False,
         description="True when this entry directly implements a confirmed open-question answer",
+    )
+    is_assumed: bool = Field(
+        default=False,
+        description="True when one or more key fields on this entry are assumed (not stated in the brief)",
     )
 
     model_config = {"populate_by_name": True}

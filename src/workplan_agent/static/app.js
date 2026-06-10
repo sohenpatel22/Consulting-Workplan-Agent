@@ -6,6 +6,9 @@ let pollTimer = null;
 let reviewPollTimer = null;
 let lastSessionData = null;
 let pendingConfirmationQuestions = [];
+/** Answers typed on the confirm panel, kept so back/forward navigation
+ * (and rebuilds) can restore them. Keyed by question index. */
+let confirmAnswerDrafts = {};
 
 const REVISION_TABS = new Set(["wbs", "raid", "raci", "status"]);
 const feedbackDrafts = { wbs: "", raid: "", raci: "", status: "" };
@@ -35,6 +38,101 @@ function showPanel(name) {
   });
   $("appLayout")?.classList.toggle("layout-wide", name === "results");
 }
+
+/**
+ * Record the current panel in browser history so back/forward navigates
+ * between panels without re-running any generation. Transient panels
+ * (progress) are replaced by their successor so the stack ends up as
+ * create → confirm → results.
+ */
+function syncHistory(panel, { replace = false } = {}) {
+  const state = { panel, sessionId: currentSessionId };
+  if (history.state?.panel === panel && history.state?.sessionId === currentSessionId) {
+    return;
+  }
+  if (replace) {
+    history.replaceState(state, "");
+  } else {
+    history.pushState(state, "");
+  }
+}
+
+function stopAllPolling() {
+  clearInterval(pollTimer);
+  stopReviewPolling();
+}
+
+function restoreConfirmAnswers() {
+  document.querySelectorAll(".confirm-answer").forEach((field) => {
+    const draft = confirmAnswerDrafts[field.dataset.questionIndex];
+    if (draft) field.value = draft;
+  });
+}
+
+async function restoreConfirmPanel() {
+  if (!pendingConfirmationQuestions.length && currentSessionId) {
+    try {
+      const data = await pollSession(currentSessionId);
+      pendingConfirmationQuestions = data.confirmation_questions || [];
+      renderParsePreview(data.parse_preview);
+    } catch {
+      /* fall through — form renders empty with an error below */
+    }
+  }
+  $("confirmSessionIdLabel").textContent = currentSessionId || "";
+  renderConfirmationForm(pendingConfirmationQuestions);
+  restoreConfirmAnswers();
+  setError(
+    $("confirmError"),
+    pendingConfirmationQuestions.length
+      ? ""
+      : "Could not restore the confirmation questions for this session."
+  );
+  $("confirmBuildBtn").disabled = !pendingConfirmationQuestions.length;
+  showPanel("confirm");
+}
+
+async function restoreSessionPanel(panel) {
+  if (!currentSessionId) {
+    showPanel("create");
+    return;
+  }
+  try {
+    const data = await pollSession(currentSessionId);
+    if (data.awaiting_confirmation || data.phase === "awaiting_confirmation") {
+      showConfirmationPanel(data);
+      return;
+    }
+    if (data.job_status === "running" && !hasActiveRevisions(data)) {
+      $("sessionIdLabel").textContent = currentSessionId;
+      showPanel(panel === "results" && hasViewableArtifacts(data) ? "results" : "progress");
+      beginGenerationPolling(currentSessionId);
+      return;
+    }
+    showPanel("results");
+    updateResults(data);
+    updateGenerationBanner(data);
+    if (hasActiveRevisions(data)) startReviewPolling();
+  } catch (err) {
+    showPanel("results");
+    setError($("reviewError"), err.message);
+  }
+}
+
+window.addEventListener("popstate", (event) => {
+  const state = event.state || { panel: "create" };
+  closePreviewFullscreen();
+  stopAllPolling();
+  if (state.sessionId) currentSessionId = state.sessionId;
+
+  if (state.panel === "confirm") {
+    restoreConfirmPanel();
+  } else if (state.panel === "progress" || state.panel === "results") {
+    restoreSessionPanel(state.panel);
+  } else {
+    showPanel("create");
+  }
+});
 
 function setError(el, message) {
   if (!message) {
@@ -432,6 +530,7 @@ function handleGenerationPoll(data) {
   }
 
   if (hasViewableArtifacts(data) && isArtifactGenerationRunning(data)) {
+    syncHistory("results", { replace: true });
     showPanel("results");
     updateResults(data);
     updateGenerationBanner(data);
@@ -439,6 +538,7 @@ function handleGenerationPoll(data) {
 
   if (data.job_status === "complete" && !data.review_in_progress) {
     clearInterval(pollTimer);
+    syncHistory("results", { replace: true });
     showPanel("results");
     updateResults(data);
     updateGenerationBanner(data);
@@ -448,6 +548,7 @@ function handleGenerationPoll(data) {
   if (data.job_status === "failed") {
     clearInterval(pollTimer);
     if (hasViewableArtifacts(data)) {
+      syncHistory("results", { replace: true });
       showPanel("results");
       updateResults(data);
       updateGenerationBanner(data);
@@ -974,6 +1075,7 @@ function renderConfirmationForm(questions) {
       const textarea = form.querySelector(`.confirm-answer[data-question-index="${index}"]`);
       if (textarea && choice) {
         textarea.value = choice;
+        confirmAnswerDrafts[index] = choice;
         textarea.focus();
       }
       form.querySelectorAll(`.confirm-choice-chip[data-question-index="${index}"]`).forEach((chip) => {
@@ -994,18 +1096,16 @@ function showConfirmationPanel(data) {
   $("confirmSessionIdLabel").textContent = data.session_id;
   renderParsePreview(data.parse_preview);
   renderConfirmationForm(pendingConfirmationQuestions);
+  restoreConfirmAnswers();
   setError($("confirmError"), "");
   $("confirmBuildBtn").disabled = false;
+  syncHistory("confirm", { replace: true });
   showPanel("confirm");
   warmBuildPromptCache(data.session_id);
 }
 
-function resumePollingAfterConfirm(sessionId) {
-  showPanel("progress");
-  $("sessionIdLabel").textContent = sessionId;
-  setError($("progressError"), "");
-  setError($("reviewError"), "");
-
+function beginGenerationPolling(sessionId) {
+  clearInterval(pollTimer);
   const tick = async () => {
     try {
       const data = await pollSession(sessionId);
@@ -1018,6 +1118,20 @@ function resumePollingAfterConfirm(sessionId) {
 
   tick();
   pollTimer = setInterval(tick, 800);
+}
+
+function resumePollingAfterConfirm(sessionId) {
+  syncHistory("progress");
+  showPanel("progress");
+  $("sessionIdLabel").textContent = sessionId;
+  setError($("progressError"), "");
+  setError($("reviewError"), "");
+  $("reviewMessage").classList.add("hidden");
+  $("diffPanel").classList.add("hidden");
+  pendingRevisionTabs.clear();
+  $("progressBar").style.width = "0%";
+
+  beginGenerationPolling(sessionId);
 }
 
 async function submitConfirmation() {
@@ -1060,7 +1174,10 @@ async function submitConfirmation() {
 
 function startPolling(sessionId) {
   currentSessionId = sessionId;
+  pendingConfirmationQuestions = [];
+  confirmAnswerDrafts = {};
   $("sessionIdLabel").textContent = sessionId;
+  syncHistory("progress");
   showPanel("progress");
   setError($("progressError"), "");
   setError($("createError"), "");
@@ -1250,7 +1367,9 @@ function resetUi() {
   currentSessionId = null;
   currentTab = "wbs";
   lastSessionData = null;
-  pendingConfirmationQuestions = [];
+  // pendingConfirmationQuestions and confirmAnswerDrafts are kept so the
+  // browser back button can still restore the previous session's confirm
+  // panel; they are reset when a new session starts.
   pendingRevisionTabs.clear();
   Object.keys(feedbackDrafts).forEach((key) => {
     feedbackDrafts[key] = "";
@@ -1274,6 +1393,7 @@ function resetUi() {
   $("downloadBar").classList.add("hidden");
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
   document.querySelector(".tab[data-tab='wbs']").classList.add("active");
+  syncHistory("create");
   showPanel("create");
 }
 
@@ -1313,6 +1433,11 @@ document.querySelectorAll("[data-action]").forEach((btn) => {
 
 $("generateBtn").addEventListener("click", createSession);
 $("confirmBuildBtn").addEventListener("click", submitConfirmation);
+$("confirmQuestionsForm").addEventListener("input", (e) => {
+  if (e.target.classList.contains("confirm-answer")) {
+    confirmAnswerDrafts[e.target.dataset.questionIndex] = e.target.value;
+  }
+});
 $("loadSampleBtn").addEventListener("click", loadSampleBrief);
 $("submitRevisionBtn").addEventListener("click", submitRevision);
 $("clearFeedbackBtn").addEventListener("click", clearFeedback);
@@ -1343,5 +1468,17 @@ $("previewFullscreen")?.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closePreviewFullscreen();
 });
+
+if (!history.state?.panel) {
+  history.replaceState({ panel: "create", sessionId: null }, "");
+} else if (history.state.panel !== "create" && history.state.sessionId) {
+  // Page reload on a session panel: restore the view without rebuilding.
+  currentSessionId = history.state.sessionId;
+  if (history.state.panel === "confirm") {
+    restoreConfirmPanel();
+  } else {
+    restoreSessionPanel(history.state.panel);
+  }
+}
 
 checkHealth();

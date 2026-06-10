@@ -185,7 +185,9 @@ def session_to_response(record: SessionRecord) -> SessionResponse:
     parse_preview = None
     if session.parsed_brief is not None:
         parse_preview = _parse_preview(session)
-        if awaiting_confirmation and record.pending_confirmation:
+        # Questions stay available after the first confirm so the UI can
+        # navigate back, change answers, and rebuild.
+        if record.pending_confirmation:
             confirmation_questions = [
                 ConfirmationQuestionItem(
                     question=item.question,
@@ -404,15 +406,56 @@ def run_generation(record: SessionRecord) -> None:
         )
 
 
+def _reset_for_rebuild(record: SessionRecord) -> None:
+    """Roll the session back to its pre-build state so confirm answers can be
+    re-applied and artifacts regenerated from scratch."""
+    session = record.session
+    parsed = session.parsed_brief
+    assert parsed is not None
+
+    questions = [item.question for item in record.pending_confirmation]
+    question_set = set(questions)
+    prefixes = tuple(f"[Confirmed] {q} → " for q in questions)
+    parsed.resolved_open_questions = [
+        item for item in parsed.resolved_open_questions if item.question not in question_set
+    ]
+    if prefixes:
+        parsed.assumptions_from_brief = [
+            item for item in parsed.assumptions_from_brief if not item.startswith(prefixes)
+        ]
+    parsed.open_questions = questions
+
+    session.wbs = None
+    session.raid = None
+    session.raci_matrix = None
+    session.status_report = None
+    session.quality_gates = None
+    session.revision_count = 0
+    session.artifact_versions = {}
+    session.artifact_based_on = {}
+    record.last_review_result = None
+    record.review_error = None
+    record.quality_gates_stale = False
+
+
 def confirm_open_questions(session_id: str, request: ConfirmQuestionsRequest) -> None:
     store = get_store()
     record = store.get(session_id)
     if record is None:
         raise KeyError(f"Session {session_id} not found.")
-    if record.phase != "awaiting_confirmation":
-        raise ValueError("Session is not awaiting open-question confirmation.")
     if record.session.parsed_brief is None:
         raise ValueError("Parsed brief is not available.")
+
+    if record.phase != "awaiting_confirmation":
+        # Re-confirm after a build: allowed once the previous build settled,
+        # so the user can change answers and regenerate the artifacts.
+        if not record.pending_confirmation:
+            raise ValueError("Session is not awaiting open-question confirmation.")
+        if record.job_status == "running":
+            raise ValueError("Cannot rebuild while generation is in progress.")
+        if record.review_in_progress:
+            raise ValueError("Cannot rebuild while a revision is in progress.")
+        _reset_for_rebuild(record)
 
     resolutions = [
         ResolvedQuestion(question=item.question, answer=item.answer.strip())
@@ -421,11 +464,7 @@ def confirm_open_questions(session_id: str, request: ConfirmQuestionsRequest) ->
     record.session.parsed_brief.apply_open_question_resolutions(resolutions)
     record.session.status = SessionStatus.PARSED
     save_artifacts(record.output_dir, record.session)
-    store.update(
-        session_id,
-        session=record.session,
-        pending_confirmation=[],
-    )
+    store.update(session_id, session=record.session)
 
 
 def get_session(session_id: str) -> SessionResponse | None:

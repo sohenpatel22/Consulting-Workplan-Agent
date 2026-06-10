@@ -28,6 +28,10 @@ class WorkPackage(BaseModel):
         default=False,
         description="True when this row directly implements a confirmed open-question answer",
     )
+    is_assumed: bool = Field(
+        default=False,
+        description="True when one or more key fields on this row are assumed (not stated in the brief)",
+    )
 
     @field_validator("key_deliverable", mode="before")
     @classmethod

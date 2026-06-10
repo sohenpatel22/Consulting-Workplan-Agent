@@ -674,6 +674,28 @@ textarea {
   pointer-events: none;
 }
 
+.artifact-preview .assumed-legend {
+  font-size: 0.85rem;
+  color: #b45309;
+  margin: 0.35rem 0 1rem;
+}
+
+.artifact-preview tr.from-assumed td:last-child {
+  position: relative;
+}
+
+.artifact-preview tr.from-assumed td:last-child::after {
+  content: "~";
+  position: absolute;
+  top: 0.15rem;
+  right: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #b45309;
+  line-height: 1;
+  pointer-events: none;
+}
+
 .artifact-preview p {
   margin: 0.5rem 0;
 }

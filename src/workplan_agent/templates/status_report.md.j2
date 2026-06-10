@@ -1,6 +1,10 @@
 {% if has_confirmed_items %}
 *Items marked with * were shaped by confirmed planner questions before build.*
 
+{% endif %}
+{% if has_assumed_items %}
+*Items marked with ~ contain values assumed by the agent (not stated in the brief) — verify before use.*
+
 {% endif %}## Summary
 
 {{ status_report.summary }}
@@ -37,7 +41,7 @@ _No risks._
 | Milestone | Target Date | Actual Date | Owner Side | Status |
 |-----------|-------------|-------------|------------|--------|
 {% for m in status_report.milestones -%}
-| {{ m.name | cell }}{{ m | confirmed_marker }} | {{ m.target_date | cell }} | {{ m.actual_date | cell('not yet reached') }} | {{ m.owner_side | cell }} | {{ m.status | cell }} |
+| {{ m.name | cell }}{{ m | confirmed_marker }}{{ m | assumed_marker }} | {{ m.target_date | cell }} | {{ m.actual_date | cell('not yet reached') }} | {{ m.owner_side | cell }} | {{ m.status | cell }} |
 {% endfor %}
 
 ## Supporting Links

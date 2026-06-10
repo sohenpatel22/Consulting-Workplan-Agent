@@ -1,8 +1,12 @@
 {% if has_confirmed_items %}
 *Items marked with * were shaped by confirmed planner questions before build.*
 
+{% endif %}
+{% if has_assumed_items %}
+*Items marked with ~ contain values assumed by the agent (not stated in the brief) — verify before use.*
+
 {% endif %}| WBS Code | Task / Activity |{% for role in raci_matrix.roles %} {{ role | cell }} |{% endfor %}
 |----------|-----------------|{% for role in raci_matrix.roles %}---|{% endfor %}
 {% for row in raci_matrix.rows -%}
-| {{ row.wbs_code | cell }} | {{ row.activity | cell }}{{ row | confirmed_marker }} |{% for role in raci_matrix.roles %} {{ row.assignments.get(role, '') | cell }} |{% endfor %}
+| {{ row.wbs_code | cell }} | {{ row.activity | cell }}{{ row | confirmed_marker }}{{ row | assumed_marker }} |{% for role in raci_matrix.roles %} {{ row.assignments.get(role, '') | cell }} |{% endfor %}
 {% endfor %}

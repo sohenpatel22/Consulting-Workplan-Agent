@@ -97,6 +97,11 @@ def build_wbs_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "- Every `wbs_code` is the unique ID that links RACI rows, RAID wbs_links, and status milestones.",
             "- When confirmed open-question answers are provided, set `from_confirmed_answer` "
             "to true on rows that directly implement those answers; otherwise false.",
+            "- **Minimise assumptions**: only populate a field when the brief (or confirmed answers) "
+            "provides the information. Leave optional fields at their defaults rather than inventing detail.",
+            "- Set `is_assumed: true` on any row where you had to assume a key value "
+            "(e.g. owner, duration, scope) not stated or clearly implied by the brief. "
+            "Set `is_assumed: false` otherwise.",
         ]
     )
     return "\n".join(lines).strip()
@@ -173,6 +178,10 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "- Keep Risks and Actions lists distinct with minimal overlap.",
             "- When confirmed open-question answers are provided, set `from_confirmed_answer` "
             "to true on entries that directly implement those answers; otherwise false.",
+            "- **Minimise assumptions**: ground every entry in the brief or upstream artifacts. "
+            "Do not invent details (probabilities, owners, timelines) that are not stated or implied.",
+            "- Set `is_assumed: true` on any entry where you had to assume a key value "
+            "not stated or clearly implied by the brief. Set `is_assumed: false` otherwise.",
         ]
     )
     return "\n".join(lines).strip()
@@ -268,6 +277,10 @@ def build_raci_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "- Use R for who holds the pen; C for parties supporting the Responsible role.",
             "- When confirmed open-question answers are provided, set `from_confirmed_answer` "
             "to true on rows that directly implement those answers; otherwise false.",
+            "- **Minimise assumptions**: derive assignments solely from the WBS and brief. "
+            "Do not assign roles that cannot be inferred from the brief.",
+            "- Set `is_assumed: true` on any row where you had to assume an assignment "
+            "not clearly supported by the WBS or brief. Set `is_assumed: false` otherwise.",
         ]
     )
     return "\n".join(lines).strip()
@@ -333,6 +346,10 @@ def build_status_report_generation_contract(spec: dict[str, Any] | None = None) 
             "- Set each milestone `owner_side` to the accountable party for that milestone.",
             "- When confirmed open-question answers are provided, set `from_confirmed_answer` "
             "to true on milestones that directly implement those answers; otherwise false.",
+            "- **Minimise assumptions**: milestones must be traceable to WBS tasks or brief objectives. "
+            "Do not invent dates or owners not stated or derivable from the artifacts.",
+            "- Set `is_assumed: true` on any milestone where you had to assume a target date, "
+            "owner, or status not stated in the brief or WBS. Set `is_assumed: false` otherwise.",
         ]
     )
     return "\n".join(lines).strip()

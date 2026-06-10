@@ -17,6 +17,10 @@ class WeeklyStatusMilestone(BaseModel):
         default=False,
         description="True when this milestone directly implements a confirmed open-question answer",
     )
+    is_assumed: bool = Field(
+        default=False,
+        description="True when one or more key fields on this milestone are assumed (not stated in the brief)",
+    )
 
 
 class WeeklyStatusReport(BaseModel):
