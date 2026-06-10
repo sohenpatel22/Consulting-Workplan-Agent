@@ -11,3 +11,5 @@ out/
 data/
 *.log
 .DS_Store
+*.pptx
+flowchart.*
