@@ -9,7 +9,15 @@
 {% endif %}
 
 <h2>Summary</h2>
-<p>{{ status_report.summary }}</p>
+{% if status_report.summary %}
+<ul>
+  {% for point in status_report.summary %}
+  <li>{{ point }}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p><em>No summary provided.</em></p>
+{% endif %}
 
 <h2>New Initiatives</h2>
 {% if status_report.new_initiatives %}

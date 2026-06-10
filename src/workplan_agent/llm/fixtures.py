@@ -352,7 +352,11 @@ STATUS_REPORT_FIXTURE = {
     "project_name": "Customer Data Platform Modernization",
     "project_manager": "Engagement Manager",
     "date": "2026-06-08",
-    "summary": "The CDP modernization initiative officially launched this week with a successful project kickoff. Initial discovery workshops have been scheduled to inventory the legacy data sources. Project is currently on track, within budget, and aligned with timeline objectives.",
+    "summary": [
+        "CDP modernization initiative launched with a successful project kickoff.",
+        "Initial discovery workshops scheduled to inventory legacy data sources.",
+        "Project is on track, within budget, and aligned with timeline objectives."
+    ],
     "new_initiatives": [
         "Project kickoff meeting completed with all core stakeholders.",
         "Detailed project charter and communication plan signed off."

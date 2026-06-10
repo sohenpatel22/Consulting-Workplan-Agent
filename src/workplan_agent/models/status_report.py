@@ -27,7 +27,7 @@ class WeeklyStatusReport(BaseModel):
     project_name: str
     project_manager: str
     date: str = Field(description="Week ending date or date of status report")
-    summary: str = Field(description="High-level summary of status")
+    summary: list[str] = Field(default_factory=list, description="High-level summary as short bullet points")
     new_initiatives: list[str] = Field(default_factory=list, description="New initiatives / activities started")
     blockers: list[str] = Field(default_factory=list, description="Project blockers derived from RAID or WBS")
     risks: list[str] = Field(default_factory=list, description="Key project risks derived from RAID")

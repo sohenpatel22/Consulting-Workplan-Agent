@@ -7,7 +7,12 @@
 
 {% endif %}## Summary
 
-{{ status_report.summary }}
+{% for point in status_report.summary -%}
+- {{ point }}
+{% endfor %}
+{%- if not status_report.summary -%}
+_No summary provided._
+{%- endif %}
 
 ## New Initiatives
 

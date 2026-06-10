@@ -13,8 +13,7 @@
   <thead>
     <tr>
       <th>ID</th><th>Title</th><th>Description</th><th>Status</th><th>Mitigation</th>
-      <th>Owner</th><th>WBS Links</th><th>Probability</th><th>Impact</th>
-      <th>Risk Rating</th><th>Risk Appetite</th><th>Required action</th>
+      <th>Owner</th><th>WBS Links</th>
     </tr>
   </thead>
   <tbody>
@@ -27,11 +26,6 @@
       <td>{{ item.mitigation | cell('not yet defined') }}</td>
       <td>{{ item.owner | cell('not assigned at sign-off') }}</td>
       <td>{{ item.wbs_links | cell('not linked to WBS') }}</td>
-      <td>{{ item.probability | cell }}</td>
-      <td>{{ item.impact | cell }}</td>
-      <td>{{ item.risk_rating | cell }}</td>
-      <td>{{ item.risk_appetite | cell }}</td>
-      <td>{{ item.priority | cell }}</td>
     </tr>
   {% endfor %}
   </tbody>

@@ -13,10 +13,10 @@
 
 ## Risks
 
-| ID | Title | Description | Status | Mitigation | Owner | WBS Links | Probability | Impact | Risk Rating | Risk Appetite | Required action |
-|----|-------|-------------|--------|------------|-------|-----------|-------------|--------|-------------|---------------|-----------------|
+| ID | Title | Description | Status | Mitigation | Owner | WBS Links |
+|----|-------|-------------|--------|------------|-------|-----------|
 {% for item in raid.risks -%}
-| {{ item.id | cell }}{{ item | confirmed_marker }}{{ item | assumed_marker }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.status | cell }} | {{ item.mitigation | cell('not yet defined') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.wbs_links | cell('not linked to WBS') }} | {{ item.probability | cell }} | {{ item.impact | cell }} | {{ item.risk_rating | cell }} | {{ item.risk_appetite | cell }} | {{ item.priority | cell }} |
+| {{ item.id | cell }}{{ item | confirmed_marker }}{{ item | assumed_marker }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.status | cell }} | {{ item.mitigation | cell('not yet defined') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.wbs_links | cell('not linked to WBS') }} |
 {% endfor %}
 
 ## Actions

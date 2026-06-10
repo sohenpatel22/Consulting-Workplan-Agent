@@ -67,7 +67,7 @@ def test_status_markdown_render(parsed_brief: ParsedBrief) -> None:
             "project_name": "Modernization",
             "project_manager": "Engagement Manager",
             "date": "2026-06-08",
-            "summary": "Ongoing progress",
+            "summary": ["Ongoing progress", "Project on track."],
             "new_initiatives": ["Completed Kickoff"],
             "blockers": ["SME schedule"],
             "risks": ["SME availability"],

@@ -25,7 +25,7 @@
     {
       "label": "Summary:",
       "field": "summary",
-      "description": "High-level status; reference RAID decisions and progress"
+      "description": "Short bullet-point list (3–5 items) of the most important status highlights; each bullet is a concise sentence; reference RAID decisions and progress"
     },
     {
       "label": "New Initiatives:",
@@ -83,6 +83,7 @@
   ],
   "generation_rules": [
     "Root JSON includes project_name, project_manager, date, summary, new_initiatives, blockers, risks, milestones, supporting_links.",
+    "summary is an array of strings (3–5 short bullet points); each bullet is one concise sentence — do NOT produce a paragraph string.",
     "new_initiatives, blockers, risks, and supporting_links are arrays of strings.",
     "Each milestone object: name, target_date, actual_date (optional), owner_side, status.",
     "owner_side must be Client, Consultant, or Joint (accountable party for the milestone).",

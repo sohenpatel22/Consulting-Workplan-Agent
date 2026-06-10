@@ -296,7 +296,7 @@ def build_status_report_generation_contract(spec: dict[str, Any] | None = None) 
         "",
         "### Required JSON envelope",
         '{"project_name": "...", "project_manager": "...", "date": "...", '
-        '"summary": "...", "new_initiatives": [], "blockers": [], "risks": [], '
+        '"summary": ["bullet 1", "bullet 2", ...], "new_initiatives": [], "blockers": [], "risks": [], '
         '"milestones": [], "supporting_links": []}',
         "",
         "### Header fields",
@@ -370,7 +370,7 @@ def status_json_output_instruction() -> str:
         "The Deloitte Weekly Status Report generation contract above defines the required "
         "sections and fields — follow it exactly.\n"
         'Root object: `{"project_name": "...", "project_manager": "...", "date": "...", '
-        '"summary": "...", "new_initiatives": [], "blockers": [], "risks": [], '
+        '"summary": ["bullet 1", "bullet 2", ...], "new_initiatives": [], "blockers": [], "risks": [], '
         '"milestones": [], "supporting_links": []}`'
     )
 

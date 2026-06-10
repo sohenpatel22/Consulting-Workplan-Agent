@@ -472,7 +472,10 @@ def export_status_deloitte_pdf(
     pdf.ln(3)
 
     write_section_heading(pdf, "Summary")
-    write_body_text(pdf, status_report.summary, width=width)
+    if status_report.summary:
+        write_bullet_list(pdf, status_report.summary, width=width)
+    else:
+        write_body_text(pdf, "No summary provided.", width=width)
 
     write_section_heading(pdf, "New Initiatives")
     if status_report.new_initiatives:
