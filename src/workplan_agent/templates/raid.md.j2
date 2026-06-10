@@ -9,8 +9,8 @@
 
 ## Risks
 
-| ID | Title | Description | Status | Mitigation | Owner | WBS Links | Probability | Impact | Risk Rating | Risk Appetite | Priority |
-|----|-------|-------------|--------|------------|-------|-----------|-------------|--------|-------------|---------------|----------|
+| ID | Title | Description | Status | Mitigation | Owner | WBS Links | Probability | Impact | Risk Rating | Risk Appetite | Required action |
+|----|-------|-------------|--------|------------|-------|-----------|-------------|--------|-------------|---------------|-----------------|
 {% for item in raid.risks -%}
 | {{ item.id | cell }}{{ item | confirmed_marker }} | {{ item.title | cell }} | {{ item.description | cell('not detailed at sign-off') }} | {{ item.status | cell }} | {{ item.mitigation | cell('not yet defined') }} | {{ item.owner | cell('not assigned at sign-off') }} | {{ item.wbs_links | cell('not linked to WBS') }} | {{ item.probability | cell }} | {{ item.impact | cell }} | {{ item.risk_rating | cell }} | {{ item.risk_appetite | cell }} | {{ item.priority | cell }} |
 {% endfor %}
