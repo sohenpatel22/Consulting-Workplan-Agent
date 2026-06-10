@@ -7,19 +7,19 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from workplan_agent.models.session import WorkplanSession
 
-REVISION_ARTIFACTS = ("wbs", "raid", "stakeholder", "status")
+REVISION_ARTIFACTS = ("wbs", "raid", "raci", "status")
 
 DEPENDENCIES: dict[str, list[str]] = {
     "raid": ["wbs"],
-    "stakeholder": ["wbs", "raid"],
+    "raci": ["wbs", "raid"],
     "status": ["wbs", "raid"],
-    "quality_gates": ["wbs", "raid", "stakeholder", "status"],
+    "quality_gates": ["wbs", "raid", "raci", "status"],
 }
 
 ARTIFACT_LABELS: dict[str, str] = {
     "wbs": "WBS",
     "raid": "RAID",
-    "stakeholder": "Stakeholder Map",
+    "raci": "RACI",
     "status": "Status Report",
     "quality_gates": "Quality Gates",
 }
@@ -30,19 +30,19 @@ def init_after_generation(session: WorkplanSession) -> None:
     session.artifact_versions = {
         "wbs": 1,
         "raid": 1,
-        "stakeholder": 1,
+        "raci": 1,
         "status": 1,
         "quality_gates": 1,
     }
     session.artifact_based_on = {
         "wbs": {},
         "raid": {"wbs": 1},
-        "stakeholder": {"wbs": 1, "raid": 1},
+        "raci": {"wbs": 1, "raid": 1},
         "status": {"wbs": 1, "raid": 1},
         "quality_gates": {
             "wbs": 1,
             "raid": 1,
-            "stakeholder": 1,
+            "raci": 1,
             "status": 1,
         },
     }
@@ -75,9 +75,9 @@ def after_revision(
         }
         return
 
-    if target == "stakeholder":
-        _bump(session, "stakeholder")
-        session.artifact_based_on["stakeholder"] = {
+    if target == "raci":
+        _bump(session, "raci")
+        session.artifact_based_on["raci"] = {
             "wbs": upstream_snapshot.get("wbs", session.artifact_versions.get("wbs", 0)),
             "raid": upstream_snapshot.get("raid", session.artifact_versions.get("raid", 0)),
         }

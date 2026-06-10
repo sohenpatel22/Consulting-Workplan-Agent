@@ -22,13 +22,12 @@ class WorkPackage(BaseModel):
         validation_alias=AliasChoices("key_deliverable", "deliverables"),
     )
     owner: str = Field(default="", validation_alias=AliasChoices("owner", "owner_role"))
-    owner_side: str = Field(
-        default="Joint",
-        description="Client, Consultant, or Joint responsibility for this work package",
-        validation_alias=AliasChoices("owner_side", "responsible_side", "company_side"),
-    )
     estimated_duration: str = ""
     dependencies: list[str] = Field(default_factory=list)
+    from_confirmed_answer: bool = Field(
+        default=False,
+        description="True when this row directly implements a confirmed open-question answer",
+    )
 
     @field_validator("key_deliverable", mode="before")
     @classmethod

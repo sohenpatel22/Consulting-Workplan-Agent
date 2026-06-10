@@ -33,11 +33,14 @@ def wbs_build_cache_blocks(parsed_brief_json: str) -> tuple[list[ContentBlock], 
 def raid_build_cache_blocks(
     parsed_brief_json: str,
     wbs_json: str,
+    raci_json: str,
 ) -> tuple[list[ContentBlock], list[ContentBlock]]:
     """System + user blocks matching raid_generator_user_blocks layout."""
     system = raid_generator_system_blocks(RAIDLog)
     user = [
         parsed_brief_block(parsed_brief_json),
-        plain_block(f"## WBS\n{wbs_json}\n\n{_WARMUP_TAIL}"),
+        plain_block(
+            f"## WBS\n{wbs_json}\n\n## RACI Matrix\n{raci_json}\n\n{_WARMUP_TAIL}"
+        ),
     ]
     return system, user

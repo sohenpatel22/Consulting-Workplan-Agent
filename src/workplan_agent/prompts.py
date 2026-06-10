@@ -1,4 +1,4 @@
-"""LLM prompts for workplan agents. Edit here to tune agent behavior."""
+"""LLM prompts for workplan agents."""
 
 from pathlib import Path
 
@@ -7,12 +7,12 @@ from pydantic import BaseModel
 from workplan_agent.llm.base import schema_instruction
 from workplan_agent.llm.caching import ContentBlock, cached_block, plain_block
 from workplan_agent.templates.deloitte_specs import (
+    build_raci_generation_contract,
     build_raid_generation_contract,
-    build_stakeholder_generation_contract,
     build_status_report_generation_contract,
     build_wbs_generation_contract,
+    raci_json_output_instruction,
     raid_json_output_instruction,
-    stakeholder_json_output_instruction,
     status_json_output_instruction,
     wbs_json_output_instruction,
 )
@@ -22,7 +22,7 @@ _TEMPLATES_DIR = Path(__file__).parent / "templates"
 # Deloitte template contracts (from templates/deloitte/*_template.spec.json)
 WBS_REQUIREMENTS = build_wbs_generation_contract()
 RAID_REQUIREMENTS = build_raid_generation_contract()
-STAKEHOLDER_REQUIREMENTS = build_stakeholder_generation_contract()
+RACI_REQUIREMENTS = build_raci_generation_contract()
 STATUS_REQUIREMENTS = build_status_report_generation_contract()
 
 # --- Brief parser ---
@@ -33,8 +33,11 @@ Rules:
 - Do not invent scope, objectives, or constraints not implied by the brief.
 - Put ambiguities, missing information, and unclear items in open_questions.
 - For each open question (at most four), add a matching planner_confirmations entry with
-  the same question text and 2–5 tentative suggested_answers the planner might choose
-  before build (concrete options implied by the brief where possible).
+  the same question text, 2–5 tentative suggested_answers the planner might choose
+  before build (concrete options implied by the brief where possible), and 1–2
+  brief_quotes: verbatim excerpts from the client brief that motivated the question,
+  and derivation_rationale: one or two sentences explaining how those quotes create
+  the ambiguity this question resolves.
 - Do not include overall engagement risk appetite in open_questions or
   planner_confirmations (the application adds that separately).
 - Preserve client naming and terminology from the brief.
@@ -86,7 +89,11 @@ def append_generation_context(body: str, context: str | None) -> str:
 _CONFIRMED_ANSWERS_HEADER = """## Confirmed open questions (planner sign-off)
 
 The engagement team resolved the following ambiguities from the brief before WBS/RAID
-generation. Treat each answer as a decided fact when building artifacts."""
+generation. Treat each answer as a decided fact when building artifacts.
+
+When an item directly implements one of these confirmed answers, set
+`from_confirmed_answer` to true on that work package, RAID entry, RACI row, or milestone.
+Leave it false for all other items."""
 
 
 def format_confirmed_answers(
@@ -121,7 +128,8 @@ def build_generation_guidance(
 
 WBS_GENERATOR_ROLE = (
     "You are a consulting project planner. Produce a Work Breakdown Structure that "
-    "implements the Deloitte WBS generation contract below."
+    "implements the WBS generation contract below. Assign clear accountability "
+    "(Client or Consultant) rather than defaulting to Joint."
 )
 
 WBS_GENERATOR_SYSTEM = f"""{WBS_GENERATOR_ROLE}
@@ -136,7 +144,8 @@ WBS_GENERATOR_USER = "Generate a WBS from this parsed brief:\n\n{brief_json}"
 
 RAID_GENERATOR_ROLE = (
     "You are a consulting engagement lead. Produce a RAID log that implements the "
-    "Deloitte RAID generation contract below."
+    "RAID generation contract below. Every risk needs a mitigation plan on the risk "
+    "row; keep actions separate from risk mitigations."
 )
 
 RAID_GENERATOR_SYSTEM = f"""{RAID_GENERATOR_ROLE}
@@ -145,28 +154,15 @@ RAID_GENERATOR_SYSTEM = f"""{RAID_GENERATOR_ROLE}
 
 {raid_json_output_instruction()}"""
 
-RAID_GENERATOR_USER = """Generate a RAID log from this parsed brief and WBS.
+RAID_GENERATOR_USER = """Generate a RAID log from this parsed brief, WBS, and RACI matrix.
 
-## Parsed Brief
-{brief_json}
+Critical: every risk must have a `mitigation` on the risk row. Do **not** create a separate
+action for each risk mitigation — actions are only for unrelated follow-up work from the brief
+(client prerequisites, assumptions to validate, etc.). An empty `actions` array is valid.
 
-## WBS
-{wbs_json}"""
-
-# --- Stakeholder Map generator ---
-
-STAKEHOLDER_GENERATOR_ROLE = (
-    "You are a consulting stakeholder manager. Produce a Stakeholder Map that "
-    "implements the Deloitte Stakeholder Map generation contract below."
-)
-
-STAKEHOLDER_GENERATOR_SYSTEM = f"""{STAKEHOLDER_GENERATOR_ROLE}
-
-{STAKEHOLDER_REQUIREMENTS}
-
-{stakeholder_json_output_instruction()}"""
-
-STAKEHOLDER_GENERATOR_USER = """Generate a Stakeholder Map from this parsed brief, WBS, and RAID log.
+Cross-artifact linking: tag every risk and action back to WBS via `wbs_links`. The RAID `owner`
+must be the same role/person who holds **R** (Responsible) in RACI for the primary linked
+WBS task — they own both the work and the associated risk/action.
 
 ## Parsed Brief
 {brief_json}
@@ -174,14 +170,41 @@ STAKEHOLDER_GENERATOR_USER = """Generate a Stakeholder Map from this parsed brie
 ## WBS
 {wbs_json}
 
-## RAID Log
-{raid_json}"""
+## RACI Matrix
+{raci_json}"""
+
+# --- RACI generator ---
+
+RACI_GENERATOR_ROLE = (
+    "You are a consulting engagement manager. Produce a RACI matrix that "
+    "implements the RACI generation contract below."
+)
+
+RACI_GENERATOR_SYSTEM = f"""{RACI_GENERATOR_ROLE}
+
+{RACI_REQUIREMENTS}
+
+{raci_json_output_instruction()}"""
+
+RACI_GENERATOR_USER = """Generate a RACI matrix from this parsed brief and WBS.
+
+WBS is the foundation: one RACI row per level-3 WBS task. Each row must include `wbs_code`
+matching the WBS. Column headers (`roles`) must be the distinct WBS `owner` values only —
+do not add columns that are not WBS owners. The WBS owner for each task must hold **R**
+or **A** in that row.
+
+## Parsed Brief
+{brief_json}
+
+## WBS
+{wbs_json}"""
 
 # --- Weekly Status Report generator ---
 
 STATUS_GENERATOR_ROLE = (
     "You are an engagement manager. Produce a Weekly Status Report that "
-    "implements the Deloitte Weekly Status Report generation contract below."
+    "implements the Weekly Status Report generation contract below. Build a clear "
+    "delivery timeline from the WBS with concrete milestone target dates."
 )
 
 STATUS_GENERATOR_SYSTEM = f"""{STATUS_GENERATOR_ROLE}
@@ -190,7 +213,11 @@ STATUS_GENERATOR_SYSTEM = f"""{STATUS_GENERATOR_ROLE}
 
 {status_json_output_instruction()}"""
 
-STATUS_GENERATOR_USER = """Generate a Weekly Status Report from this parsed brief, WBS, and RAID log.
+STATUS_GENERATOR_USER = """Generate a Weekly Status Report from this parsed brief, WBS, RACI matrix, and RAID log.
+
+Pull from all three upstream artifacts: progress against WBS tasks (on track / delayed),
+accountability from RACI (who is reporting on in-flight work), and escalations from RAID
+(high-priority risks and open issues tagged to WBS work packages).
 
 ## Parsed Brief
 {brief_json}
@@ -198,12 +225,15 @@ STATUS_GENERATOR_USER = """Generate a Weekly Status Report from this parsed brie
 ## WBS
 {wbs_json}
 
+## RACI Matrix
+{raci_json}
+
 ## RAID Log
 {raid_json}"""
 
 # --- Revision ---
 
-REVISION_RULES = """You are a consulting workplan reviewer. Apply reviewer feedback to WBS, RAID, Stakeholder Map, and/or Weekly Status Report artifacts.
+REVISION_RULES = """You are a consulting workplan reviewer. Apply reviewer feedback to WBS, RAID, RACI matrix, and/or Weekly Status Report artifacts.
 
 Rules:
 - Apply ONLY the requested changes from the feedback.
@@ -221,13 +251,13 @@ When revising the RAID log, follow this contract:
 
 {RAID_REQUIREMENTS}"""
 
-REVISION_STAKEHOLDER_SYSTEM = f"""{REVISION_RULES}
+REVISION_RACI_SYSTEM = f"""{REVISION_RULES}
 
-When revising the Stakeholder Map, follow this contract:
+When revising the RACI matrix, follow this contract:
 
-{STAKEHOLDER_REQUIREMENTS}
+{RACI_REQUIREMENTS}
 
-{stakeholder_json_output_instruction()}"""
+{raci_json_output_instruction()}"""
 
 REVISION_STATUS_SYSTEM = f"""{REVISION_RULES}
 
@@ -246,8 +276,8 @@ REVISION_CONTEXT = """## Parsed Brief
 ## Current RAID
 {raid_json}
 
-## Current Stakeholder Map
-{stakeholder_map_json}
+## Current RACI Matrix
+{raci_matrix_json}
 
 ## Current Weekly Status Report
 {status_report_json}"""
@@ -268,6 +298,8 @@ REVISION_WBS_USER = """Revise the WBS based on reviewer feedback.
 
 REVISION_RAID_USER = """Revise the RAID log based on reviewer feedback.
 
+Keep mitigation plans on risk rows only — do not add or keep actions that restate risk mitigations.
+
 ## Parsed Brief
 {parsed_brief_json}
 
@@ -280,13 +312,18 @@ REVISION_RAID_USER = """Revise the RAID log based on reviewer feedback.
 ## Reviewer Feedback
 {feedback}"""
 
-REVISION_STAKEHOLDER_USER = """Revise the Stakeholder Map based on reviewer feedback.
+REVISION_RACI_USER = """Revise the RACI matrix based on reviewer feedback.
+
+Preserve wbs_code linkage: each row must map to a WBS task; WBS owners must hold R or A.
 
 ## Parsed Brief
 {parsed_brief_json}
 
-## Current Stakeholder Map
-{stakeholder_map_json}
+## Current WBS
+{wbs_json}
+
+## Current RACI Matrix
+{raci_matrix_json}
 
 ## Reviewer Feedback
 {feedback}"""
@@ -317,8 +354,8 @@ def _raid_output_block() -> ContentBlock:
     return cached_block(raid_json_output_instruction())
 
 
-def _stakeholder_output_block() -> ContentBlock:
-    return cached_block(stakeholder_json_output_instruction())
+def _raci_output_block() -> ContentBlock:
+    return cached_block(raci_json_output_instruction())
 
 
 def _status_output_block() -> ContentBlock:
@@ -349,13 +386,13 @@ def raid_generator_system_blocks(_response_model: type[BaseModel]) -> list[Conte
     ]
 
 
-def stakeholder_generator_system_blocks(
+def raci_generator_system_blocks(
     _response_model: type[BaseModel],
 ) -> list[ContentBlock]:
     return [
-        plain_block(STAKEHOLDER_GENERATOR_ROLE),
-        cached_block(STAKEHOLDER_REQUIREMENTS),
-        _stakeholder_output_block(),
+        plain_block(RACI_GENERATOR_ROLE),
+        cached_block(RACI_REQUIREMENTS),
+        _raci_output_block(),
     ]
 
 
@@ -397,10 +434,31 @@ def wbs_generator_user_blocks(
 def raid_generator_user_blocks(
     brief_json: str,
     wbs_json: str,
+    raci_json: str,
     user_prompt: str | None = None,
 ) -> list[ContentBlock]:
     task = append_generation_context(
-        "Generate a RAID log from the parsed brief and WBS above.",
+        "Generate a RAID log from the parsed brief, WBS, and RACI matrix above. "
+        "Put mitigation plans on risk rows only — do not mirror them as actions. "
+        "Tag each item to WBS via wbs_links; set owner to the RACI R holder for that task.",
+        user_prompt,
+    )
+    return [
+        parsed_brief_block(brief_json),
+        plain_block(
+            f"## WBS\n{wbs_json}\n\n## RACI Matrix\n{raci_json}\n\n{task}"
+        ),
+    ]
+
+
+def raci_generator_user_blocks(
+    brief_json: str,
+    wbs_json: str,
+    user_prompt: str | None = None,
+) -> list[ContentBlock]:
+    task = append_generation_context(
+        "Generate a RACI matrix from the parsed brief and WBS above. "
+        "One row per level-3 WBS task with matching wbs_code; roles = distinct WBS owner values.",
         user_prompt,
     )
     return [
@@ -409,35 +467,24 @@ def raid_generator_user_blocks(
     ]
 
 
-def stakeholder_generator_user_blocks(
-    brief_json: str,
-    wbs_json: str,
-    raid_json: str,
-    user_prompt: str | None = None,
-) -> list[ContentBlock]:
-    task = append_generation_context(
-        "Generate a Stakeholder Map from the parsed brief, WBS, and RAID log above.",
-        user_prompt,
-    )
-    return [
-        parsed_brief_block(brief_json),
-        plain_block(f"## WBS\n{wbs_json}\n\n## RAID Log\n{raid_json}\n\n{task}"),
-    ]
-
-
 def status_generator_user_blocks(
     brief_json: str,
     wbs_json: str,
+    raci_json: str,
     raid_json: str,
     user_prompt: str | None = None,
 ) -> list[ContentBlock]:
     task = append_generation_context(
-        "Generate a Weekly Status Report from the parsed brief, WBS, and RAID log above.",
+        "Generate a Weekly Status Report from the parsed brief, WBS, RACI matrix, "
+        "and RAID log above. Synthesize WBS progress, RACI accountability, and RAID escalations.",
         user_prompt,
     )
     return [
         parsed_brief_block(brief_json),
-        plain_block(f"## WBS\n{wbs_json}\n\n## RAID Log\n{raid_json}\n\n{task}"),
+        plain_block(
+            f"## WBS\n{wbs_json}\n\n## RACI Matrix\n{raci_json}\n\n"
+            f"## RAID Log\n{raid_json}\n\n{task}"
+        ),
     ]
 
 
@@ -447,14 +494,14 @@ def revision_user_blocks(
     wbs_json: str,
     raid_json: str,
     feedback: str,
-    stakeholder_map_json: str = "{}",
+    raci_matrix_json: str = "{}",
     status_report_json: str = "{}",
 ) -> list[ContentBlock]:
     context = REVISION_CONTEXT.format(
         parsed_brief_json=parsed_brief_json,
         wbs_json=wbs_json,
         raid_json=raid_json,
-        stakeholder_map_json=stakeholder_map_json,
+        raci_matrix_json=raci_matrix_json,
         status_report_json=status_report_json,
     )
     return [

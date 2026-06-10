@@ -47,7 +47,7 @@ class OpenAIProvider:
                     model=model,
                     messages=api_messages,
                     response_format={"type": "json_object"},
-                    temperature=0.2,
+                    temperature=0,
                     max_completion_tokens=max_output_tokens,
                 )
                 truncated = response.choices[0].finish_reason == "length"

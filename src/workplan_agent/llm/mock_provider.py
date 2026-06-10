@@ -8,7 +8,7 @@ from workplan_agent.llm.caching import LLMMessage, flatten_content
 from workplan_agent.llm.fixtures import FIXTURES, RAID_FIXTURE, WBS_FIXTURE
 from workplan_agent.models.raid import RAIDLog
 from workplan_agent.models.wbs import WBS
-from workplan_agent.models.stakeholder import StakeholderMap
+from workplan_agent.models.raci import RaciMatrix
 from workplan_agent.models.status_report import WeeklyStatusReport
 
 T = TypeVar("T", bound=BaseModel)
@@ -33,7 +33,12 @@ class MockLLMProvider:
     def warm_wbs_build_prefix(self, parsed_brief_json: str) -> None:
         return
 
-    def warm_raid_build_prefix(self, parsed_brief_json: str, wbs_json: str) -> None:
+    def warm_raid_build_prefix(
+        self,
+        parsed_brief_json: str,
+        wbs_json: str,
+        raci_json: str,
+    ) -> None:
         return
 
     def call_structured(
@@ -52,8 +57,8 @@ class MockLLMProvider:
             return self._mock_wbs_revision(user_text, response_model)
         if "Revise the RAID" in user_text:
             return self._mock_raid_revision(user_text, response_model)
-        if "Revise the Stakeholder Map" in user_text:
-            return self._mock_stakeholder_revision(user_text, response_model)
+        if "Revise the RACI" in user_text:
+            return self._mock_raci_revision(user_text, response_model)
         if "Revise the Weekly Status Report" in user_text:
             return self._mock_status_revision(user_text, response_model)
 
@@ -154,33 +159,29 @@ class MockLLMProvider:
 
         return response_model.model_validate(data)
 
-    def _mock_stakeholder_revision(self, user_text: str, response_model: type[T]) -> T:
-        if response_model is not StakeholderMap:
-            raise ValueError(f"Expected StakeholderMap revision, got {response_model.__name__}")
+    def _mock_raci_revision(self, user_text: str, response_model: type[T]) -> T:
+        if response_model is not RaciMatrix:
+            raise ValueError(f"Expected RaciMatrix revision, got {response_model.__name__}")
         feedback = self._extract_feedback(user_text)
-        from workplan_agent.llm.fixtures import STAKEHOLDER_MAP_FIXTURE
-        data = copy.deepcopy(STAKEHOLDER_MAP_FIXTURE)
+        from workplan_agent.llm.fixtures import RACI_MATRIX_FIXTURE
+        data = copy.deepcopy(RACI_MATRIX_FIXTURE)
 
         lower = feedback.lower()
         if "add" in lower or "new" in lower:
-            data["stakeholders"].append({
-                "name": "Jane Doe",
-                "source": "explicit",
-                "rationale": None,
-                "department": "Finance",
-                "role_in_project": "Project Sponsor",
-                "influence_level": "High",
-                "interest_level": "High",
-                "engagement_strategy": "Manage Closely",
-                "key_concerns": "Project completion on schedule and budget.",
-                "communication_frequency": "Monthly",
-                "engagement_approach": "Monthly reports",
-                "communication_method": "Steering Committee",
-            })
-        elif "elena" in lower:
-            for sh in data["stakeholders"]:
-                if "elena" in sh["name"].lower():
-                    sh["engagement_strategy"] = "Keep Satisfied"
+            data["rows"].append(
+                {
+                    "wbs_code": "9.9.9",
+                    "activity": "Additional scope (per review)",
+                    "assignments": {
+                        role: "C" for role in data["roles"]
+                    },
+                }
+            )
+            data["rows"][-1]["assignments"][data["roles"][0]] = "A"
+        elif "discovery" in lower:
+            for row in data["rows"]:
+                if "discovery" in row["activity"].lower():
+                    row["assignments"]["Deloitte Delivery Lead"] = "A"
         return response_model.model_validate(data)
 
     def _mock_status_revision(self, user_text: str, response_model: type[T]) -> T:

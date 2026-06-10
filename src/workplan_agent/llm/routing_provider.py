@@ -40,11 +40,20 @@ class RoutingLLMProvider:
         if self._settings.anthropic_api_key:
             self._anthropic_provider().warm_wbs_build_prefix(parsed_brief_json)
 
-    def warm_raid_build_prefix(self, parsed_brief_json: str, wbs_json: str) -> None:
+    def warm_raid_build_prefix(
+        self,
+        parsed_brief_json: str,
+        wbs_json: str,
+        raci_json: str,
+    ) -> None:
         if not self._settings.enable_prompt_cache:
             return
         if self._settings.anthropic_api_key:
-            self._anthropic_provider().warm_raid_build_prefix(parsed_brief_json, wbs_json)
+            self._anthropic_provider().warm_raid_build_prefix(
+                parsed_brief_json,
+                wbs_json,
+                raci_json,
+            )
 
     def call_structured(
         self,

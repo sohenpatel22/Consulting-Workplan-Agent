@@ -5,12 +5,13 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 
+from workplan_agent.artifact_links import reconcile_raci_matrix, reconcile_raid_log
 from workplan_agent.agents.brief_parser import BriefParserAgent
 from workplan_agent.models.brief import ResolvedQuestion
 from workplan_agent.prompts import build_generation_guidance
 from workplan_agent.agents.raid_generator import RAIDGeneratorAgent
 from workplan_agent.agents.wbs_generator import WBSGeneratorAgent
-from workplan_agent.agents.stakeholder_generator import StakeholderMapGeneratorAgent
+from workplan_agent.agents.raci_generator import RaciMatrixGeneratorAgent
 from workplan_agent.agents.status_generator import StatusReportGeneratorAgent
 from workplan_agent.agents.revision import RevisionAgent, RevisionTarget
 from workplan_agent.config import get_settings
@@ -42,7 +43,7 @@ class OrchestratorAgent:
         self.brief_parser = BriefParserAgent(provider)
         self.wbs_generator = WBSGeneratorAgent(provider)
         self.raid_generator = RAIDGeneratorAgent(provider)
-        self.stakeholder_generator = StakeholderMapGeneratorAgent(provider)
+        self.raci_generator = RaciMatrixGeneratorAgent(provider)
         self.status_generator = StatusReportGeneratorAgent(provider)
         self.revision_agent = RevisionAgent(provider)
 
@@ -83,7 +84,7 @@ class OrchestratorAgent:
 
     def _warm_raid_build_cache(self, session: WorkplanSession) -> None:
         parsed = session.parsed_brief
-        if parsed is None or session.wbs is None:
+        if parsed is None or session.wbs is None or session.raci_matrix is None:
             return
         warm_raid = getattr(self.provider, "warm_raid_build_prefix", None)
         if not callable(warm_raid):
@@ -91,6 +92,7 @@ class OrchestratorAgent:
         warm_raid(
             parsed.model_dump_json(indent=2),
             session.wbs.model_dump_json(indent=2),
+            session.raci_matrix.model_dump_json(indent=2),
         )
 
     def _generation_guidance(self, session: WorkplanSession, user_prompt: str) -> str:
@@ -155,29 +157,34 @@ class OrchestratorAgent:
             user_prompt=guidance,
         )
         _notify("wbs")
+
+        self._log("[bold]Step 3:[/bold] Generating RACI matrix...")
+        session.raci_matrix = self.raci_generator.run(
+            parsed_brief=session.parsed_brief,
+            wbs=session.wbs,
+            user_prompt=guidance,
+        )
+        session.raci_matrix = reconcile_raci_matrix(session.wbs, session.raci_matrix)
+        _notify("raci")
         self._warm_raid_build_cache(session)
 
-        self._log("[bold]Step 3:[/bold] Generating RAID log...")
+        self._log("[bold]Step 4:[/bold] Generating RAID log...")
         session.raid = self.raid_generator.run(
             parsed_brief=session.parsed_brief,
             wbs=session.wbs,
+            raci_matrix=session.raci_matrix,
             user_prompt=guidance,
+        )
+        session.raid = reconcile_raid_log(
+            session.wbs, session.raci_matrix, session.raid
         )
         _notify("raid")
-
-        self._log("[bold]Step 4:[/bold] Generating Stakeholder Map...")
-        session.stakeholder_map = self.stakeholder_generator.run(
-            parsed_brief=session.parsed_brief,
-            wbs=session.wbs,
-            raid=session.raid,
-            user_prompt=guidance,
-        )
-        _notify("stakeholder")
 
         self._log("[bold]Step 5:[/bold] Generating Weekly Status Report...")
         session.status_report = self.status_generator.run(
             parsed_brief=session.parsed_brief,
             wbs=session.wbs,
+            raci_matrix=session.raci_matrix,
             raid=session.raid,
             user_prompt=guidance,
         )
@@ -201,7 +208,10 @@ class OrchestratorAgent:
         if session.parsed_brief:
             from workplan_agent.confirmation import build_confirmation_questions
 
-            pending = build_confirmation_questions(session.parsed_brief)
+            pending = build_confirmation_questions(
+                session.parsed_brief,
+                brief_text=brief_text,
+            )
             session.parsed_brief.open_questions = [item.question for item in pending]
             self._auto_resolve_open_questions(session)
             save_artifacts(self.output_dir, session)
@@ -231,19 +241,32 @@ class OrchestratorAgent:
             parsed_brief=session.parsed_brief,
             wbs=session.wbs,
             raid=session.raid,
-            stakeholder_map=session.stakeholder_map,
+            raci_matrix=session.raci_matrix,
             status_report=session.status_report,
             feedback=feedback.strip(),
             target=target,
         )
         if result.wbs is not None:
             session.wbs = result.wbs
+        if result.raci_matrix is not None:
+            session.raci_matrix = result.raci_matrix
         if result.raid is not None:
             session.raid = result.raid
-        if result.stakeholder_map is not None:
-            session.stakeholder_map = result.stakeholder_map
         if result.status_report is not None:
             session.status_report = result.status_report
+
+        if session.wbs is not None and session.raci_matrix is not None:
+            session.raci_matrix = reconcile_raci_matrix(
+                session.wbs, session.raci_matrix
+            )
+        if (
+            session.wbs is not None
+            and session.raci_matrix is not None
+            and session.raid is not None
+        ):
+            session.raid = reconcile_raid_log(
+                session.wbs, session.raci_matrix, session.raid
+            )
 
         session.revision_count += 1
         session.snapshot(f"revision_{session.revision_count}")
@@ -271,8 +294,8 @@ class OrchestratorAgent:
         table.add_row("Actions", str(len(session.raid.actions)))
         table.add_row("Issues", str(len(session.raid.issues)))
         table.add_row("Decisions", str(len(session.raid.decisions)))
-        if session.stakeholder_map is not None:
-            table.add_row("Stakeholders mapped", str(len(session.stakeholder_map.stakeholders)))
+        if session.raci_matrix is not None:
+            table.add_row("RACI activities", str(len(session.raci_matrix.rows)))
         if session.status_report is not None:
             table.add_row("Status report milestones", str(len(session.status_report.milestones)))
         console.print(table)

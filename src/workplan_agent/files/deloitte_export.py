@@ -10,7 +10,7 @@ from openpyxl import load_workbook
 from openpyxl.cell.cell import MergedCell
 from openpyxl.worksheet.worksheet import Worksheet
 
-from workplan_agent.display_values import Notes, display_cell, display_stakeholder_rationale
+from workplan_agent.display_values import Notes, display_cell
 from workplan_agent.files.pdf_render import (
     add_landscape_table_section,
     pdf_text,
@@ -22,15 +22,24 @@ from workplan_agent.files.pdf_render import (
 )
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.raid import ActionEntry, DecisionEntry, IssueEntry, RAIDLog, RiskEntry
-from workplan_agent.models.stakeholder import StakeholderMap
+from workplan_agent.models.raci import RaciLetter, RaciMatrix
 from workplan_agent.models.status_report import WeeklyStatusReport
 from workplan_agent.models.wbs import WBS, WorkPackage
 
 _PACKAGE_TEMPLATES = Path(__file__).resolve().parent.parent / "templates" / "deloitte"
 RAID_TEMPLATE_PATH = _PACKAGE_TEMPLATES / "raid_log_template.xlsx"
+RACI_TEMPLATE_PATH = _PACKAGE_TEMPLATES / "raci_template.xlsx"
+
+_RACI_SHEET = "RACI Table Sample"
+_RACI_HEADER_ROW = 4
+_RACI_DATA_START_ROW = 5
 
 _DETAIL_SHEET = "RAID Log - Detail"
 _DETAIL_DATA_START_ROW = 7
+
+
+def _confirmed_marker_suffix(item: object) -> str:
+    return "*" if getattr(item, "from_confirmed_answer", False) else ""
 
 
 def resolve_raid_template(path: Path | None = None) -> Path:
@@ -84,7 +93,7 @@ def export_wbs_deloitte_docx(wbs: WBS, parsed_brief: ParsedBrief) -> bytes:
     for wp in sorted(wbs.work_packages, key=_wbs_sort_key):
         row = table.add_row().cells
         row[0].text = str(wp.level)
-        row[1].text = wp.wbs_code
+        row[1].text = f"{wp.wbs_code}{_confirmed_marker_suffix(wp)}"
         row[2].text = display_cell(wp.wbs_element_title)
         row[3].text = display_cell(wp.description_scope, note=Notes.SIGNOFF_DETAIL)
         row[4].text = display_cell(wp.key_deliverable, note=Notes.SIGNOFF)
@@ -108,13 +117,12 @@ _WBS_PDF_HEADERS = [
     "Description / Scope of Work",
     "Key Deliverable",
     "Owner",
-    "Owner Side",
     "Duration",
     "Dependencies",
 ]
 
 # Landscape A4 effective width with 10 mm side margins (mm).
-_WBS_PDF_COL_WIDTHS = (14, 20, 32, 55, 38, 30, 24, 24, 40)
+_WBS_PDF_COL_WIDTHS = (14, 20, 34, 58, 40, 32, 26, 44)
 
 _RISK_PDF_HEADERS = [
     "ID",
@@ -123,25 +131,25 @@ _RISK_PDF_HEADERS = [
     "Status",
     "Mitigation",
     "Owner",
-    "Owner Side",
     "WBS Links",
     "Probability",
+    "Impact",
+    "Risk Rating",
+    "Risk Appetite",
     "Priority",
 ]
-_RISK_PDF_COL_WIDTHS = (12, 28, 45, 18, 35, 25, 20, 22, 22, 18)
+_RISK_PDF_COL_WIDTHS = (12, 24, 38, 16, 30, 22, 20, 18, 16, 18, 20, 20)
 
 _ACTION_PDF_HEADERS = [
     "ID",
     "Title",
     "Description",
-    "Status update",
     "Status",
     "Owner",
-    "Owner Side",
     "WBS Links",
     "Priority",
 ]
-_ACTION_PDF_COL_WIDTHS = (12, 28, 50, 28, 18, 25, 20, 22, 18)
+_ACTION_PDF_COL_WIDTHS = (12, 28, 55, 18, 25, 22, 18)
 
 _ISSUE_PDF_HEADERS = [
     "ID",
@@ -149,10 +157,9 @@ _ISSUE_PDF_HEADERS = [
     "Description",
     "Resolution",
     "Owner",
-    "Owner Side",
     "Priority",
 ]
-_ISSUE_PDF_COL_WIDTHS = (12, 30, 55, 35, 25, 20, 18)
+_ISSUE_PDF_COL_WIDTHS = (12, 30, 55, 35, 25, 18)
 
 _DECISION_PDF_HEADERS = [
     "ID",
@@ -160,27 +167,10 @@ _DECISION_PDF_HEADERS = [
     "Description / Justification",
     "Resolution",
     "Owner",
-    "Owner Side",
     "Priority",
 ]
-_DECISION_PDF_COL_WIDTHS = (12, 30, 55, 35, 25, 20, 18)
+_DECISION_PDF_COL_WIDTHS = (12, 30, 55, 35, 25, 18)
 
-_STAKEHOLDER_PDF_HEADERS = [
-    "Stakeholder",
-    "Organization Side",
-    "Source",
-    "Rationale",
-    "Department",
-    "Role",
-    "Influence",
-    "Interest",
-    "Strategy",
-    "Concerns",
-    "Communication Frequency",
-    "Engagement Approach",
-    "Communication Method",
-]
-_STAKEHOLDER_PDF_COL_WIDTHS = (22, 16, 12, 22, 18, 16, 14, 14, 18, 30, 14, 26, 28)
 
 _MILESTONE_PDF_HEADERS = [
     "Milestone",
@@ -226,12 +216,11 @@ def export_wbs_deloitte_pdf(wbs: WBS, parsed_brief: ParsedBrief) -> bytes:
         [
             [
                 display_cell(wp.level),
-                display_cell(wp.wbs_code),
+                display_cell(f"{wp.wbs_code}{_confirmed_marker_suffix(wp)}"),
                 display_cell(wp.wbs_element_title),
                 display_cell(wp.description_scope, note=Notes.SIGNOFF_DETAIL),
                 display_cell(wp.key_deliverable, note=Notes.SIGNOFF),
                 display_cell(wp.owner, note=Notes.SIGNOFF_ASSIGNED),
-                display_cell(wp.owner_side),
                 display_cell(wp.estimated_duration, note=Notes.SIGNOFF_ESTIMATE),
                 display_cell(wp.dependencies, note=Notes.NONE_IDENTIFIED),
             ]
@@ -258,15 +247,17 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
 
     risk_rows = [
         [
-            display_cell(item.id),
+            display_cell(f"{item.id}{_confirmed_marker_suffix(item)}"),
             display_cell(item.title),
             display_cell(item.description, note=Notes.SIGNOFF_DETAIL),
             display_cell(item.status),
             display_cell(item.mitigation, note=Notes.NOT_YET_DEFINED),
             display_cell(item.owner, note=Notes.SIGNOFF_ASSIGNED),
-            display_cell(item.owner_side),
             display_cell(item.wbs_links, note=Notes.NOT_LINKED_WBS),
             display_cell(item.probability),
+            display_cell(item.impact),
+            display_cell(item.risk_rating),
+            display_cell(item.risk_appetite),
             display_cell(item.priority),
         ]
         for item in raid.risks
@@ -282,13 +273,11 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
 
     action_rows = [
         [
-            display_cell(item.id),
+            display_cell(f"{item.id}{_confirmed_marker_suffix(item)}"),
             display_cell(item.title),
             display_cell(item.description, note=Notes.SIGNOFF_DETAIL),
-            display_cell(item.status_update, note=Notes.NO_UPDATE),
             display_cell(item.status),
             display_cell(item.owner, note=Notes.SIGNOFF_ASSIGNED),
-            display_cell(item.owner_side),
             display_cell(item.wbs_links, note=Notes.NOT_LINKED_WBS),
             display_cell(item.priority),
         ]
@@ -306,12 +295,11 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
     if raid.issues:
         issue_rows = [
             [
-                display_cell(item.id),
+                display_cell(f"{item.id}{_confirmed_marker_suffix(item)}"),
                 display_cell(item.title),
                 display_cell(item.description, note=Notes.SIGNOFF_DETAIL),
                 display_cell(item.resolution, note=Notes.PENDING_RESOLUTION),
                 display_cell(item.owner, note=Notes.SIGNOFF_ASSIGNED),
-                display_cell(item.owner_side),
                 display_cell(item.priority),
             ]
             for item in raid.issues
@@ -325,7 +313,6 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
                 display_cell(None, note=Notes.PENDING_RESOLUTION),
                 display_cell(None, note=Notes.SIGNOFF_ASSIGNED),
                 display_cell(None),
-                display_cell(None),
             ]
         ]
     add_landscape_table_section(
@@ -338,12 +325,11 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
 
     decision_rows = [
         [
-            display_cell(item.id),
+            display_cell(f"{item.id}{_confirmed_marker_suffix(item)}"),
             display_cell(item.title),
             display_cell(item.description_justification, note=Notes.SIGNOFF_DETAIL),
             display_cell(item.resolution, note=Notes.PENDING_RESOLUTION),
             display_cell(item.owner, note=Notes.SIGNOFF_ASSIGNED),
-            display_cell(item.owner_side),
             display_cell(item.priority),
         ]
         for item in raid.decisions
@@ -360,11 +346,66 @@ def export_raid_deloitte_pdf(raid: RAIDLog, parsed_brief: ParsedBrief) -> bytes:
     return bytes(pdf.output())
 
 
-def export_stakeholder_deloitte_pdf(
-    stakeholder_map: StakeholderMap,
+def resolve_raci_template(path: Path | None = None) -> Path:
+    if path is not None:
+        if not path.is_file():
+            raise FileNotFoundError(f"RACI template not found: {path}")
+        return path
+    if RACI_TEMPLATE_PATH.is_file():
+        return RACI_TEMPLATE_PATH
+    repo_root = Path.cwd()
+    candidate = repo_root / "templates" / "deloitte" / "raci_template.xlsx"
+    if candidate.is_file():
+        return candidate
+    raise FileNotFoundError(
+        "RACI Excel template not found. Expected bundled raci_template.xlsx."
+    )
+
+
+def export_raci_deloitte_xlsx(
+    raci_matrix: RaciMatrix,
+    parsed_brief: ParsedBrief,
+    template_path: Path | None = None,
+) -> bytes:
+    """Fill the RACI Excel template."""
+    path = resolve_raci_template(template_path)
+    workbook = load_workbook(path)
+    if _RACI_SHEET not in workbook.sheetnames:
+        raise ValueError(f"RACI template missing required sheet: {_RACI_SHEET!r}")
+    ws = workbook[_RACI_SHEET]
+    project = parsed_brief.project_title or "Project"
+    _set_cell(ws, 2, 2, f"RACI — {project}")
+    _set_cell(ws, _RACI_HEADER_ROW, 2, "WBS Code")
+    _set_cell(ws, _RACI_HEADER_ROW, 3, "Task / Activity")
+    for col_idx, role in enumerate(raci_matrix.roles, start=4):
+        _set_cell(ws, _RACI_HEADER_ROW, col_idx, role)
+
+    end_row = max(_RACI_DATA_START_ROW + len(raci_matrix.rows) + 5, ws.max_row)
+    _clear_row_range(ws, _RACI_DATA_START_ROW, end_row, max(3 + len(raci_matrix.roles), 8))
+
+    for row_idx, row in enumerate(raci_matrix.rows, start=_RACI_DATA_START_ROW):
+        _set_cell(ws, row_idx, 2, row.wbs_code)
+        _set_cell(
+            ws,
+            row_idx,
+            3,
+            f"{row.activity}{_confirmed_marker_suffix(row)}",
+        )
+        for col_idx, role in enumerate(raci_matrix.roles, start=4):
+            letter = row.assignments.get(role)
+            value = letter.value if isinstance(letter, RaciLetter) else letter
+            _set_cell(ws, row_idx, col_idx, value)
+
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()
+
+
+def export_raci_deloitte_pdf(
+    raci_matrix: RaciMatrix,
     parsed_brief: ParsedBrief,
 ) -> bytes:
-    """Build a landscape stakeholder map PDF."""
+    """Build a landscape RACI matrix PDF."""
     try:
         from fpdf import FPDF
     except ImportError as exc:
@@ -374,34 +415,31 @@ def export_stakeholder_deloitte_pdf(
     pdf.set_margins(18, 18, 18)
     pdf.set_auto_page_break(auto=True, margin=18)
     pdf.add_page()
-    write_brief_header(pdf, "Stakeholder Map", parsed_brief)
+    write_brief_header(pdf, "RACI Matrix", parsed_brief)
+
+    headers = ["WBS Code", "Task / Activity", *raci_matrix.roles]
+    col_count = len(headers)
+    col_width = max(180 / col_count, 18)
+    col_widths = tuple([col_width, max(col_width * 1.5, 35), *[col_width] * (col_count - 2)])
 
     rows = [
         [
-            display_cell(sh.name),
-            display_cell(sh.organization_side.value),
-            display_cell(sh.source.value),
-            display_stakeholder_rationale(sh.source.value, sh.rationale),
-            display_cell(sh.department, note=Notes.SIGNOFF),
-            display_cell(sh.role_in_project, note=Notes.SIGNOFF),
-            display_cell(sh.influence_level.value),
-            display_cell(sh.interest_level.value),
-            display_cell(sh.engagement_strategy, note=Notes.SIGNOFF),
-            display_cell(sh.key_concerns, note=Notes.SIGNOFF),
-            display_cell(sh.communication_frequency.value),
-            display_cell(sh.engagement_approach, note=Notes.SIGNOFF),
-            display_cell(sh.communication_method, note=Notes.SIGNOFF),
+            display_cell(row.wbs_code),
+            display_cell(f"{row.activity}{_confirmed_marker_suffix(row)}"),
         ]
-        for sh in stakeholder_map.stakeholders
+        + [
+            display_cell(
+                row.assignments[role].value
+                if role in row.assignments
+                else None
+            )
+            for role in raci_matrix.roles
+        ]
+        for row in raci_matrix.rows
     ]
     pdf.add_page(orientation="L")
     pdf.set_margins(10, 12, 10)
-    render_table(
-        pdf,
-        _STAKEHOLDER_PDF_HEADERS,
-        rows,
-        col_widths=_STAKEHOLDER_PDF_COL_WIDTHS,
-    )
+    render_table(pdf, headers, rows, col_widths=col_widths)
     return bytes(pdf.output())
 
 
@@ -457,7 +495,7 @@ def export_status_deloitte_pdf(
     write_section_heading(pdf, "Milestones")
     milestone_rows = [
         [
-            display_cell(milestone.name),
+            display_cell(f"{milestone.name}{_confirmed_marker_suffix(milestone)}"),
             display_cell(milestone.target_date),
             display_cell(milestone.actual_date, note=Notes.NOT_YET_REACHED),
             display_cell(milestone.owner_side),
@@ -585,7 +623,7 @@ def _fill_raid_detail_sheet(
         1,
     )
     end_row = _DETAIL_DATA_START_ROW + max(max_items, 6) + 5
-    _clear_row_range(ws, _DETAIL_DATA_START_ROW, end_row, 32)
+    _clear_row_range(ws, _DETAIL_DATA_START_ROW, end_row, 34)
 
     for index in range(max_items):
         row = _DETAIL_DATA_START_ROW + index
@@ -600,7 +638,7 @@ def _fill_raid_detail_sheet(
 
 
 def _write_detail_risk(ws: Worksheet, row: int, item: RiskEntry) -> None:
-    _set_cell(ws, row, 1, item.id)
+    _set_cell(ws, row, 1, f"{item.id}{_confirmed_marker_suffix(item)}")
     _set_cell(ws, row, 2, item.title)
     _set_cell(ws, row, 3, item.description, note=Notes.SIGNOFF_DETAIL)
     _set_cell(ws, row, 4, item.status)
@@ -608,34 +646,36 @@ def _write_detail_risk(ws: Worksheet, row: int, item: RiskEntry) -> None:
     _set_cell(ws, row, 6, item.owner, note=Notes.SIGNOFF_ASSIGNED)
     _set_cell(ws, row, 7, item.wbs_links, note=Notes.NOT_LINKED_WBS)
     _set_cell(ws, row, 8, item.probability)
-    _set_cell(ws, row, 9, item.priority)
+    _set_cell(ws, row, 9, item.impact)
+    _set_cell(ws, row, 10, item.risk_rating)
+    _set_cell(ws, row, 11, item.risk_appetite)
+    _set_cell(ws, row, 12, item.priority)
 
 
 def _write_detail_action(ws: Worksheet, row: int, item: ActionEntry) -> None:
-    _set_cell(ws, row, 11, item.id)
-    _set_cell(ws, row, 12, item.title)
-    _set_cell(ws, row, 13, item.description, note=Notes.SIGNOFF_DETAIL)
-    _set_cell(ws, row, 14, item.status_update, note=Notes.NO_UPDATE)
-    _set_cell(ws, row, 15, item.status)
-    _set_cell(ws, row, 16, item.owner, note=Notes.SIGNOFF_ASSIGNED)
-    _set_cell(ws, row, 17, item.wbs_links, note=Notes.NOT_LINKED_WBS)
-    _set_cell(ws, row, 18, item.priority)
+    _set_cell(ws, row, 14, f"{item.id}{_confirmed_marker_suffix(item)}")
+    _set_cell(ws, row, 15, item.title)
+    _set_cell(ws, row, 16, item.description, note=Notes.SIGNOFF_DETAIL)
+    _set_cell(ws, row, 17, item.status)
+    _set_cell(ws, row, 18, item.owner, note=Notes.SIGNOFF_ASSIGNED)
+    _set_cell(ws, row, 19, item.wbs_links, note=Notes.NOT_LINKED_WBS)
+    _set_cell(ws, row, 20, item.priority)
 
 
 def _write_detail_issue(ws: Worksheet, row: int, item: IssueEntry) -> None:
-    _set_cell(ws, row, 20, item.id)
-    _set_cell(ws, row, 21, item.title)
-    _set_cell(ws, row, 22, item.description, note=Notes.SIGNOFF_DETAIL)
-    _set_cell(ws, row, 23, item.resolution, note=Notes.PENDING_RESOLUTION)
-    _set_cell(ws, row, 24, item.owner, note=Notes.SIGNOFF_ASSIGNED)
-    _set_cell(ws, row, 25, item.priority)
+    _set_cell(ws, row, 22, f"{item.id}{_confirmed_marker_suffix(item)}")
+    _set_cell(ws, row, 23, item.title)
+    _set_cell(ws, row, 24, item.description, note=Notes.SIGNOFF_DETAIL)
+    _set_cell(ws, row, 25, item.resolution, note=Notes.PENDING_RESOLUTION)
+    _set_cell(ws, row, 26, item.owner, note=Notes.SIGNOFF_ASSIGNED)
+    _set_cell(ws, row, 27, item.priority)
 
 
 def _write_detail_decision(ws: Worksheet, row: int, item: DecisionEntry) -> None:
-    _set_cell(ws, row, 27, item.id)
-    _set_cell(ws, row, 28, item.title)
-    _set_cell(ws, row, 29, item.description_justification, note=Notes.SIGNOFF_DETAIL)
-    _set_cell(ws, row, 30, item.resolution, note=Notes.PENDING_RESOLUTION)
-    _set_cell(ws, row, 31, item.owner, note=Notes.SIGNOFF_ASSIGNED)
-    _set_cell(ws, row, 32, item.priority)
+    _set_cell(ws, row, 29, f"{item.id}{_confirmed_marker_suffix(item)}")
+    _set_cell(ws, row, 30, item.title)
+    _set_cell(ws, row, 31, item.description_justification, note=Notes.SIGNOFF_DETAIL)
+    _set_cell(ws, row, 32, item.resolution, note=Notes.PENDING_RESOLUTION)
+    _set_cell(ws, row, 33, item.owner, note=Notes.SIGNOFF_ASSIGNED)
+    _set_cell(ws, row, 34, item.priority)
 

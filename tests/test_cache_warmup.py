@@ -13,7 +13,9 @@ def test_wbs_build_cache_blocks_match_generator_layout() -> None:
 def test_raid_build_cache_blocks_include_wbs_section() -> None:
     brief = '{"client_name": "Acme"}'
     wbs = '{"work_packages": []}'
-    _system, user = raid_build_cache_blocks(brief, wbs)
+    raci = '{"roles": [], "rows": []}'
+    _system, user = raid_build_cache_blocks(brief, wbs, raci)
     assert "## WBS" in user[1]["text"]
     assert wbs in user[1]["text"]
+    assert "## RACI Matrix" in user[1]["text"]
     assert "cache_control" in user[0]

@@ -9,7 +9,7 @@ from typing import Any
 _SPECS_DIR = Path(__file__).resolve().parent / "deloitte"
 WBS_SPEC_PATH = _SPECS_DIR / "wbs_template.spec.json"
 RAID_SPEC_PATH = _SPECS_DIR / "raid_template.spec.json"
-STAKEHOLDER_SPEC_PATH = _SPECS_DIR / "stakeholder_template.spec.json"
+RACI_SPEC_PATH = _SPECS_DIR / "raci_template.spec.json"
 STATUS_SPEC_PATH = _SPECS_DIR / "status_report_template.spec.json"
 
 
@@ -29,10 +29,10 @@ def load_raid_spec() -> dict[str, Any]:
     return _read_json(RAID_SPEC_PATH)
 
 
-def load_stakeholder_spec() -> dict[str, Any]:
-    if not STAKEHOLDER_SPEC_PATH.is_file():
-        raise FileNotFoundError(f"Stakeholder template spec missing: {STAKEHOLDER_SPEC_PATH}")
-    return _read_json(STAKEHOLDER_SPEC_PATH)
+def load_raci_spec() -> dict[str, Any]:
+    if not RACI_SPEC_PATH.is_file():
+        raise FileNotFoundError(f"RACI template spec missing: {RACI_SPEC_PATH}")
+    return _read_json(RACI_SPEC_PATH)
 
 
 def load_status_report_spec() -> dict[str, Any]:
@@ -66,6 +66,12 @@ def build_wbs_generation_contract(spec: dict[str, Any] | None = None) -> str:
     for rule in spec.get("hierarchy_rules", []):
         lines.append(f"- {rule}")
 
+    generation_rules = spec.get("generation_rules", [])
+    if generation_rules:
+        lines.extend(["", "### Generation rules"])
+        for rule in generation_rules:
+            lines.append(f"- {rule}")
+
     lines.extend(
         [
             "",
@@ -87,7 +93,10 @@ def build_wbs_generation_contract(spec: dict[str, Any] | None = None) -> str:
             "- Map work to objectives and in-scope items from the parsed brief.",
             "- Exclude out-of-scope work.",
             "- Use client terminology from the brief in titles and descriptions.",
-            "- Classify `owner_side` as Client, Consultant, or Joint for every work package.",
+            "- Set `owner` to the named role or person who will hold R in RACI (use the same label as a RACI column header).",
+            "- Every `wbs_code` is the unique ID that links RACI rows, RAID wbs_links, and status milestones.",
+            "- When confirmed open-question answers are provided, set `from_confirmed_answer` "
+            "to true on rows that directly implement those answers; otherwise false.",
         ]
     )
     return "\n".join(lines).strip()
@@ -113,6 +122,12 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
         lines.append(f"### {section['title']} (`{section['key']}`)")
         if minimum:
             lines.append(f"- Include **at least {minimum}** item(s) when the brief supports it.")
+        elif section.get("key") == "actions":
+            lines.append(
+                "- Include actions **only** for discrete follow-up work from the brief "
+                "(client prerequisites, assumption validation). **Never** create one action "
+                "per risk mitigation — mitigation stays on the risk row."
+            )
         lines.append("- Fields per item:")
         for field in section.get("fields", []):
             req = "required" if field.get("required") else "optional"
@@ -123,6 +138,13 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
             )
         lines.append("")
 
+    generation_rules = spec.get("generation_rules", [])
+    if generation_rules:
+        lines.append("### Generation rules")
+        for rule in generation_rules:
+            lines.append(f"- {rule}")
+        lines.append("")
+
     simple = spec.get("simple_view", {})
     if simple:
         lines.append("### Simple log view (for exports)")
@@ -131,15 +153,26 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
 
     lines.extend(
         [
+            "### Cross-artifact linking (WBS → RACI → RAID)",
+            "- WBS `wbs_code` is the thread: every risk and action must include `wbs_links` to affected WBS tasks.",
+            "- RAID `owner` must match the RACI Responsible (R) role for the primary linked WBS task "
+            "(same person who owns the work in WBS).",
+            "",
             "### Pre-submit checklist",
             "- Every risk and action includes `wbs_links` pointing to real `wbs_code` values from the WBS.",
-            "- Every RAID item includes `owner_side`: Client, Consultant, or Joint.",
-            "- Risks include `mitigation` and `probability` (High, Moderate, or Low).",
-            "- Use `priority` (and `probability` for risks): High, Moderate, or Low.",
+            "- Every risk includes a `mitigation` value (concrete plan or TBD wording when unknown).",
+            "- Risks include `probability`, `impact`, `risk_rating`, `risk_appetite`, and response "
+            "`priority` (Monitor closely, Monitor, Stay informed, or Respond as required).",
+            "- Actions, issues, and decisions use `priority`: High, Moderate, or Low.",
+            "- Do not duplicate risk mitigations as separate actions — keep mitigation on the risk row.",
+            "- `len(actions)` must not equal `len(risks)` by default; actions are not a mirror of the risks list.",
             "- Derive actions from assumptions, client activities, and follow-ups in the brief.",
             "",
             "### Content alignment",
             "- Ground items in the parsed brief and WBS; do not invent unrelated risks.",
+            "- Keep Risks and Actions lists distinct with minimal overlap.",
+            "- When confirmed open-question answers are provided, set `from_confirmed_answer` "
+            "to true on entries that directly implement those answers; otherwise false.",
         ]
     )
     return "\n".join(lines).strip()
@@ -148,7 +181,7 @@ def build_raid_generation_contract(spec: dict[str, Any] | None = None) -> str:
 def wbs_json_output_instruction() -> str:
     return (
         "Respond with **valid JSON only** (no markdown fences or commentary). "
-        "The Deloitte WBS generation contract above defines the required shape, fields, "
+        "The WBS generation contract above defines the required shape, fields, "
         "and hierarchy — follow it exactly.\n"
         'Root object: `{"work_packages": [ ... ]}`'
     )
@@ -157,9 +190,11 @@ def wbs_json_output_instruction() -> str:
 def raid_json_output_instruction() -> str:
     return (
         "Respond with **valid JSON only** (no markdown fences or commentary). "
-        "The Deloitte RAID generation contract above defines the required sections, fields, "
+        "The RAID generation contract above defines the required sections, fields, "
         "and minimums — follow it exactly.\n"
-        'Root object: `{"risks": [], "actions": [], "issues": [], "decisions": []}`'
+        'Root object: `{"risks": [], "actions": [], "issues": [], "decisions": []}`\n'
+        "Put every mitigation plan on the matching risk row. Do not add parallel actions "
+        "that restate those mitigations."
     )
 
 
@@ -173,35 +208,50 @@ def format_raid_spec_for_prompt(spec: dict[str, Any] | None = None) -> str:
     return build_raid_generation_contract(spec)
 
 
-def build_stakeholder_generation_contract(spec: dict[str, Any] | None = None) -> str:
-    """Full Deloitte Stakeholder Map contract from stakeholder_template.spec.json."""
-    spec = spec or load_stakeholder_spec()
+def build_raci_generation_contract(spec: dict[str, Any] | None = None) -> str:
+    """Full Deloitte RACI contract from raci_template.spec.json."""
+    spec = spec or load_raci_spec()
+    wbs_code_col = spec.get("wbs_code_column", "WBS Code")
+    activity_col = spec.get("activity_column", "Task / Activity")
     lines = [
-        "## Deloitte Stakeholder Map generation contract (authoritative — follow while generating)",
+        "## Deloitte RACI generation contract (authoritative — follow while generating)",
         "",
         spec.get("summary", ""),
         "",
-        "Generate the complete stakeholder map in one response. Each table row is one object "
-        "in `stakeholders`.",
+        "WBS is the foundation. Each RACI row maps to one WBS task via `wbs_code`. "
+        "Column headers are **dynamic**: set `roles` to the distinct `owner` values from "
+        "the WBS (same strings as the WBS Owner column). The WBS owner for each task must hold R or A.",
+        "",
+        "Generate the complete RACI matrix in one response. Column headers go in `roles`; "
+        "each WBS task is one object in `rows`.",
         "",
         "### Required JSON envelope",
-        '{"stakeholders": [ /* one object per stakeholder row */ ]}',
+        '{"roles": [ /* distinct WBS owner strings, first-seen order */ ], "rows": [ /* one per WBS task */ ]}',
         "",
-        "### Table columns (use these JSON field names on every row)",
+        f"### Row identifier: **{wbs_code_col}** (`wbs_code` in JSON — must match WBS)",
+        f"### Task column: **{activity_col}** (`activity` in JSON — WBS element title)",
+        "",
+        "### Role columns (dynamic — derived from WBS `owner` field)",
+        "- Collect every distinct non-empty `owner` from `work_packages` into `roles`.",
+        "- Do not invent column headers that are not WBS owners.",
+        "- RAID `owner` must use the same strings as WBS owners / RACI columns.",
     ]
-    for col in spec.get("columns", []):
-        lines.append(
-            f"- `{col['field']}` — **{col['header']}**: {col.get('description', '').strip()}"
-        )
-
-    lines.extend(["", "### Generation rules"])
+    assignment_values = spec.get("assignment_values", ["R", "A", "C", "I"])
+    lines.extend(
+        [
+            "",
+            f"### Assignment values: {', '.join(assignment_values)}",
+            "",
+            "### Generation rules",
+        ]
+    )
     for rule in spec.get("generation_rules", []):
         lines.append(f"- {rule}")
 
     lines.extend(
         [
             "",
-            "### Example rows from the Deloitte template (mirror depth and engagement style)",
+            "### Example rows (illustrative — your `roles` must match the WBS owners provided)",
         ]
     )
     for row in spec.get("example_rows", []):
@@ -211,9 +261,13 @@ def build_stakeholder_generation_contract(spec: dict[str, Any] | None = None) ->
         [
             "",
             "### Content alignment",
-            "- Ground every stakeholder in the parsed brief, WBS, or RAID.",
-            "- Infer at most 3–5 stakeholders; each inferred row needs a specific rationale.",
-            "- Classify `organization_side` as Client, Consultant, Joint, or Other.",
+            "- Column headers (`roles`) must be exactly the distinct WBS owner values — no extra stakeholders.",
+            "- One row per level-3 WBS work package; every row must include the matching `wbs_code`.",
+            "- WBS `owner` for each task must appear as R or A in that row's assignments.",
+            "- Each row must have exactly one Accountable (A) assignment.",
+            "- Use R for who holds the pen; C for parties supporting the Responsible role.",
+            "- When confirmed open-question answers are provided, set `from_confirmed_answer` "
+            "to true on rows that directly implement those answers; otherwise false.",
         ]
     )
     return "\n".join(lines).strip()
@@ -267,21 +321,29 @@ def build_status_report_generation_contract(spec: dict[str, Any] | None = None) 
     lines.extend(
         [
             "",
+            "### Cross-artifact linking (pull from WBS, RACI, and RAID)",
+            "- Progress and milestones: trace to WBS tasks and their schedule status.",
+            "- Accountability: reference who reports what using RACI R/A holders for in-flight WBS tasks.",
+            "- Escalations: surface high-priority RAID risks and open issues linked to WBS work packages.",
+            "",
             "### Content alignment",
             "- Do not invent progress not supported by WBS or RAID.",
             "- Pull risks from RAID; blockers from open RAID issues or WBS dependencies.",
-            "- Classify each milestone `owner_side` as Client, Consultant, or Joint.",
+            "- Milestones must reflect the WBS delivery plan with concrete target dates — avoid TBD unless unavoidable.",
+            "- Set each milestone `owner_side` to the accountable party for that milestone.",
+            "- When confirmed open-question answers are provided, set `from_confirmed_answer` "
+            "to true on milestones that directly implement those answers; otherwise false.",
         ]
     )
     return "\n".join(lines).strip()
 
 
-def stakeholder_json_output_instruction() -> str:
+def raci_json_output_instruction() -> str:
     return (
         "Respond with **valid JSON only** (no markdown fences or commentary). "
-        "The Deloitte Stakeholder Map generation contract above defines the required shape "
+        "The Deloitte RACI generation contract above defines the required shape "
         "and fields — follow it exactly.\n"
-        'Root object: `{"stakeholders": [ ... ]}`'
+        'Root object: `{"roles": [ ... ], "rows": [ ... ]}`'
     )
 
 
@@ -296,8 +358,8 @@ def status_json_output_instruction() -> str:
     )
 
 
-def format_stakeholder_spec_for_prompt(spec: dict[str, Any] | None = None) -> str:
-    return build_stakeholder_generation_contract(spec)
+def format_raci_spec_for_prompt(spec: dict[str, Any] | None = None) -> str:
+    return build_raci_generation_contract(spec)
 
 
 def format_status_report_spec_for_prompt(spec: dict[str, Any] | None = None) -> str:

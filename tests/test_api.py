@@ -160,27 +160,35 @@ def test_session_response_exposes_partial_artifacts(client: TestClient) -> None:
     record.session.parsed_brief = ParsedBrief.model_validate(PARSED_BRIEF_FIXTURE)
     record.session.wbs = WBS.model_validate(WBS_FIXTURE)
     record.job_status = "running"
-    record.phase = "generating_raid"
+    record.phase = "generating_raci"
     get_store().update(
         record.session.session_id,
         session=record.session,
         job_status="running",
-        phase="generating_raid",
+        phase="generating_raci",
     )
 
     data = session_to_response(record)
     assert data.wbs_html
     assert data.raid_html is None
-    assert data.stakeholder_html is None
+    assert data.raci_html is None
     assert data.summary is not None
     assert data.summary.wbs_items > 0
     assert data.summary.raid_risks == 0
 
+    from workplan_agent.llm.fixtures import RACI_MATRIX_FIXTURE
+    from workplan_agent.models.raci import RaciMatrix
+
+    record.session.raci_matrix = RaciMatrix.model_validate(RACI_MATRIX_FIXTURE)
+    record.phase = "generating_raid"
+    data = session_to_response(record)
+    assert data.raci_html
+    assert data.raid_html is None
+
     record.session.raid = RAIDLog.model_validate(RAID_FIXTURE)
-    record.phase = "generating_stakeholder"
+    record.phase = "generating_status"
     data = session_to_response(record)
     assert data.raid_html
-    assert data.stakeholder_html is None
 
 
 def test_create_session_mock(client: TestClient) -> None:
@@ -292,7 +300,7 @@ def test_concurrent_revision_different_artifacts(client: TestClient) -> None:
     get_store().add_revision_in_progress(session_id, "wbs")
     review = client.post(
         f"/api/sessions/{session_id}/review",
-        json={"action": "stakeholder", "feedback": "Add a steering committee row."},
+        json={"action": "raci", "feedback": "Add a change management row."},
     )
     assert review.status_code == 202
 

@@ -7,15 +7,15 @@ let reviewPollTimer = null;
 let lastSessionData = null;
 let pendingConfirmationQuestions = [];
 
-const REVISION_TABS = new Set(["wbs", "raid", "stakeholder", "status"]);
-const feedbackDrafts = { wbs: "", raid: "", stakeholder: "", status: "" };
+const REVISION_TABS = new Set(["wbs", "raid", "raci", "status"]);
+const feedbackDrafts = { wbs: "", raid: "", raci: "", status: "" };
 /** Artifacts submitted locally before the next poll confirms them. */
 const pendingRevisionTabs = new Set();
 
 const ARTIFACT_LABELS = {
   wbs: "WBS",
   raid: "RAID",
-  stakeholder: "Stakeholder Map",
+  raci: "RACI",
   status: "Status Report",
   quality_gates: "Quality Gates",
 };
@@ -150,7 +150,7 @@ async function uploadBriefFile(file) {
 const DOWNLOAD_ARTIFACTS = {
   wbs: "WBS",
   raid: "RAID",
-  stakeholder: "Stakeholder Map",
+  raci: "RACI",
   status: "Status Report",
   quality_gates: "Quality Gates Checklist",
   brief: null,
@@ -180,7 +180,7 @@ async function downloadArtifact(format) {
   if (
     artifact !== "wbs" &&
     artifact !== "raid" &&
-    artifact !== "stakeholder" &&
+    artifact !== "raci" &&
     artifact !== "status" &&
     artifact !== "quality_gates"
   )
@@ -358,7 +358,7 @@ function phaseLabel(phase, jobStatus, revisionsInProgress) {
     awaiting_confirmation: "Awaiting your answers…",
     generating_wbs: "Generating WBS…",
     generating_raid: "Generating RAID log…",
-    generating_stakeholder: "Generating Stakeholder Map…",
+    generating_raci: "Generating RACI matrix…",
     generating_status: "Generating Status Report…",
     ready_for_review: "Ready for review",
     failed: "Generation failed",
@@ -375,8 +375,8 @@ function progressPercent(phase, jobStatus) {
     parsing: 25,
     awaiting_confirmation: 40,
     generating_wbs: 55,
-    generating_raid: 70,
-    generating_stakeholder: 85,
+    generating_raci: 70,
+    generating_raid: 85,
     generating_status: 95,
     ready_for_review: 100,
   };
@@ -387,7 +387,7 @@ function hasViewableArtifacts(data) {
   return Boolean(
     data?.wbs_html ||
       data?.raid_html ||
-      data?.stakeholder_html ||
+      data?.raci_html ||
       data?.status_html
   );
 }
@@ -475,7 +475,7 @@ function renderSummary(summary) {
     ["Actions", summary.raid_actions ?? summary.raid_assumptions],
     ["Issues", summary.raid_issues],
     ["Decisions", summary.raid_decisions ?? summary.raid_dependencies],
-    ["Stakeholders", summary.stakeholders_count || 0],
+    ["RACI activities", summary.raci_activities_count || 0],
     ["Milestones", summary.status_milestones_count || 0],
   ];
   if (summary.quality_gates_total) {
@@ -571,9 +571,9 @@ function renderTabContent(data) {
     preview.innerHTML = data.wbs_html || "<p class='empty-preview'>WBS not available yet.</p>";
   } else if (currentTab === "raid") {
     preview.innerHTML = data.raid_html || "<p class='empty-preview'>RAID not available yet.</p>";
-  } else if (currentTab === "stakeholder") {
+  } else if (currentTab === "raci") {
     preview.innerHTML =
-      data.stakeholder_html || "<p class='empty-preview'>Stakeholder Map not available yet.</p>";
+      data.raci_html || "<p class='empty-preview'>RACI matrix not available yet.</p>";
   } else if (currentTab === "status") {
     preview.innerHTML =
       data.status_html || "<p class='empty-preview'>Status Report not available yet.</p>";
@@ -679,7 +679,7 @@ function formatDiffBlock(text) {
 function renderDiff(diff) {
   const panel = $("diffPanel");
   const content = $("diffContent");
-  if (!diff || (!diff.wbs && !diff.raid && !diff.stakeholder_map && !diff.status_report)) {
+  if (!diff || (!diff.wbs && !diff.raid && !diff.raci_matrix && !diff.status_report)) {
     panel.classList.add("hidden");
     content.innerHTML = "";
     return;
@@ -692,8 +692,8 @@ function renderDiff(diff) {
   if (diff.raid) {
     html += `<h4>RAID</h4><pre class="diff-body">${formatDiffBlock(diff.raid)}</pre>`;
   }
-  if (diff.stakeholder_map) {
-    html += `<h4>Stakeholder Map</h4><pre class="diff-body">${formatDiffBlock(diff.stakeholder_map)}</pre>`;
+  if (diff.raci_matrix) {
+    html += `<h4>RACI</h4><pre class="diff-body">${formatDiffBlock(diff.raci_matrix)}</pre>`;
   }
   if (diff.status_report) {
     html += `<h4>Weekly Status Report</h4><pre class="diff-body">${formatDiffBlock(diff.status_report)}</pre>`;
@@ -882,13 +882,20 @@ function renderParsePreview(preview) {
 
 function normalizeConfirmationQuestion(item) {
   if (typeof item === "string") {
-    return { question: item, suggested_answers: [] };
+    return {
+      question: item,
+      suggested_answers: [],
+      brief_quotes: [],
+      derivation_rationale: "",
+    };
   }
   return {
     question: item?.question || "",
     suggested_answers: Array.isArray(item?.suggested_answers)
       ? item.suggested_answers
       : [],
+    brief_quotes: Array.isArray(item?.brief_quotes) ? item.brief_quotes : [],
+    derivation_rationale: item?.derivation_rationale || "",
   };
 }
 
@@ -896,7 +903,30 @@ function renderConfirmationForm(questions) {
   const form = $("confirmQuestionsForm");
   form.innerHTML = questions
     .map((item, index) => {
-      const { question, suggested_answers: choices } = normalizeConfirmationQuestion(item);
+      const {
+        question,
+        suggested_answers: choices,
+        brief_quotes: quotes,
+        derivation_rationale: rationale,
+      } = normalizeConfirmationQuestion(item);
+      const quotesHtml =
+        quotes.length > 0 || rationale
+          ? `<div class="confirm-brief-quotes">
+          ${
+            quotes.length > 0
+              ? `<span class="confirm-quotes-label">From the client brief</span>
+          <ul class="confirm-quote-list">
+            ${quotes.map((quote) => `<li>${escapeHtml(quote)}</li>`).join("")}
+          </ul>`
+              : ""
+          }
+          ${
+            rationale
+              ? `<p class="confirm-derivation-rationale"><span class="confirm-rationale-label">Why we ask</span>${escapeHtml(rationale)}</p>`
+              : ""
+          }
+        </div>`
+          : "";
       const choicesHtml =
         choices.length > 0
           ? `<div class="confirm-choices" role="group" aria-label="Suggested answers">
@@ -921,6 +951,7 @@ function renderConfirmationForm(questions) {
       <label class="confirm-q-label" for="confirm-answer-${index}">
         ${index + 1}. ${escapeHtml(question)}
       </label>
+      ${quotesHtml}
       ${choicesHtml}
       <textarea
         id="confirm-answer-${index}"
@@ -1104,7 +1135,7 @@ async function submitReview(action, feedback = "") {
 const REVISION_MESSAGES = {
   wbs: "Revising WBS…",
   raid: "Revising RAID log…",
-  stakeholder: "Revising Stakeholder Map…",
+  raci: "Revising RACI matrix…",
   status: "Revising Status Report…",
 };
 

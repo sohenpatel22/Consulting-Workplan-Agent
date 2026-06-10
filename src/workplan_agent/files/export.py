@@ -9,12 +9,12 @@ from typing import Literal
 
 from workplan_agent.models.brief import ParsedBrief
 from workplan_agent.models.raid import RAIDLog
-from workplan_agent.models.stakeholder import StakeholderMap
+from workplan_agent.models.raci import RaciMatrix
 from workplan_agent.models.status_report import WeeklyStatusReport
 from workplan_agent.models.wbs import WBS
 
 ExportFormat = Literal["md", "html", "docx", "pdf", "xlsx"]
-ArtifactKind = Literal["wbs", "raid", "stakeholder", "status"]
+ArtifactKind = Literal["wbs", "raid", "raci", "status"]
 
 CONTENT_TYPES: dict[ExportFormat, str] = {
     "md": "text/markdown; charset=utf-8",
@@ -36,7 +36,7 @@ def export_artifact(
     *,
     wbs: WBS | None = None,
     raid: RAIDLog | None = None,
-    stakeholder_map: StakeholderMap | None = None,
+    raci_matrix: RaciMatrix | None = None,
     status_report: WeeklyStatusReport | None = None,
     parsed_brief: ParsedBrief | None = None,
     use_deloitte_templates: bool = True,
@@ -45,13 +45,21 @@ def export_artifact(
     base_name = artifact
 
     if fmt == "xlsx":
-        if artifact != "raid":
-            raise ExportError("XLSX export is only available for RAID.")
-        if raid is None or parsed_brief is None:
-            raise ExportError("RAID structured data is required for XLSX export.")
-        from workplan_agent.files.deloitte_export import export_raid_deloitte_xlsx
+        if parsed_brief is None:
+            raise ExportError("Parsed brief is required for XLSX export.")
+        if artifact == "raid":
+            if raid is None:
+                raise ExportError("RAID structured data is required for XLSX export.")
+            from workplan_agent.files.deloitte_export import export_raid_deloitte_xlsx
 
-        return export_raid_deloitte_xlsx(raid, parsed_brief), f"{base_name}.xlsx"
+            return export_raid_deloitte_xlsx(raid, parsed_brief), f"{base_name}.xlsx"
+        if artifact == "raci":
+            if raci_matrix is None:
+                raise ExportError("RACI structured data is required for XLSX export.")
+            from workplan_agent.files.deloitte_export import export_raci_deloitte_xlsx
+
+            return export_raci_deloitte_xlsx(raci_matrix, parsed_brief), f"{base_name}.xlsx"
+        raise ExportError("XLSX export is only available for RAID and RACI.")
 
     if fmt == "docx" and artifact == "wbs" and use_deloitte_templates and wbs and parsed_brief:
         from workplan_agent.files.deloitte_export import export_wbs_deloitte_docx
@@ -65,9 +73,9 @@ def export_artifact(
             return de.export_wbs_deloitte_pdf(wbs, parsed_brief), f"{base_name}.pdf"
         if artifact == "raid" and raid is not None:
             return de.export_raid_deloitte_pdf(raid, parsed_brief), f"{base_name}.pdf"
-        if artifact == "stakeholder" and stakeholder_map is not None:
-            return de.export_stakeholder_deloitte_pdf(
-                stakeholder_map, parsed_brief
+        if artifact == "raci" and raci_matrix is not None:
+            return de.export_raci_deloitte_pdf(
+                raci_matrix, parsed_brief
             ), f"{base_name}.pdf"
         if artifact == "status" and status_report is not None:
             return de.export_status_deloitte_pdf(status_report, parsed_brief), f"{base_name}.pdf"

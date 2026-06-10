@@ -1,6 +1,11 @@
 from workplan_agent.prompts import build_generation_guidance, format_confirmed_answers
 
 
+def test_format_confirmed_answers_mentions_marker_field() -> None:
+    text = format_confirmed_answers([("Q1?", "Answer 1")])
+    assert "from_confirmed_answer" in text
+
+
 def test_format_confirmed_answers() -> None:
     text = format_confirmed_answers([("Q1?", "Answer 1")])
     assert "Confirmed open questions" in text

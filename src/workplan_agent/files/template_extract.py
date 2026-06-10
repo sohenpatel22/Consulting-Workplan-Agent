@@ -35,15 +35,6 @@ def extract_wbs_spec(docx_path: Path) -> dict[str, Any]:
         if header in field_map:
             field, typ, desc = field_map[header]
             columns.append({"header": header, "field": field, "type": typ, "description": desc})
-    columns.append(
-        {
-            "header": "Owner Side",
-            "field": "owner_side",
-            "type": "string",
-            "description": "Client, Consultant, or Joint responsibility for this row",
-        }
-    )
-
     example_rows: list[dict[str, Any]] = []
     for row in table.rows[1:8]:
         cells = [cell.text.strip() for cell in row.cells]
@@ -57,7 +48,6 @@ def extract_wbs_spec(docx_path: Path) -> dict[str, Any]:
                 "wbs_element_title": row_data.get("WBS Element Title", ""),
                 "description_scope": row_data.get("Description / Scope of Work", ""),
                 "key_deliverable": row_data.get("Key Deliverable", ""),
-                "owner_side": "Joint",
             }
         )
 
@@ -75,7 +65,10 @@ def extract_wbs_spec(docx_path: Path) -> dict[str, Any]:
             "parent_wbs_code must reference an existing wbs_code one level above.",
             "Minimum 3 level-1 elements, each with at least 2 level-2 children.",
             "Also include owner, estimated_duration, and dependencies (list of wbs_codes).",
-            "Also include owner_side for each row: Client, Consultant, or Joint.",
+        ],
+        "generation_rules": [
+            "Set `owner` to the named role or person who holds the pen (RACI R) when known from the brief.",
+            "Provide `estimated_duration` on level-2 and level-3 items to support milestone scheduling in the status report.",
         ],
         "example_rows": example_rows,
     }
@@ -85,8 +78,9 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
     from openpyxl import load_workbook
 
     workbook = load_workbook(xlsx_path, data_only=True)
+    if "RAID Log - Detail" not in workbook.sheetnames:
+        raise ValueError(f"RAID Log - Detail sheet not found in {xlsx_path}")
     detail = workbook["RAID Log - Detail"]
-    simple = workbook["RAID Log - simple"]
 
     sections = [
         {
@@ -102,15 +96,12 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
                     "name": "mitigation",
                     "type": "string",
                     "required": True,
-                    "description": "Mitigation plan",
+                    "description": (
+                        "Mitigation plan for this risk (required on every row; use TBD wording "
+                        "when the plan is not yet known — do not leave blank or move mitigation to Actions)"
+                    ),
                 },
                 {"name": "owner", "type": "string", "required": True, "description": ""},
-                {
-                    "name": "owner_side",
-                    "type": "string",
-                    "required": True,
-                    "description": "Client, Consultant, or Joint",
-                },
                 {
                     "name": "wbs_links",
                     "type": "array",
@@ -121,21 +112,39 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
                     "name": "probability",
                     "type": "string",
                     "required": True,
+                    "description": "High, Moderate, Low, or Very Low",
+                },
+                {
+                    "name": "impact",
+                    "type": "string",
+                    "required": True,
                     "description": "High, Moderate, or Low",
+                },
+                {
+                    "name": "risk_rating",
+                    "type": "string",
+                    "required": True,
+                    "description": "Derived overall rating: High, Moderate, or Low",
+                },
+                {
+                    "name": "risk_appetite",
+                    "type": "string",
+                    "required": True,
+                    "description": "Engagement risk appetite (e.g. Moderate)",
                 },
                 {
                     "name": "priority",
                     "type": "string",
                     "required": True,
-                    "description": "Priority/Impact: High, Moderate, or Low",
+                    "description": "Response level: Monitor closely, Monitor, Stay informed, or Respond as required",
                 },
             ],
-            "template_headers": _row_headers(detail, 6, 1, 9),
+            "template_headers": _row_headers(detail, 6, 1, 12),
         },
         {
             "key": "actions",
             "title": "Actions",
-            "minimum": 2,
+            "minimum": 0,
             "fields": [
                 {"name": "id", "type": "string", "required": True, "description": "A1, A2, …"},
                 {"name": "title", "type": "string", "required": True, "description": ""},
@@ -149,12 +158,6 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
                 {"name": "status", "type": "string", "required": True, "description": ""},
                 {"name": "owner", "type": "string", "required": True, "description": ""},
                 {
-                    "name": "owner_side",
-                    "type": "string",
-                    "required": True,
-                    "description": "Client, Consultant, or Joint",
-                },
-                {
                     "name": "wbs_links",
                     "type": "array",
                     "required": True,
@@ -167,7 +170,7 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
                     "description": "High, Moderate, or Low",
                 },
             ],
-            "template_headers": _row_headers(detail, 6, 11, 18),
+            "template_headers": _row_headers(detail, 6, 14, 20),
         },
         {
             "key": "issues",
@@ -185,19 +188,13 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
                 },
                 {"name": "owner", "type": "string", "required": True, "description": ""},
                 {
-                    "name": "owner_side",
-                    "type": "string",
-                    "required": True,
-                    "description": "Client, Consultant, or Joint",
-                },
-                {
                     "name": "priority",
                     "type": "string",
                     "required": True,
                     "description": "High, Moderate, or Low",
                 },
             ],
-            "template_headers": _row_headers(detail, 6, 20, 25),
+            "template_headers": _row_headers(detail, 6, 22, 27),
         },
         {
             "key": "decisions",
@@ -220,37 +217,37 @@ def extract_raid_spec(xlsx_path: Path) -> dict[str, Any]:
                 },
                 {"name": "owner", "type": "string", "required": True, "description": ""},
                 {
-                    "name": "owner_side",
-                    "type": "string",
-                    "required": True,
-                    "description": "Client, Consultant, or Joint",
-                },
-                {
                     "name": "priority",
                     "type": "string",
                     "required": True,
                     "description": "High, Moderate, or Low",
                 },
             ],
-            "template_headers": _row_headers(detail, 6, 27, 32),
+            "template_headers": _row_headers(detail, 6, 29, 34),
         },
     ]
 
-    simple_columns = _row_headers(simple, 5, 1, 8)
     return {
         "source_file": xlsx_path.name,
         "summary": (
-            "RAID log follows the Deloitte Excel template: Risks, Actions, Issues, and "
-            "Decisions are separate sections (not Assumptions/Dependencies). "
-            "Use priority values High, Moderate, or Low. Each item labels whether the "
-            "owner is on the Client, Consultant, or Joint side."
+            "RAID log follows the Deloitte Excel template on a single detail sheet: "
+            "Risks, Actions, Issues, and Decisions are side-by-side sections. "
+            "Risks include probability, impact, risk rating, risk appetite, and a "
+            "response priority. Actions, issues, and decisions use High, Moderate, "
+            "or Low priority. Keep Risks and Actions distinct: mitigation "
+            "belongs on the risk row, not as a duplicate action."
         ),
+        "generation_rules": [
+            'Every risk must include a `mitigation` value. Use a concrete plan when known; otherwise use "To be determined" or "TBD — mitigation approach to be defined".',
+            "Do not create an Action whose sole purpose is to restate a risk's mitigation plan. Put mitigation in the risk's `mitigation` field instead.",
+            "Actions are discrete follow-up work items (client activities, assumptions to validate, deliverables to produce) — not risk-mitigation duplicates.",
+            "Minimize overlap between `risks` and `actions`: an action should not mirror a risk title or description unless it is genuinely separate work beyond mitigation.",
+            "Derive actions from assumptions, client activities, and follow-ups in the brief — not by copying each risk into the actions list.",
+            "The number of actions does not need to match the number of risks. Zero actions is valid when the brief has no separate follow-up work beyond risk mitigations.",
+            'WRONG: R1 mitigation "Pre-book workshops on Tue/Thu" plus A1 "Pre-book SME workshops" — duplicate.',
+            'CORRECT: R1 mitigation "Pre-book workshops on Tue/Thu" on the risk row; A1 "Client procures Azure licenses" — unrelated prerequisite from the brief.',
+        ],
         "sections": sections,
-        "simple_view": {
-            "sheet": "RAID Log - simple",
-            "columns": [*simple_columns, "Owner Side"],
-            "categories": ["Risk", "Action", "Issue", "Decision"],
-        },
     }
 
 
@@ -266,120 +263,61 @@ def _row_headers(ws: object, row: int, start_col: int, end_col: int) -> list[str
     return headers
 
 
-_STAKEHOLDER_FIELD_MAP: dict[str, tuple[str, str, str]] = {
-    "Stakeholder": ("name", "string", "Stakeholder name or group"),
-    "Organization Side": (
-        "organization_side",
-        "string",
-        "Client, Consultant, Joint, or Other",
-    ),
-    "Source": ("source", "string", "explicit or inferred"),
-    "Rationale (if inferred)": (
-        "rationale",
-        "string",
-        "Required when source is inferred; empty when explicit",
-    ),
-    "Department/Group": ("department", "string", "Organizational unit"),
-    "Role in Project": ("role_in_project", "string", "Role relative to the engagement"),
-    "Influence Level": (
-        "influence_level",
-        "string",
-        "High, Medium, or Low",
-    ),
-    "Interest Level": (
-        "interest_level",
-        "string",
-        "High, Medium, or Low",
-    ),
-    "Engagement Strategy": (
-        "engagement_strategy",
-        "string",
-        "e.g. Manage Closely, Keep Informed, Keep Satisfied",
-    ),
-    "Key Concerns": ("key_concerns", "string", "Primary concerns for this stakeholder"),
-    "Communication Frequency": (
-        "communication_frequency",
-        "string",
-        "Weekly, Bi-weekly, Monthly, or Ad-hoc",
-    ),
-    "Engagement Approach": (
-        "engagement_approach",
-        "string",
-        "How to engage this stakeholder",
-    ),
-    "Communication Method": (
-        "communication_method",
-        "string",
-        "Channels and forums for communication",
-    ),
-}
+_RACI_SHEET = "RACI Table Sample"
+_RACI_ACTIVITY_HEADER = "Deliverable / Activity"
+_RACI_HEADER_ROW_LABEL = _RACI_ACTIVITY_HEADER
+_RACI_LETTERS = frozenset({"R", "A", "C", "I"})
 
 
-def extract_stakeholder_spec(xlsx_path: Path) -> dict[str, Any]:
+def extract_raci_spec(xlsx_path: Path) -> dict[str, Any]:
     from openpyxl import load_workbook
 
     workbook = load_workbook(xlsx_path, data_only=True)
-    if "Stakeholder Map" not in workbook.sheetnames:
-        raise ValueError(f"Stakeholder Map sheet not found in {xlsx_path}")
-    ws = workbook["Stakeholder Map"]
+    if _RACI_SHEET not in workbook.sheetnames:
+        raise ValueError(f"{_RACI_SHEET!r} sheet not found in {xlsx_path}")
+    ws = workbook[_RACI_SHEET]
 
-    header_row = _find_row_with_label(ws, "Stakeholder", max_row=20)
+    header_row = _find_row_with_label(ws, _RACI_HEADER_ROW_LABEL, max_row=20)
     headers = _row_text_headers(ws, header_row)
-    columns: list[dict[str, str]] = []
-    for header in headers:
-        if header in _STAKEHOLDER_FIELD_MAP:
-            field, typ, desc = _STAKEHOLDER_FIELD_MAP[header]
-            columns.append({"header": header, "field": field, "type": typ, "description": desc})
-    if not any(col["field"] == "organization_side" for col in columns):
-        columns.insert(
-            1,
-            {
-                "header": "Organization Side",
-                "field": "organization_side",
-                "type": "string",
-                "description": "Client, Consultant, Joint, or Other",
-            },
-        )
-
+    if not headers or headers[0] != _RACI_ACTIVITY_HEADER:
+        raise ValueError(f"Expected {_RACI_ACTIVITY_HEADER!r} as first column in {xlsx_path}")
+    roles = headers[1:]
     header_cols = _header_column_map(ws, header_row, headers)
 
     example_rows: list[dict[str, Any]] = []
-    for row_idx in range(header_row + 1, min(header_row + 9, ws.max_row + 1)):
+    for row_idx in range(header_row + 1, ws.max_row + 1):
         row_data = _row_dict_by_columns(ws, row_idx, header_cols)
-        name = row_data.get("Stakeholder", "").strip()
-        if not name:
+        activity = row_data.get(_RACI_ACTIVITY_HEADER, "").strip()
+        if not activity:
             continue
-        entry: dict[str, Any] = {}
-        for header, (field, _, _) in _STAKEHOLDER_FIELD_MAP.items():
-            raw = row_data.get(header, "")
-            value = str(raw).strip() if raw is not None else ""
-            if field == "organization_side":
-                entry[field] = _infer_organization_side(row_data)
-            elif field == "source":
-                entry[field] = value.lower() if value else value
-            elif field == "rationale" and value.upper() in ("N/A", ""):
-                entry[field] = None
-            else:
-                entry[field] = value
-        example_rows.append(entry)
+        assignments: dict[str, str] = {}
+        for role in roles:
+            value = row_data.get(role, "").strip().upper()
+            if value in _RACI_LETTERS:
+                assignments[role] = value
+        example_rows.append({"activity": activity, "assignments": assignments})
 
     return {
         "source_file": xlsx_path.name,
-        "sheet": "Stakeholder Map",
+        "sheet": _RACI_SHEET,
         "summary": (
-            "Stakeholder map follows the Deloitte Excel template: one row per stakeholder "
-            "with influence/interest analysis and engagement strategy. Ground every row in "
-            "the brief, WBS, or RAID; limit inferred stakeholders to 3–5 with rationale."
+            "RACI matrix follows the Deloitte Excel template: rows are deliverables or "
+            "activities from the WBS; columns are engagement roles; each cell is R, A, C, "
+            "or I. Derive roles from the brief and WBS owners; align activities to level-2 "
+            "or level-3 WBS elements."
         ),
-        "columns": columns,
+        "activity_column": _RACI_ACTIVITY_HEADER,
+        "roles": roles,
+        "assignment_values": ["R", "A", "C", "I"],
         "generation_rules": [
-            "Root JSON: {\"stakeholders\": [ /* one object per table row */ ]}.",
-            "organization_side must be Client, Consultant, Joint, or Other.",
-            "source must be explicit or inferred (lowercase in JSON).",
-            "rationale is required and non-empty when source is inferred; null or empty when explicit.",
-            "influence_level and interest_level: High, Medium, or Low.",
-            "communication_frequency: Weekly, Bi-weekly, Monthly, or Ad-hoc.",
-            "Do not invent generic roles without WBS/RAID/brief justification.",
+            'Root JSON: {"roles": [ /* column headers */ ], "rows": [ /* one object per activity row */ ]}.',
+            "Each row object: activity (string) and assignments (object mapping role name to R, A, C, or I).",
+            "Every role in roles must appear as a key in each row's assignments.",
+            "Each activity row should have exactly one Accountable (A) assignment.",
+            "Use R for Responsible (holds the pen — does the work), A for Accountable (owns that the work is done; may be client leadership or consultant), C for Consulted (supports the Responsible party), I for Informed.",
+            "Assign Accountable (A) to the party that owns delivery of the activity.",
+            "Ground roles in named stakeholders and WBS owners from the brief; do not invent generic columns.",
+            "Include at least one row per major WBS deliverable or work stream.",
         ],
         "example_rows": example_rows,
     }
@@ -431,7 +369,10 @@ def extract_status_report_spec(docx_path: Path) -> dict[str, Any]:
         headers = [cell.text.strip() for cell in table.rows[0].cells]
         field_map = {
             "Milestone": ("name", "Milestone name aligned to WBS"),
-            "Target date": ("target_date", "Planned completion date"),
+            "Target date": (
+                "target_date",
+                "Planned completion date derived from the WBS schedule (required on every milestone — avoid TBD unless the brief gives no timeline at all)",
+            ),
             "Actual date": ("actual_date", "Actual completion date when known"),
         }
         for header in headers:
@@ -481,31 +422,14 @@ def extract_status_report_spec(docx_path: Path) -> dict[str, Any]:
             "new_initiatives, blockers, risks, milestones, supporting_links.",
             "new_initiatives, blockers, risks, and supporting_links are arrays of strings.",
             "Each milestone object: name, target_date, actual_date (optional), owner_side, status.",
-            "owner_side must be Client, Consultant, or Joint.",
+            "owner_side must be Client, Consultant, or Joint (accountable party for the milestone).",
             "Risks and blockers must trace to RAID; milestones must align with WBS.",
+            "Build the milestone table from WBS level-1 phases and key level-2 deliverables so the delivery plan is clear at a glance.",
+            "Every milestone must have a concrete target_date. Roll up WBS estimated_duration and dependencies into a coherent timeline; minimize TBD dates.",
+            "Infer target dates from brief milestones, phase durations, and WBS sequencing when explicit dates are not stated — use relative week/month offsets rather than leaving dates blank.",
         ],
         "example_milestones": example_milestones,
     }
-
-
-def _infer_organization_side(row_data: dict[str, str]) -> str:
-    text = " ".join(
-        row_data.get(header, "")
-        for header in ("Stakeholder", "Department/Group", "Role in Project")
-    ).lower()
-    if "client" in text or "end user" in text or "evaluator" in text:
-        return "Client"
-    if (
-        "deloitte" in text
-        or "consulting" in text
-        or "student team" in text
-        or "technical team" in text
-        or "quality assurance" in text
-    ):
-        return "Consultant"
-    if "academic" in text or "instructor" in text or "ta" in text:
-        return "Other"
-    return "Joint"
 
 
 def _find_row_with_label(ws: object, label: str, *, max_row: int) -> int:

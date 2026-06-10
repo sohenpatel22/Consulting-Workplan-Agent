@@ -139,6 +139,55 @@ body {
   margin-bottom: 0.5rem;
 }
 
+.confirm-brief-quotes {
+  margin: 0 0 0.65rem;
+  padding: 0.55rem 0.7rem;
+  border-left: 3px solid var(--accent, #4a7fd7);
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent, #4a7fd7) 12%);
+  border-radius: 0 6px 6px 0;
+}
+
+.confirm-quotes-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.confirm-quote-list {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.confirm-quote-list li + li {
+  margin-top: 0.35rem;
+}
+
+.confirm-derivation-rationale {
+  margin: 0.55rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.confirm-rationale-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+
 .confirm-choices {
   margin-bottom: 0.5rem;
 }
@@ -601,6 +650,28 @@ textarea {
 
 .artifact-preview tr:nth-child(even) td {
   background: #f0f3f8;
+}
+
+.artifact-preview .confirmed-legend {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0.35rem 0 1rem;
+}
+
+.artifact-preview tr.from-confirmed td:last-child {
+  position: relative;
+}
+
+.artifact-preview tr.from-confirmed td:last-child::after {
+  content: "*";
+  position: absolute;
+  top: 0.15rem;
+  right: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent, #4a7fd7);
+  line-height: 1;
+  pointer-events: none;
 }
 
 .artifact-preview p {
