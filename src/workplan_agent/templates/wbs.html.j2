@@ -4,17 +4,10 @@
 {% if has_confirmed_items %}
 <p class="confirmed-legend"><em>* Items marked with * were shaped by confirmed planner questions before build.</em></p>
 {% endif %}
-<h2>Phases (level 1)</h2>
-<ul>
-{% for wp in wbs.work_packages if wp.level == 1 %}
-  <li>{{ wp.wbs_code }} — {{ wp.wbs_element_title }}</li>
-{% endfor %}
-</ul>
 <h2>Work packages</h2>
 <table>
   <thead>
     <tr>
-      <th>Level</th>
       <th>WBS Code</th>
       <th>WBS Element Title</th>
       <th>Description / Scope of Work</th>
@@ -27,7 +20,6 @@
   <tbody>
   {% for wp in wbs.work_packages %}
     <tr{% if wp.from_confirmed_answer %} class="from-confirmed"{% endif %}>
-      <td>{{ wp.level | cell }}</td>
       <td>{{ wp.wbs_code | cell }}</td>
       <td>{{ wp.wbs_element_title | cell }}</td>
       <td>{{ wp.description_scope | cell('not detailed at sign-off') }}</td>

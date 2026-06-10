@@ -3,12 +3,6 @@
   "summary": "Work packages must follow the Deloitte WBS table: a 3-level hierarchy (levels 1–3) with codes like 1.0, 1.1, 1.1.1. Each row is one element.",
   "columns": [
     {
-      "header": "Level",
-      "field": "level",
-      "type": "integer",
-      "description": "1=phase, 2=work stream, 3=task"
-    },
-    {
       "header": "WBS Code",
       "field": "wbs_code",
       "type": "string",
