@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 
 class QualityGateItem(BaseModel):
-    category: str = Field(description="Category of check: WBS, RAID, Stakeholder, or Status")
+    category: str = Field(description="Category of check: WBS, RAID, RACI, or Status")
     title: str = Field(description="Short title of the quality check")
     description: str = Field(description="Detailed instruction on what to verify")
     passed: bool = Field(default=False, description="Whether the automated check passed")
