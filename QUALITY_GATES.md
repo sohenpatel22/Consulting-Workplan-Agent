@@ -25,16 +25,12 @@ The following checklists must be reviewed and signed off by an Engagement Manage
 * [ ] **Owner Assignment**: Verify that all Risks, Actions, and Issues have an active owner assigned (rather than being unassigned or marked as "TBD").
 * [ ] **Mitigation Actionability**: Ensure risk mitigations are specific, actionable steps (e.g. "Pre-book workshops") rather than generic advice (e.g. "Manage stakeholder closely").
 
-### 📋 C. Stakeholder Map Quality Gate
+### 📋 C. RACI Matrix Quality Gate
 > [!TIP]
-> Use the Influence/Interest matrix to validate the engagement strategies.
-* [ ] **Influence/Interest Mapping**: Check if key decision-makers (e.g. CIO, CMO) are marked as High Influence / High Interest.
-* [ ] **Strategy Suitability**: Confirm that engagement strategies align with the power/influence levels:
-  * High Power, High Interest $\rightarrow$ **Manage Closely**
-  * High Power, Low Interest $\rightarrow$ **Keep Satisfied**
-  * Low Power, High Interest $\rightarrow$ **Keep Informed**
-  * Low Power, Low Interest $\rightarrow$ **Monitor**
-* [ ] **Communication Completeness**: Ensure a channel and frequency (e.g., Weekly, Bi-weekly) are defined for all key stakeholders.
+> Ensure the RACI is accurately generated based on WBS task owners.
+* [ ] **Accountability Coverage**: Verify each deliverable/activity has exactly one Accountable (A) role.
+* [ ] **RACI Task Coverage**: Verify each level-2 and level-3 WBS work package is represented as a task in the RACI matrix.
+* [ ] **RACI Role Alignment**: Verify WBS task owners align with Responsible (R) or Accountable (A) roles in the RACI matrix.
 
 ### 📋 D. Weekly Status Report Quality Gate
 * [ ] **RAG Status Justification**: Confirm the overall project RAG status (Green, Amber, Red) matches the risk log (e.g. Red if a critical high-probability risk is unmitigated).
@@ -53,7 +49,7 @@ Below is a diagnostic guide of potential agent failure modes, how they manifest,
 | **FM-2** | Orphaned RAID Mappings | Risks have empty `wbs_links` or link to non-existent packages. | **Automated Validation**: Validator checks all link mappings against WBS keys. |
 | **FM-3** | Duration Overrun | Sum of phase durations exceeds the client's hard timeline constraint. | **Prompt Instruction**: Injected constraints from parsed brief enforce duration ceilings. |
 | **FM-4** | Misaligned RAG Status | Overall project status is marked "Green" despite critical open Issues. | **Agent Revision**: Revision loop allows correcting RAG status via specific reviewer feedback. |
-| **FM-5** | Stakeholder Omission | CMO or key project sponsor mentioned in brief is omitted from the stakeholder map. | **Prompt Gate**: Cross-check mapped stakeholders against the parsed brief stakeholder collection. |
+| **FM-5** | RACI Role/Task Misalignment | A WBS owner is not assigned as Responsible/Accountable in RACI, or a WBS task is missing from RACI. | **Automated Validation**: Validator checks RACI task coverage and owner alignment against WBS. |
 
 ---
 

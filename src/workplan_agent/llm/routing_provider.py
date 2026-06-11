@@ -6,17 +6,21 @@ from workplan_agent.config import get_settings
 from workplan_agent.llm.anthropic_provider import AnthropicProvider
 from workplan_agent.llm.base import LLMMessage
 from workplan_agent.llm.openai_provider import OpenAIProvider
+from workplan_agent.llm.gemini_provider import GeminiProvider
+from workplan_agent.llm.deepseek_provider import DeepseekProvider
 
 T = TypeVar("T", bound=BaseModel)
 
 
 class RoutingLLMProvider:
-    """Routes each call to OpenAI or Anthropic based on the configured model."""
+    """Routes each call to OpenAI, Anthropic, Gemini, or Deepseek based on the configured model."""
 
     def __init__(self) -> None:
         self._settings = get_settings()
         self._openai: OpenAIProvider | None = None
         self._anthropic: AnthropicProvider | None = None
+        self._gemini: GeminiProvider | None = None
+        self._deepseek: DeepseekProvider | None = None
 
     def _openai_provider(self) -> OpenAIProvider:
         if self._openai is None:
@@ -27,6 +31,16 @@ class RoutingLLMProvider:
         if self._anthropic is None:
             self._anthropic = AnthropicProvider()
         return self._anthropic
+
+    def _gemini_provider(self) -> GeminiProvider:
+        if self._gemini is None:
+            self._gemini = GeminiProvider()
+        return self._gemini
+
+    def _deepseek_provider(self) -> DeepseekProvider:
+        if self._deepseek is None:
+            self._deepseek = DeepseekProvider()
+        return self._deepseek
 
     def warm_prompt_cache(self) -> None:
         if not self._settings.enable_prompt_cache:
@@ -63,4 +77,8 @@ class RoutingLLMProvider:
         model = self._settings.resolve_model()
         if self._settings.is_anthropic_model(model):
             return self._anthropic_provider().call_structured(messages, response_model)
+        if self._settings.is_gemini_model(model):
+            return self._gemini_provider().call_structured(messages, response_model)
+        if self._settings.is_deepseek_model(model):
+            return self._deepseek_provider().call_structured(messages, response_model)
         return self._openai_provider().call_structured(messages, response_model)

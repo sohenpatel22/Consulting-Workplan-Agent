@@ -146,6 +146,8 @@ def render_status_html(status_report: WeeklyStatusReport, parsed_brief: ParsedBr
 
 
 def generate_quality_gates(session: WorkplanSession) -> QualityGates:
+    from workplan_agent.artifact_links import validate_owner_alignment
+
     items = []
     
     # --- WBS Checks ---
@@ -174,8 +176,71 @@ def generate_quality_gates(session: WorkplanSession) -> QualityGates:
         message=wbs_code_msg,
         manual=False
     ))
+
+    # 2. WBS Deliverable Completeness
+    deliverables_ok = True
+    deliverables_msg = "All leaf work packages define a key deliverable."
+    if session.wbs:
+        parent_codes = {wp.parent_wbs_code for wp in session.wbs.work_packages if wp.parent_wbs_code}
+        leaf_packages = [wp for wp in session.wbs.work_packages if wp.wbs_code not in parent_codes]
+        missing = [wp.wbs_code for wp in leaf_packages if not wp.key_deliverable or not wp.key_deliverable.strip()]
+        if missing:
+            deliverables_ok = False
+            deliverables_msg = f"Leaf packages missing key deliverables: {', '.join(missing)}"
+    else:
+        deliverables_ok = False
+        deliverables_msg = "WBS not generated."
+
+    items.append(QualityGateItem(
+        category="WBS",
+        title="Deliverable Completeness",
+        description="Confirm that every leaf work package specifies concrete, checkable deliverables rather than vague activities.",
+        passed=deliverables_ok,
+        message=deliverables_msg,
+        manual=False
+    ))
+
+    # 3. WBS Dependency Alignment
+    dependency_ok = True
+    dependency_msg = "No dependency loops detected in WBS packages."
+    if session.wbs:
+        adj = {wp.wbs_code: wp.dependencies for wp in session.wbs.work_packages}
+        visited = {}
+        def has_cycle(u):
+            visited[u] = 1
+            for v in adj.get(u, []):
+                if v not in visited:
+                    visited[v] = 0
+                if visited[v] == 1:
+                    return True
+                if visited[v] == 0:
+                    if has_cycle(v):
+                        return True
+            visited[u] = 2
+            return False
+        
+        for code in adj:
+            visited[code] = 0
+        for code in adj:
+            if visited[code] == 0:
+                if has_cycle(code):
+                    dependency_ok = False
+                    dependency_msg = "Dependency loop detected in WBS packages."
+                    break
+    else:
+        dependency_ok = False
+        dependency_msg = "WBS not generated."
+
+    items.append(QualityGateItem(
+        category="WBS",
+        title="Dependency Alignment",
+        description="Ensure that dependencies do not create logical loops and correspond to the project timeline.",
+        passed=dependency_ok,
+        message=dependency_msg,
+        manual=False
+    ))
     
-    # 2. Resource/Owner Roles
+    # 4. Resource/Owner Roles
     owners_ok = True
     owner_msg = "All work packages have assigned owners."
     if session.wbs:
@@ -196,7 +261,7 @@ def generate_quality_gates(session: WorkplanSession) -> QualityGates:
         manual=True
     ))
 
-    # 3. Duration Realism
+    # 5. Duration Realism
     items.append(QualityGateItem(
         category="WBS",
         title="Duration Realism",
@@ -207,16 +272,20 @@ def generate_quality_gates(session: WorkplanSession) -> QualityGates:
     ))
 
     # --- RAID Checks ---
-    # 4. RAID risk links to WBS
+    # 6. RAID risk & action links to WBS
     raid_links_ok = True
-    raid_link_msg = "All RAID risks map to valid WBS codes."
+    raid_link_msg = "All RAID risks and actions map to valid WBS codes."
     if session.raid and session.wbs:
         wbs_codes = {wp.wbs_code for wp in session.wbs.work_packages}
         invalid_links = []
         for risk in session.raid.risks:
             for link in (risk.wbs_links or []):
                 if link not in wbs_codes:
-                    invalid_links.append(f"{risk.id} links to invalid WBS {link}")
+                    invalid_links.append(f"Risk {risk.id} -> {link}")
+        for action in session.raid.actions:
+            for link in (action.wbs_links or []):
+                if link not in wbs_codes:
+                    invalid_links.append(f"Action {action.id} -> {link}")
         if invalid_links:
             raid_links_ok = False
             raid_link_msg = f"Invalid links found: {', '.join(invalid_links)}"
@@ -227,13 +296,46 @@ def generate_quality_gates(session: WorkplanSession) -> QualityGates:
     items.append(QualityGateItem(
         category="RAID",
         title="WBS Link Mapping",
-        description="Verify every Risk entry maps to one or more valid WBS codes.",
+        description="Verify every Risk and Action entry maps to one or more valid WBS codes.",
         passed=raid_links_ok,
         message=raid_link_msg,
         manual=False
     ))
 
-    # 5. Risk vs Issue classification
+    # 7. RAID Owner Assignment
+    raid_owners_ok = True
+    raid_owners_msg = "All RAID entries have a valid owner assigned."
+    if session.raid:
+        missing = []
+        for entry in session.raid.risks:
+            if not entry.owner or entry.owner.strip().upper() in ("TBD", "UNASSIGNED", ""):
+                missing.append(f"Risk {entry.id}")
+        for entry in session.raid.actions:
+            if not entry.owner or entry.owner.strip().upper() in ("TBD", "UNASSIGNED", ""):
+                missing.append(f"Action {entry.id}")
+        for entry in session.raid.issues:
+            if not entry.owner or entry.owner.strip().upper() in ("TBD", "UNASSIGNED", ""):
+                missing.append(f"Issue {entry.id}")
+        for entry in session.raid.decisions:
+            if not entry.owner or entry.owner.strip().upper() in ("TBD", "UNASSIGNED", ""):
+                missing.append(f"Decision {entry.id}")
+        if missing:
+            raid_owners_ok = False
+            raid_owners_msg = f"RAID entries missing owners: {', '.join(missing)}"
+    else:
+        raid_owners_ok = False
+        raid_owners_msg = "RAID log not generated."
+
+    items.append(QualityGateItem(
+        category="RAID",
+        title="Owner Assignment",
+        description="Verify that all Risks, Actions, Issues, and Decisions have a valid owner assigned.",
+        passed=raid_owners_ok,
+        message=raid_owners_msg,
+        manual=False
+    ))
+
+    # 8. Risk vs Issue classification
     items.append(QualityGateItem(
         category="RAID",
         title="Risk vs Issue Classification",
@@ -244,6 +346,7 @@ def generate_quality_gates(session: WorkplanSession) -> QualityGates:
     ))
 
     # --- RACI Checks ---
+    # 9. Accountability Coverage
     raci_ok = True
     raci_msg = "Each activity has exactly one Accountable (A) assignment."
     if session.raci_matrix:
@@ -278,8 +381,60 @@ def generate_quality_gates(session: WorkplanSession) -> QualityGates:
         manual=False
     ))
 
+    # 10. RACI Task Coverage
+    raci_coverage_ok = True
+    raci_coverage_msg = "All level-2 and level-3 WBS packages are represented in the RACI matrix."
+    if session.wbs and session.raci_matrix:
+        raci_codes = {row.wbs_code for row in session.raci_matrix.rows if row.wbs_code}
+        missing_packages = []
+        for wp in session.wbs.work_packages:
+            if wp.level in (2, 3) and wp.wbs_code not in raci_codes:
+                missing_packages.append(wp.wbs_code)
+        if missing_packages:
+            raci_coverage_ok = False
+            raci_coverage_msg = f"WBS packages missing from RACI: {', '.join(missing_packages)}"
+    elif not session.wbs:
+        raci_coverage_ok = False
+        raci_coverage_msg = "WBS not generated."
+    else:
+        raci_coverage_ok = False
+        raci_coverage_msg = "RACI matrix not generated."
+
+    items.append(QualityGateItem(
+        category="RACI",
+        title="RACI Task Coverage",
+        description="Verify each level-2 and level-3 WBS work package is represented as a task in the RACI matrix.",
+        passed=raci_coverage_ok,
+        message=raci_coverage_msg,
+        manual=False
+    ))
+
+    # 11. RACI Role Alignment
+    raci_align_ok = True
+    raci_align_msg = "WBS owners align with RACI assignments."
+    if session.wbs and session.raci_matrix:
+        issues = validate_owner_alignment(session.wbs, session.raci_matrix)
+        if issues:
+            raci_align_ok = False
+            raci_align_msg = f"Owner misalignments: {', '.join(issues)}"
+    elif not session.wbs:
+        raci_align_ok = False
+        raci_align_msg = "WBS not generated."
+    else:
+        raci_align_ok = False
+        raci_align_msg = "RACI matrix not generated."
+
+    items.append(QualityGateItem(
+        category="RACI",
+        title="RACI Role Alignment",
+        description="Verify WBS task owners align with Responsible (R) or Accountable (A) roles in the RACI matrix.",
+        passed=raci_align_ok,
+        message=raci_align_msg,
+        manual=False
+    ))
+
     # --- Status Checks ---
-    # 7. Milestone Synchronization
+    # 12. Milestone Synchronization
     milestones_ok = True
     milestones_msg = "Status report milestones are synchronized with timeline objectives."
     if session.status_report and session.parsed_brief:
@@ -302,7 +457,7 @@ def generate_quality_gates(session: WorkplanSession) -> QualityGates:
         manual=False
     ))
 
-    # 8. RAG Justification
+    # 13. RAG Status Justification
     items.append(QualityGateItem(
         category="Status",
         title="RAG Status Justification",

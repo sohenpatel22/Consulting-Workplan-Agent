@@ -12,6 +12,8 @@ class Settings(BaseSettings):
 
     openai_api_key: str = ""
     anthropic_api_key: str = ""
+    gemini_api_key: str = ""
+    deepseek_api_key: str = ""
 
     # Primary model for all agents (highest-accuracy defaults).
     model: str = "claude-sonnet-4-6"
@@ -28,8 +30,14 @@ class Settings(BaseSettings):
     def is_anthropic_model(self, model: str) -> bool:
         return model.startswith("claude")
 
+    def is_gemini_model(self, model: str) -> bool:
+        return model.startswith("gemini")
+
+    def is_deepseek_model(self, model: str) -> bool:
+        return model.startswith("deepseek")
+
     def has_api_keys(self) -> bool:
-        return bool(self.openai_api_key or self.anthropic_api_key)
+        return bool(self.openai_api_key or self.anthropic_api_key or self.gemini_api_key or self.deepseek_api_key)
 
     def llm_status(self) -> dict[str, str | bool]:
         """Resolved backend model for display and health checks."""
@@ -41,7 +49,14 @@ class Settings(BaseSettings):
                 "ready": False,
             }
         model = self.resolve_model()
-        provider = "anthropic" if self.is_anthropic_model(model) else "openai"
+        if self.is_anthropic_model(model):
+            provider = "anthropic"
+        elif self.is_gemini_model(model):
+            provider = "gemini"
+        elif self.is_deepseek_model(model):
+            provider = "deepseek"
+        else:
+            provider = "openai"
         return {
             "configured_model": self.model,
             "model": model,
@@ -51,6 +66,64 @@ class Settings(BaseSettings):
 
     def resolve_model(self) -> str:
         model = self.model
+        if self.is_deepseek_model(model):
+            if self.deepseek_api_key:
+                return model
+            if self.openai_api_key:
+                warnings.warn(
+                    f"Model '{model}' requires DEEPSEEK_API_KEY. "
+                    f"Falling back to {self.fallback_model}.",
+                    stacklevel=2,
+                )
+                return self.fallback_model
+            if self.anthropic_api_key:
+                warnings.warn(
+                    f"Model '{model}' requires DEEPSEEK_API_KEY. "
+                    "Falling back to claude-sonnet-4-6.",
+                    stacklevel=2,
+                )
+                return "claude-sonnet-4-6"
+            if self.gemini_api_key:
+                warnings.warn(
+                    f"Model '{model}' requires DEEPSEEK_API_KEY. "
+                    "Falling back to gemini-1.5-pro.",
+                    stacklevel=2,
+                )
+                return "gemini-1.5-pro"
+            raise ValueError(
+                f"Model '{model}' requires DEEPSEEK_API_KEY. "
+                "Set DEEPSEEK_API_KEY or override MODEL."
+            )
+
+        if self.is_gemini_model(model):
+            if self.gemini_api_key:
+                return model
+            if self.openai_api_key:
+                warnings.warn(
+                    f"Model '{model}' requires GEMINI_API_KEY. "
+                    f"Falling back to {self.fallback_model}.",
+                    stacklevel=2,
+                )
+                return self.fallback_model
+            if self.anthropic_api_key:
+                warnings.warn(
+                    f"Model '{model}' requires GEMINI_API_KEY. "
+                    "Falling back to claude-sonnet-4-6.",
+                    stacklevel=2,
+                )
+                return "claude-sonnet-4-6"
+            if self.deepseek_api_key:
+                warnings.warn(
+                    f"Model '{model}' requires GEMINI_API_KEY. "
+                    "Falling back to deepseek-chat.",
+                    stacklevel=2,
+                )
+                return "deepseek-chat"
+            raise ValueError(
+                f"Model '{model}' requires GEMINI_API_KEY. "
+                "Set GEMINI_API_KEY or override MODEL."
+            )
+
         if self.is_anthropic_model(model):
             if self.anthropic_api_key:
                 return model
@@ -61,9 +134,23 @@ class Settings(BaseSettings):
                     stacklevel=2,
                 )
                 return self.fallback_model
+            if self.gemini_api_key:
+                warnings.warn(
+                    f"Model '{model}' requires ANTHROPIC_API_KEY. "
+                    "Falling back to gemini-1.5-pro.",
+                    stacklevel=2,
+                )
+                return "gemini-1.5-pro"
+            if self.deepseek_api_key:
+                warnings.warn(
+                    f"Model '{model}' requires ANTHROPIC_API_KEY. "
+                    "Falling back to deepseek-chat.",
+                    stacklevel=2,
+                )
+                return "deepseek-chat"
             raise ValueError(
                 f"Model '{model}' requires ANTHROPIC_API_KEY. "
-                "Set ANTHROPIC_API_KEY or override MODEL to an OpenAI model."
+                "Set ANTHROPIC_API_KEY or override MODEL to an OpenAI/Gemini/Deepseek model."
             )
 
         if self.openai_api_key:
@@ -79,9 +166,21 @@ class Settings(BaseSettings):
                 stacklevel=2,
             )
             return anthropic_model
+        if self.gemini_api_key:
+            warnings.warn(
+                f"Model '{model}' requires OPENAI_API_KEY. Using gemini-1.5-pro instead.",
+                stacklevel=2,
+            )
+            return "gemini-1.5-pro"
+        if self.deepseek_api_key:
+            warnings.warn(
+                f"Model '{model}' requires OPENAI_API_KEY. Using deepseek-chat instead.",
+                stacklevel=2,
+            )
+            return "deepseek-chat"
         raise ValueError(
             f"Model '{model}' requires OPENAI_API_KEY. "
-            "Set OPENAI_API_KEY or override MODEL to a Claude model."
+            "Set OPENAI_API_KEY or override MODEL to a Claude/Gemini/Deepseek model."
         )
 
 

@@ -9,9 +9,9 @@ def get_provider(use_mock: bool = False) -> LLMProvider:
         return MockLLMProvider()
 
     settings = get_settings()
-    if not settings.openai_api_key and not settings.anthropic_api_key:
+    if not settings.openai_api_key and not settings.anthropic_api_key and not settings.gemini_api_key and not settings.deepseek_api_key:
         raise ValueError(
-            "No API keys configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY, "
+            "No API keys configured. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, or DEEPSEEK_API_KEY, "
             "or use --mock for offline demo."
         )
     return RoutingLLMProvider()
